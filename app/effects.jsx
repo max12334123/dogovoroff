@@ -76,5 +76,5 @@ export default function Effects(){
     para();
     return()=>{cancelAnimationFrame(raf);cancelAnimationFrame(pr);removeEventListener("click",onClick);removeEventListener("scroll",para);lenis.destroy();};
   },[]);
-  return<><style>{CSS}</style><Cursor/></>;
+  return<><style dangerouslySetInnerHTML={{__html:CSS}}/><Cursor/></>;
 }
