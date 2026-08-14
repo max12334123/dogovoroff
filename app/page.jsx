@@ -1,14 +1,13 @@
 "use client";
 /* ============================================================
-   «ДоговорОфф» — премиальный сайт на React + Framer Motion.
-   Next.js (App Router): сохраните как app/page.jsx.
-   Vite/CRA: используйте как App.jsx.
-   Заявки приходят на dogovor.off@mail.ru через Web3Forms.
+   «ДоговорОфф» — React + Framer Motion. Премиум, северный характер.
+   Next.js: app/page.jsx · Vite/CRA: App.jsx
+   Заявки: dogovor.off@mail.ru (Web3Forms)
    ============================================================ */
 import React, { useState, useEffect, useRef } from "react";
 import {
   motion, AnimatePresence, useScroll, useSpring, useTransform,
-  useMotionValue, useMotionValueEvent, useInView
+  useMotionValue, useMotionValueEvent, useInView, animate
 } from "framer-motion";
 
 const CONFIG = {
@@ -20,7 +19,8 @@ const CONFIG = {
   telegram: "https://t.me/dogovor_off",
   whatsapp: "https://wa.me/73466000000",
   address: "г. Нижневартовск, ул. Ленина, 6, офис 402",
-  hours: "Пн–Пт 09:00–19:00 · заявки — 24/7"
+  hours: "Пн–Пт 09:00–19:00 · заявки — 24/7",
+  geo: "61°32′ N — 76°58′ E"
 };
 
 const EASE = [0.2, 0.7, 0.3, 1];
@@ -38,7 +38,7 @@ const CSS = `
 :root{
   --bg:#f6f4ef; --bg2:#fbfaf7; --card:#ffffff;
   --ink:#121212; --gray:#6e6a63; --dgray:#9a968e;
-  --line:rgba(18,18,18,.14); --soft:rgba(18,18,18,.05);
+  --line:rgba(18,18,18,.14); --ice:#7fa8ba; --ice2:#9dc3d2;
   --err:#c2543f; --shadow:0 24px 60px rgba(18,18,18,.1);
 }
 *{box-sizing:border-box;margin:0;padding:0}
@@ -52,16 +52,16 @@ img{display:block}a{color:inherit}button{font-family:inherit}
 .k{display:inline-flex;align-items:center;gap:12px;font:700 11px 'Manrope';letter-spacing:.3em;text-transform:uppercase;color:var(--ink)}
 .k::before{content:"";width:34px;height:1px;background:var(--ink)}
 h1,h2,h3{font-family:'Cormorant Garamond',serif;font-weight:500;line-height:1.05;color:var(--ink)}
-h1{font-size:clamp(44px,6.4vw,92px);letter-spacing:-.01em}
+h1{font-size:clamp(42px,6.4vw,92px);letter-spacing:-.01em}
 h1 em{font-style:italic;color:var(--gray)}
-h2{font-size:clamp(32px,4.2vw,56px)}
+h2{font-size:clamp(30px,4.2vw,56px)}
 .lead{color:var(--gray);font-size:clamp(16px,1.4vw,18px);line-height:1.75;max-width:580px}
 .sec{padding:110px 0}
 .shead{display:flex;align-items:flex-end;justify-content:space-between;gap:28px;margin-bottom:56px;flex-wrap:wrap}
 .shead h2{margin-top:16px}
 .shead p{color:var(--gray);max-width:480px;font-size:15px;line-height:1.75}
 .progress{position:fixed;top:0;left:0;right:0;height:2px;background:var(--ink);transform-origin:left center;z-index:70}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;font:700 12px 'Manrope';letter-spacing:.16em;text-transform:uppercase;padding:18px 30px;border:1px solid var(--ink);cursor:pointer;text-decoration:none;position:relative;overflow:hidden;background:transparent;color:var(--ink);transition:color .35s,box-shadow .35s;isolation:isolate;-webkit-tap-highlight-color:transparent}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;font:700 12px 'Manrope';letter-spacing:.16em;text-transform:uppercase;padding:18px 30px;border:1px solid var(--ink);cursor:pointer;text-decoration:none;position:relative;overflow:hidden;background:transparent;color:var(--ink);transition:color .35s,box-shadow .35s;isolation:isolate;-webkit-tap-highlight-color:transparent;white-space:nowrap}
 .btn::before{content:"";position:absolute;inset:0;background:var(--ink);transform:scaleX(0);transform-origin:left center;transition:transform .5s cubic-bezier(.7,0,.2,1);z-index:-1}
 .btn:hover{color:var(--bg);box-shadow:0 16px 34px rgba(18,18,18,.18)}
 .btn:hover::before{transform:scaleX(1)}
@@ -74,7 +74,7 @@ h2{font-size:clamp(32px,4.2vw,56px)}
 #hd{position:fixed;top:0;left:0;right:0;z-index:50;transition:background .4s,border-color .4s,box-shadow .4s;border-bottom:1px solid transparent}
 #hd.scrolled{background:rgba(246,244,239,.9);backdrop-filter:blur(16px);border-color:var(--line);box-shadow:0 10px 30px rgba(18,18,18,.05)}
 .hwrap{width:min(1320px,94%);margin:0 auto;height:82px;display:flex;align-items:center;justify-content:space-between;gap:16px}
-.brand{display:flex;align-items:center;gap:14px;text-decoration:none;flex:0 0 auto}
+.brand{display:flex;align-items:center;gap:14px;text-decoration:none;flex:0 0 auto;min-width:0}
 .lmark{width:36px;height:43px;color:var(--ink);flex:0 0 auto;transition:transform .4s cubic-bezier(.2,.7,.3,1)}
 .brand:hover .lmark{transform:translateY(-2px) rotate(-2deg)}
 .bname{font-family:'Cormorant Garamond';font-weight:600;font-size:21px;letter-spacing:.04em;line-height:1.1;display:flex;flex-direction:column;color:var(--ink)}
@@ -93,18 +93,27 @@ h2{font-size:clamp(32px,4.2vw,56px)}
 .burger span:nth-child(1){top:16px}.burger span:nth-child(2){top:24px}
 .burger.open span:nth-child(1){top:20px;transform:rotate(45deg)}
 .burger.open span:nth-child(2){top:20px;transform:rotate(-45deg)}
-.mnav{position:fixed;inset:0;background:rgba(246,244,239,.98);backdrop-filter:blur(10px);z-index:49;display:flex;flex-direction:column;justify-content:center;padding:100px 8% 60px;gap:8px}
-.mnav a{font-family:'Cormorant Garamond';font-size:34px;color:var(--ink);text-decoration:none;padding:8px 0;border-bottom:1px solid var(--line);transition:padding-left .3s,color .3s}
+.mnav{position:fixed;inset:0;background:rgba(246,244,239,.98);backdrop-filter:blur(10px);z-index:49;display:flex;flex-direction:column;justify-content:center;padding:90px 8% 50px;gap:6px;overflow-y:auto}
+.mnav a{font-family:'Cormorant Garamond';font-size:30px;color:var(--ink);text-decoration:none;padding:8px 0;border-bottom:1px solid var(--line);transition:padding-left .3s,color .3s}
 .mnav a:hover{color:var(--gray);padding-left:10px}
-.mnav .mphone{font:600 15px 'Manrope';border:none;margin-top:16px}
-.hero{padding:175px 0 90px;position:relative}
-.hgrid{display:grid;grid-template-columns:1.15fr .85fr;gap:70px;align-items:center}
+.mnav .mphone{font:600 15px 'Manrope';border:none;margin-top:14px}
+/* ---------- hero + север ---------- */
+.hero{padding:175px 0 110px;position:relative;overflow:hidden}
+.aurora{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.aurora span{position:absolute;border-radius:50%;filter:blur(70px)}
+.a1{width:560px;height:560px;left:-160px;top:-180px;background:radial-gradient(circle at 30% 30%,rgba(157,195,210,.5),transparent 70%)}
+.a2{width:680px;height:680px;right:-240px;top:-140px;background:radial-gradient(circle at 60% 40%,rgba(146,180,166,.38),transparent 70%)}
+.a3{width:480px;height:480px;left:28%;top:44%;background:radial-gradient(circle at 50% 50%,rgba(157,195,210,.3),transparent 70%)}
+.contours{position:absolute;left:0;right:0;bottom:-8px;opacity:.5;pointer-events:none}
+.hgrid{display:grid;grid-template-columns:1.15fr .85fr;gap:70px;align-items:center;position:relative;z-index:1}
 .hleft h1{margin:26px 0 24px}
 .hcta{display:flex;gap:16px;margin-top:38px;flex-wrap:wrap}
-.hstats{display:flex;gap:46px;margin-top:60px;flex-wrap:wrap}
+.hstats{display:flex;gap:46px;margin-top:56px;flex-wrap:wrap}
 .hstats div{border-left:1px solid var(--line);padding-left:20px}
 .hstats b{display:block;font-family:'Cormorant Garamond';font-weight:600;font-size:32px;line-height:1}
 .hstats span{font:600 10.5px 'Manrope';letter-spacing:.2em;text-transform:uppercase;color:var(--gray)}
+.geo{margin-top:34px;font:700 11px 'Manrope';letter-spacing:.3em;text-transform:uppercase;color:var(--gray);display:flex;align-items:center;gap:12px}
+.geo i{font-style:normal;color:var(--ice)}
 .hright{position:relative}
 .hframe{position:relative;z-index:1;overflow:hidden;box-shadow:var(--shadow)}
 .hframe::after{content:"";position:absolute;inset:0;transform:translate(18px,18px);border:1px solid rgba(18,18,18,.5);z-index:-1}
@@ -114,15 +123,25 @@ h2{font-size:clamp(32px,4.2vw,56px)}
 @keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
 .dot{width:8px;height:8px;border-radius:50%;background:var(--ink);box-shadow:0 0 0 0 rgba(18,18,18,.35);animation:pulse 2s infinite}
 @keyframes pulse{70%{box-shadow:0 0 0 10px transparent}100%{box-shadow:0 0 0 0 transparent}}
+.shint{position:absolute;bottom:22px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:8px;color:var(--gray);font:700 9.5px 'Manrope';letter-spacing:.34em;text-transform:uppercase;z-index:1}
+.shint svg{animation:bob 1.7s ease-in-out infinite}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(7px)}}
 .ln{display:block;overflow:hidden;padding-bottom:.08em;margin-bottom:-.08em}
 .ln-i{display:inline-block;will-change:transform}
+/* ---------- маркизы ---------- */
+.outline-mq{padding:26px 0;overflow:hidden;border-bottom:1px solid var(--line)}
+.otrack{display:flex;width:max-content;animation:mq 46s linear infinite}
+.otext{font-family:'Cormorant Garamond';font-weight:600;font-size:clamp(56px,8.6vw,132px);line-height:1;color:transparent;-webkit-text-stroke:1px rgba(18,18,18,.3);white-space:nowrap;padding-right:70px}
+.otext b{color:var(--ink);-webkit-text-stroke:0;font-weight:600}
+.otext i{font-style:normal;color:var(--ice);-webkit-text-stroke:0;font-size:.6em;vertical-align:middle;padding:0 10px}
 .marquee{border-top:1px solid var(--line);border-bottom:1px solid var(--line);overflow:hidden;padding:20px 0;background:var(--bg2)}
 .mtrack{display:flex;width:max-content;animation:mq 32s linear infinite}
 .marquee:hover .mtrack{animation-play-state:paused}
 .mgroup{display:flex;align-items:center;gap:52px;padding-right:52px}
 .mgroup span{font-family:'Cormorant Garamond';font-style:italic;font-size:21px;color:var(--gray);white-space:nowrap}
-.mgroup i{color:var(--ink);font-style:normal;font-size:14px}
+.mgroup i{color:var(--ice);font-style:normal;font-size:14px}
 @keyframes mq{to{transform:translateX(-50%)}}
+/* ---------- сетки ---------- */
 .cgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line)}
 .ccard{background:var(--card);padding:36px 30px;transition:transform .4s cubic-bezier(.2,.7,.3,1),box-shadow .4s;position:relative;overflow:hidden}
 .ccard::after{content:"";position:absolute;top:0;left:0;height:2px;width:0;background:var(--ink);transition:width .45s cubic-bezier(.2,.7,.3,1)}
@@ -150,6 +169,15 @@ h2{font-size:clamp(32px,4.2vw,56px)}
 .slink::after{content:"";position:absolute;left:0;bottom:-5px;width:100%;height:1px;background:var(--ink);transform:scaleX(0);transform-origin:right;transition:transform .35s cubic-bezier(.2,.7,.3,1)}
 .slink:hover{letter-spacing:.22em}
 .slink:hover::after{transform:scaleX(1);transform-origin:left}
+/* ---------- инфографика-цифры ---------- */
+.nums{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line)}
+.num-card{background:var(--card);padding:38px 32px;transition:transform .4s,box-shadow .4s;position:relative;overflow:hidden}
+.num-card:hover{transform:translateY(-4px);box-shadow:var(--shadow);z-index:1}
+.num-card .big{font-family:'Cormorant Garamond';font-weight:600;font-size:clamp(48px,5vw,72px);line-height:1;color:var(--ink)}
+.num-card .big i{font-style:normal;font-size:.45em;color:var(--ice)}
+.num-card small{display:block;margin-top:12px;font:700 10.5px 'Manrope';letter-spacing:.16em;text-transform:uppercase;color:var(--gray);line-height:1.6}
+.num-card::after{content:"❄";position:absolute;right:18px;top:16px;color:var(--ice);opacity:.55;font-size:14px}
+/* ---------- pricing ---------- */
 .pgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;align-items:stretch}
 .pcard{border:1px solid var(--line);background:var(--card);padding:44px 36px;display:flex;flex-direction:column;position:relative;transition:transform .4s cubic-bezier(.2,.7,.3,1),border-color .4s,box-shadow .4s}
 .pcard:hover{transform:translateY(-8px);border-color:var(--ink);box-shadow:var(--shadow)}
@@ -166,6 +194,7 @@ h2{font-size:clamp(32px,4.2vw,56px)}
 .pnote{margin-top:26px;color:var(--gray);font-size:14px;text-align:center}
 .pnote a{color:var(--ink);text-decoration:underline;text-underline-offset:4px;transition:opacity .25s}
 .pnote a:hover{opacity:.65}
+/* ---------- team ---------- */
 .tgrid{display:grid;grid-template-columns:1fr 1fr;gap:22px}
 .tcard{border:1px solid var(--line);background:var(--card);padding:46px 42px;display:flex;flex-direction:column;transition:border-color .4s,transform .4s cubic-bezier(.2,.7,.3,1),box-shadow .4s}
 .tcard:hover{border-color:var(--ink);transform:translateY(-6px);box-shadow:var(--shadow)}
@@ -182,20 +211,23 @@ h2{font-size:clamp(32px,4.2vw,56px)}
 .prins{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);margin-top:22px}
 .prin{background:var(--card);padding:32px 28px;transition:transform .4s,box-shadow .4s}
 .prin:hover{transform:translateY(-4px);box-shadow:var(--shadow);z-index:1}
-.prin .pn2{font-family:'Cormorant Garamond';font-style:italic;font-size:22px;color:var(--gray);margin-bottom:10px}
+.prin .pn2{font-family:'Cormorant Garamond';font-style:italic;font-size:22px;color:var(--ice);margin-bottom:10px}
 .prin h4{font-family:'Cormorant Garamond';font-weight:600;font-size:22px;margin-bottom:8px}
 .prin p{color:var(--gray);font-size:13.5px;line-height:1.7}
-.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:34px}
-.pstep{border-top:1px solid var(--line);padding-top:28px;position:relative}
-.pstep .pline{position:absolute;top:-1px;left:0;height:1px;background:var(--ink);transform-origin:left center}
-.pstep .pn{font-family:'Cormorant Garamond';font-style:italic;font-size:46px;line-height:1;margin-bottom:18px}
+/* ---------- process ---------- */
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:34px;position:relative}
+.pstep{border-top:1px solid var(--line);padding-top:34px;position:relative}
+.pstep .pline{position:absolute;top:-1px;left:0;height:1px;background:var(--ink);transform-origin:left center;width:100%}
+.pstep .pdot{position:absolute;top:-6px;left:-1px;width:11px;height:11px;border-radius:50%;background:var(--ink);box-shadow:0 0 0 4px var(--bg)}
+.pstep .pn{font-family:'Cormorant Garamond';font-style:italic;font-size:46px;line-height:1;margin-bottom:18px;color:var(--ink)}
 .pstep h3{font-size:23px;margin-bottom:10px}
 .pstep p{color:var(--gray);font-size:14px;line-height:1.7}
-.pstep .psub{margin-top:12px;font:700 10.5px 'Manrope';letter-spacing:.18em;text-transform:uppercase}
+.pstep .psub{margin-top:12px;font:700 10.5px 'Manrope';letter-spacing:.18em;text-transform:uppercase;color:var(--ice)}
 .gbar{margin-top:56px;border:1px solid var(--line);background:var(--card);padding:32px 36px;display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;transition:box-shadow .4s,transform .4s}
 .gbar:hover{box-shadow:var(--shadow);transform:translateY(-3px)}
 .gbar b{font-family:'Cormorant Garamond';font-weight:600;font-size:25px}
 .gbar span{color:var(--gray);font-size:14px;max-width:580px}
+/* ---------- faq ---------- */
 .faqwrap{max-width:860px;margin:0 auto}
 .qa{border-bottom:1px solid var(--line)}
 .qa-q{width:100%;display:flex;justify-content:space-between;align-items:center;gap:24px;padding:26px 0;background:none;border:none;color:var(--ink);font:600 18px 'Manrope';cursor:pointer;text-align:left;transition:color .25s,padding-left .3s}
@@ -207,6 +239,7 @@ h2{font-size:clamp(32px,4.2vw,56px)}
 .qa-i::after{left:6px;top:0;width:1.6px;height:14px}
 .qa.open .qa-i::after{transform:scaleY(0)}
 .qa-a p{padding:0 40px 26px 0;color:var(--gray);font-size:15px;line-height:1.8}
+/* ---------- request ---------- */
 #request{background:linear-gradient(180deg,transparent,rgba(18,18,18,.04) 30%,transparent)}
 .rgrid{display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:start}
 .rleft h2{margin:18px 0 20px}
@@ -274,35 +307,65 @@ footer{border-top:1px solid var(--line);padding:70px 0 0;background:var(--bg2)}
 .mcard p{color:var(--gray);font-size:14px;line-height:1.8;margin-bottom:12px}
 .mclose{position:absolute;top:18px;right:18px;width:40px;height:40px;background:none;border:1px solid var(--line);color:var(--ink);cursor:pointer;font-size:16px;transition:.25s}
 .mclose:hover{border-color:var(--ink);background:var(--ink);color:var(--bg);transform:rotate(90deg)}
+/* ---------- адаптив ---------- */
 @media(max-width:1100px){
   .nav{display:none}.burger{display:block}.hphone{display:none}
   .hgrid{grid-template-columns:1fr;gap:60px}
   .hframe img{height:60vh}
-  .cgrid,.sgrid{grid-template-columns:1fr 1fr}
+  .cgrid,.sgrid,.nums{grid-template-columns:1fr 1fr}
   .steps{grid-template-columns:1fr 1fr;gap:40px}
   .rgrid{grid-template-columns:1fr;gap:60px}
   .fgrid{grid-template-columns:1fr 1fr}
 }
 @media(max-width:760px){
-  .sec{padding:80px 0}
-  .hero{padding:130px 0 60px}
-  .hgrid{gap:44px}
-  .hframe img{height:52vh}
-  .cgrid,.sgrid,.pgrid,.tgrid,.prins,.steps{grid-template-columns:1fr}
-  .fcard{padding:34px 22px}
-  .fgrid{grid-template-columns:1fr}
-  .hbadge{left:0;bottom:16px}
-  .hstats{gap:22px}.hstats div{padding-left:14px}
-  .bname{font-size:18px}.lmark{width:30px;height:36px}
-  .hwrap{height:70px}
-  html{scroll-padding-top:84px}
-  .mbar{display:flex}
-  .totop{bottom:auto;top:16px;right:14px;width:44px;height:44px}
+  html{scroll-padding-top:76px}
   body{padding-bottom:76px}
-  .qa-q{font-size:16px;padding:22px 0}
+  .sec{padding:76px 0}
+  .hero{padding:120px 0 80px}
+  .hwrap{height:68px;gap:10px}
+  #hd .btn-sm{display:none}
+  .bname{font-size:17px}
+  .bsub{letter-spacing:.18em}
+  .lmark{width:28px;height:34px}
+  .hgrid{gap:44px}
+  .hframe img{height:50vh}
+  .hbadge{left:0;bottom:14px;padding:10px 14px;font-size:10px}
+  .hcta{flex-direction:column;align-items:stretch;gap:12px}
+  .hcta .btn{width:100%}
+  .btn{padding:16px 20px;font-size:11px;letter-spacing:.12em}
+  .hstats{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .hstats div{border-left:none;padding-left:0;border-top:1px solid var(--line);padding-top:12px}
+  .geo{letter-spacing:.2em;font-size:10px}
+  .shint{display:none}
+  .otext{font-size:56px}
+  .cgrid,.sgrid,.nums,.pgrid,.tgrid,.prins,.steps{grid-template-columns:1fr}
+  .num-card{padding:28px 24px}
+  .num-card .big{font-size:52px}
+  .sfoot{flex-direction:column;align-items:flex-start;gap:12px}
+  .slink{font-size:10px}
+  .price{font-size:13px}
+  .scard{padding:32px 24px}
+  .scard h3{font-size:24px}
+  .tcard{padding:32px 24px}
+  .tcard h3{font-size:26px}
+  .tmono{font-size:44px}
+  .psum{font-size:34px}
+  .ptag{left:24px}
+  .pcard{padding:36px 26px}
   .gbar{padding:26px 22px}
-  .tcard{padding:34px 26px}
-  .scard{padding:32px 26px}
+  .gbar b{font-size:20px}
+  .qa-q{font-size:16px;padding:22px 0;gap:14px}
+  .qa-a p{padding-right:0}
+  .fcard{padding:32px 20px}
+  .frow select{font-size:15px}
+  .rmess{flex-direction:column}
+  .rmess .btn{width:100%}
+  .rcontacts a{font-size:15px;word-break:break-word}
+  .mnav a{font-size:26px}
+  .fgrid{grid-template-columns:1fr;gap:30px}
+  .mbar{display:flex}
+  .totop{bottom:auto;top:14px;right:12px;width:44px;height:44px}
+  .mcard{padding:34px 22px}
 }
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{animation:none!important;transition:none!important}
@@ -310,7 +373,6 @@ footer{border-top:1px solid var(--line);padding:70px 0 0;background:var(--bg2)}
 }
 `;
 
-/* ---------- данные ---------- */
 const CLIENTS = [
   { t: "Малому и среднему бизнесу", d: "Когда штатный юрист не по карману, а вопросы есть каждый день.", l: ["Договоры и претензии", "Взыскание долгов", "Проверки и споры", "Кадровые вопросы"] },
   { t: "Поставщикам в закупках", d: "Участникам тендеров по 44-ФЗ и 223-ФЗ — от заявки до контракта.", l: ["Заявки под ключ", "Жалобы в ФАС", "Защита от РНП", "Споры по контрактам"] },
@@ -324,6 +386,14 @@ const SERVICES = [
   { n: "04", t: "ЖКХ, УК и ТСЖ", d: "Сопровождаем управляющие организации и защищаем их в спорах с жителями и надзором.", l: ["Работа с ГЖИ и муниципалитетом", "Взыскание задолженности", "Споры с собственниками", "Договоры с ресурсоснабжающими организациями"], p: "от 10 000 ₽", svc: "ЖКХ, УК и ТСЖ" },
   { n: "05", t: "Арбитраж и суды", d: "Представляем интересы в арбитражных судах и судах общей юрисдикции.", l: ["Взыскание долгов и убытков", "Оспаривание сделок и решений", "Банкротство кредитора", "Возможна оплата за результат"], p: "от 30 000 ₽", svc: "Арбитраж и суды" },
   { n: "06", t: "Договоры и претензии", d: "Документы, которые работают на вас, а не против вас.", l: ["Разработка и аудит договоров", "Претензионная переписка", "Правовые заключения", "Сопровождение переговоров"], p: "от 3 000 ₽", svc: "Договоры и претензии" }
+];
+const NUMS = [
+  { to: 6, suf: "", txt: "практик права — глубоко и ежедневно" },
+  { to: 2, suf: "", txt: "основателя ведут каждое дело лично" },
+  { to: 100, suf: " %", txt: "стоимость фиксируется в договоре" },
+  { to: 2, suf: " ч", txt: "максимум — ответ на вашу заявку" },
+  { to: 24, suf: "/7", txt: "приём заявок онлайн, без выходных" },
+  { to: 0, suf: " ₽", txt: "первая консультация — бесплатно" }
 ];
 const PLANS = [
   { name: "Старт", desc: "Разовая задача или консультация", sum: "от 3 000 ₽", small: "", hot: false, svc: "Другое / не знаю", l: ["Консультация юриста — 60 минут", "Разовый документ: договор, претензия", "Правовое заключение по вопросу", "Срок выполнения — от 1 рабочего дня", "Оплата по факту согласования объёма"] },
@@ -352,7 +422,6 @@ const FAQ = [
 ];
 const MARQUEE = ["Тендеры и госзакупки", "ФАС", "Арбитраж", "Юраутсорсинг", "ЖКХ и УК", "Договоры", "Претензии", "Банкротство"];
 
-/* ---------- вспомогательные ---------- */
 function Logo({ className }) {
   return (
     <svg className={className} viewBox="0 0 110 130" aria-hidden="true">
@@ -380,6 +449,17 @@ function Reveal({ children, delay = 0, x = 0, scale = 1, className = "", style }
     </motion.div>
   );
 }
+function Counter({ to, suf = "", duration = 1.8 }) {
+  const ref = useRef(null);
+  const inView = useInView(ref, { once: true, margin: "-40px" });
+  const [v, setV] = useState(0);
+  useEffect(() => {
+    if (!inView) return;
+    const c = animate(0, to, { duration, ease: EASE, onUpdate: (x) => setV(Math.round(x)) });
+    return () => c.stop();
+  }, [inView, to]);
+  return <span ref={ref}>{v}<i>{suf}</i></span>;
+}
 function Magnetic({ href, className, children, onClick, type }) {
   const ref = useRef(null);
   const mx = useMotionValue(0), my = useMotionValue(0);
@@ -395,7 +475,7 @@ function Magnetic({ href, className, children, onClick, type }) {
   const Tag = href ? motion.a : motion.button;
   return (
     <Tag ref={ref} href={href} type={type} onClick={onClick} className={className}
-      style={{ x: sx, y: sy }} whileHover={{ y: -2 }} whileTap={{ scale: .96 }}
+      style={{ x: sx, y: sy }} whileTap={{ scale: .96 }}
       onMouseMove={move} onMouseLeave={leave}>
       {children}
     </Tag>
@@ -415,7 +495,6 @@ function maskPhone(raw) {
   return r;
 }
 
-/* ---------- приложение ---------- */
 export default function App() {
   const [scrolled, setScrolled] = useState(false);
   const [showTop, setShowTop] = useState(false);
@@ -474,7 +553,6 @@ export default function App() {
       })
       .finally(() => { setLoading(false); setDone(true); });
   };
-
   const resetForm = () => { setDone(false); setFallbackHref(null); setName(""); setPhone(""); setSvc(""); setMsg(""); setAgree(false); };
 
   return (
@@ -514,6 +592,16 @@ export default function App() {
       <main id="top">
         {/* HERO */}
         <section className="hero" ref={heroRef}>
+          <div className="aurora" aria-hidden="true">
+            <motion.span className="a1" animate={{ x: [0, 60, 0], y: [0, -40, 0] }} transition={{ duration: 14, repeat: Infinity, ease: "easeInOut" }} />
+            <motion.span className="a2" animate={{ x: [0, -70, 0], y: [0, 30, 0] }} transition={{ duration: 16, repeat: Infinity, ease: "easeInOut" }} />
+            <motion.span className="a3" animate={{ x: [0, 40, 0], y: [0, 50, 0] }} transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }} />
+          </div>
+          <svg className="contours" viewBox="0 0 1200 220" preserveAspectRatio="none" aria-hidden="true">
+            <path d="M0 160 C 150 110, 300 200, 460 150 S 760 90, 920 150 S 1120 190, 1200 140" fill="none" stroke="var(--ice)" strokeOpacity=".35" strokeWidth="1"/>
+            <path d="M0 190 C 170 150, 320 220, 500 180 S 800 130, 980 180 S 1140 210, 1200 180" fill="none" stroke="var(--ice)" strokeOpacity=".22" strokeWidth="1"/>
+            <path d="M0 120 C 140 80, 300 160, 470 115 S 780 60, 950 115 S 1130 150, 1200 105" fill="none" stroke="var(--ice)" strokeOpacity=".14" strokeWidth="1"/>
+          </svg>
           <div className="wrap hgrid">
             <div className="hleft">
               <Reveal><span className="k">Юридическая компания · Нижневартовск · ХМАО</span></Reveal>
@@ -521,7 +609,7 @@ export default function App() {
                 <span className="ln"><motion.span className="ln-i" initial={{ y: "112%" }} animate={{ y: 0 }} transition={{ duration: 1, ease: [0.2, 0.7, 0.2, 1], delay: .1 }}>Защищаем бизнес.</motion.span></span>
                 <span className="ln"><motion.span className="ln-i" initial={{ y: "112%" }} animate={{ y: 0 }} transition={{ duration: 1, ease: [0.2, 0.7, 0.2, 1], delay: .26 }}><em>Выигрываем</em> споры.</motion.span></span>
               </h1>
-              <Reveal delay={.35}><p className="lead">«ДоговорОфф» — тендеры и госзакупки, арбитраж, юридический аутсорсинг и сопровождение ЖКХ. Работаем очно в Нижневартовске и онлайн по всей России.</p></Reveal>
+              <Reveal delay={.35}><p className="lead">«ДоговорОфф» — тендеры и госзакупки, арбитраж, юридический аутсорсинг и сопровождение ЖКХ. Северный характер: спокойно, точно, надёжно.</p></Reveal>
               <Reveal delay={.45} className="hcta">
                 <Magnetic href="#request" className="btn btn-g"><span className="btxt">Получить консультацию</span><span className="arr">→</span></Magnetic>
                 <Magnetic href="#services" className="btn"><span className="btxt">Услуги компании</span></Magnetic>
@@ -531,6 +619,7 @@ export default function App() {
                 <div><b>до 2 ч</b><span>ответ на заявку</span></div>
                 <div><b>24/7</b><span>приём заявок онлайн</span></div>
               </Reveal>
+              <Reveal delay={.65}><div className="geo"><i>❄</i>{CONFIG.geo} · Нижневартовск</div></Reveal>
             </div>
             <Reveal delay={.25} scale={.94} className="hright">
               <div className="hframe">
@@ -539,14 +628,18 @@ export default function App() {
               <div className="hbadge"><span className="dot"></span>Приём заявок открыт</div>
             </Reveal>
           </div>
+          <div className="shint" aria-hidden="true">
+            <span>Листайте</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 5v14m0 0l-6-6m6 6l6-6"/></svg>
+          </div>
         </section>
 
-        {/* MARQUEE */}
-        <div className="marquee" aria-hidden="true">
-          <div className="mtrack">
+        {/* OUTLINE MARQUEE */}
+        <div className="outline-mq" aria-hidden="true">
+          <div className="otrack">
             {[0, 1].map((g) => (
-              <div className="mgroup" key={g}>
-                {MARQUEE.map((m) => (<React.Fragment key={m + g}><span>{m}</span><i>✦</i></React.Fragment>))}
+              <div className="otext" key={g}>
+                ДОГОВОР<b>ОФФ</b><i>❄</i>СЕВЕРНЫЙ ХАРАКТЕР<i>❄</i>НАДЁЖНОСТЬ В ДЕТАЛЯХ<i>❄</i>
               </div>
             ))}
           </div>
@@ -570,6 +663,17 @@ export default function App() {
           </div>
         </section>
 
+        {/* MARQUEE */}
+        <div className="marquee" aria-hidden="true">
+          <div className="mtrack">
+            {[0, 1].map((g) => (
+              <div className="mgroup" key={g}>
+                {MARQUEE.map((m) => (<React.Fragment key={m + g}><span>{m}</span><i>❄</i></React.Fragment>))}
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* SERVICES */}
         <section className="sec" id="services">
           <div className="wrap">
@@ -589,11 +693,29 @@ export default function App() {
           </div>
         </section>
 
+        {/* NUMBERS */}
+        <section className="sec" id="numbers">
+          <div className="wrap">
+            <Reveal className="shead">
+              <div><span className="k">03 · Инфографика</span><h2>Компания в цифрах</h2></div>
+              <p>Никаких «много лет опыта» — только факты, которые можно проверить.</p>
+            </Reveal>
+            <div className="nums">
+              {NUMS.map((n, i) => (
+                <Reveal key={n.txt} delay={(i % 3) * .08} className="num-card">
+                  <div className="big"><Counter to={n.to} suf={n.suf} /></div>
+                  <small>{n.txt}</small>
+                </Reveal>
+              ))}
+            </div>
+          </div>
+        </section>
+
         {/* PRICING */}
         <section className="sec" id="pricing">
           <div className="wrap">
             <Reveal className="shead">
-              <div><span className="k">03 · Тарифы</span><h2>Форматы работы</h2></div>
+              <div><span className="k">04 · Тарифы</span><h2>Форматы работы</h2></div>
               <p>От разовой помощи до полноценного юридического отдела на аутсорсе. Стоимость фиксируется в договоре.</p>
             </Reveal>
             <div className="pgrid">
@@ -616,7 +738,7 @@ export default function App() {
         <section className="sec" id="team">
           <div className="wrap">
             <Reveal className="shead">
-              <div><span className="k">04 · Команда</span><h2>Кто ведёт ваши дела</h2></div>
+              <div><span className="k">05 · Команда</span><h2>Кто ведёт ваши дела</h2></div>
               <p>Без конвейера: вашу задачу ведут основатели компании лично. Каждый документ проходит через нас.</p>
             </Reveal>
             <div className="tgrid">
@@ -642,13 +764,14 @@ export default function App() {
         <section className="sec" id="process">
           <div className="wrap">
             <Reveal className="shead">
-              <div><span className="k">05 · Процесс</span><h2>Как мы работаем</h2></div>
+              <div><span className="k">06 · Процесс</span><h2>Как мы работаем</h2></div>
               <p>Прозрачный маршрут от первого обращения до результата. Вы всегда знаете, что происходит с вашим делом.</p>
             </Reveal>
             <div className="steps">
               {STEPS.map((s, i) => (
                 <Reveal key={s.n} delay={i * .1} className="pstep">
-                  <motion.span className="pline" initial={{ scaleX: 0 }} whileInView={{ scaleX: 1 }} viewport={{ once: true }} transition={{ duration: .9, ease: EASE, delay: i * .1 + .2 }} style={{ width: "100%" }} />
+                  <motion.span className="pline" initial={{ scaleX: 0 }} whileInView={{ scaleX: 1 }} viewport={{ once: true }} transition={{ duration: .9, ease: EASE, delay: i * .12 + .2 }} />
+                  <motion.span className="pdot" initial={{ scale: 0 }} whileInView={{ scale: 1 }} viewport={{ once: true }} transition={{ type: "spring", stiffness: 300, damping: 15, delay: i * .12 + .3 }} />
                   <div className="pn">{s.n}</div><h3>{s.t}</h3><p>{s.d}</p><div className="psub">{s.s}</div>
                 </Reveal>
               ))}
@@ -664,7 +787,7 @@ export default function App() {
         <section className="sec" id="faq">
           <div className="wrap">
             <Reveal className="shead" style={{ justifyContent: "center", textAlign: "center" }}>
-              <div style={{ margin: "0 auto" }}><span className="k" style={{ justifyContent: "center" }}>06 · Вопросы</span><h2>Частые вопросы</h2></div>
+              <div style={{ margin: "0 auto" }}><span className="k" style={{ justifyContent: "center" }}>07 · Вопросы</span><h2>Частые вопросы</h2></div>
             </Reveal>
             <Reveal className="faqwrap">
               {FAQ.map(([q, a], i) => (
@@ -689,7 +812,7 @@ export default function App() {
         <section className="sec" id="request" ref={reqRef}>
           <div className="wrap rgrid">
             <Reveal x={-30} className="rleft">
-              <span className="k">07 · Заявка</span>
+              <span className="k">08 · Заявка</span>
               <h2>Обсудим вашу задачу</h2>
               <p>Оставьте заявку — она придёт на почту компании, и юрист свяжется с вами, уточнит детали и предложит формат работы. Первая консультация бесплатна и ни к чему не обязывает.</p>
               <ul className="rlist">
@@ -777,7 +900,7 @@ export default function App() {
                 <Logo className="lmark" />
                 <span className="bname">{CONFIG.brand}<span className="bsub">юридическая компания</span></span>
               </a>
-              <p className="fabout">Юридическая компания «ДоговорОфф» для бизнеса и частных лиц: тендеры, арбитраж, аутсорсинг, ЖКХ. Работаем лично, без конвейера.</p>
+              <p className="fabout">Юридическая компания «ДоговорОфф» для бизнеса и частных лиц: тендеры, арбитраж, аутсорсинг, ЖКХ. Северный характер: спокойно, точно, надёжно.</p>
             </div>
             <div>
               <h4>Навигация</h4>
@@ -796,7 +919,7 @@ export default function App() {
             </div>
           </div>
           <div className="fbottom">
-            <span>© {new Date().getFullYear()} Юридическая компания «ДоговорОфф». Не является публичной офертой.</span>
+            <span>© {new Date().getFullYear()} Юридическая компания «ДоговорОфф» · {CONFIG.geo}. Не является публичной офертой.</span>
             <a onClick={() => setModal(true)}>Политика конфиденциальности</a>
           </div>
         </div>
