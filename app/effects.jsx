@@ -1,7 +1,7 @@
 "use client";
 import {useEffect,useState}from"react";
 import Lenis from"lenis";
-import{motion,useMotionValue,useSpring}from"framer-motion";
+import{motion,useMotionValue}from"framer-motion";
 
 const CSS=`
 html.lenis,html.lenis body{height:auto}
@@ -18,10 +18,6 @@ function Cursor(){
   const[on,setOn]=useState(false);
   const[hover,setHover]=useState(false);
   const mx=useMotionValue(-100),my=useMotionValue(-100);
-  const dx=useSpring(mx,{stiffness:900,damping:60});
-  const dy=useSpring(my,{stiffness:900,damping:60});
-  const rx=useSpring(mx,{stiffness:140,damping:20});
-  const ry=useSpring(my,{stiffness:140,damping:20});
   useEffect(()=>{
     const fine=matchMedia("(pointer:fine)").matches;
     const rm=matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -35,8 +31,8 @@ function Cursor(){
   },[]);
   if(!on)return null;
   return<>
-    <motion.div className="cursor-dot" style={{x:dx,y:dy}}/>
-    <motion.div className={"cursor-ring"+(hover?" on":"")} style={{x:rx,y:ry}} animate={{scale:hover?1.5:1}}/>
+    <motion.div className="cursor-dot" style={{x:mx,y:my}}/>
+    <motion.div className={"cursor-ring"+(hover?" on":"")} style={{x:mx,y:my}} animate={{scale:hover?1.4:1}} transition={{duration:.25}}/>
   </>;
 }
 
