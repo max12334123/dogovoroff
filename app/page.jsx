@@ -24,7 +24,8 @@ const CONFIG = {
   geo: "61°32′ N — 76°58′ E"
 };
 
-const EASE = [0.2, 0.7, 0.3, 1];
+const EASE = [0.22, 0.61, 0.21, 1];
+const SWEEP = [0.77, 0, 0.18, 1];
 
 const CSS = `
 @import url('https://cdn.jsdelivr.net/npm/@fontsource/cormorant-garamond@latest/index.css');
@@ -40,7 +41,7 @@ const CSS = `
   --bg:#f6f4ef; --bg2:#fbfaf7; --card:#ffffff;
   --ink:#121212; --gray:#6e6a63; --dgray:#9a968e;
   --line:rgba(18,18,18,.14); --ice:#7fa8ba; --ice2:#9dc3d2;
-  --err:#c2543f; --shadow:0 24px 60px rgba(18,18,18,.1);
+  --err:#c2543f; --shadow:0 30px 70px rgba(18,18,18,.12);
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth;scroll-padding-top:96px}
@@ -50,6 +51,13 @@ body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:4;opac
 img{display:block}a{color:inherit}button{font-family:inherit}
 :focus-visible{outline:2px solid var(--ink);outline-offset:3px}
 .wrap{width:min(1200px,92%);margin:0 auto}
+/* ---------- интро ---------- */
+.intro{position:fixed;inset:0;background:var(--bg);z-index:200;display:grid;place-items:center}
+.intro-in{text-align:center}
+.intro-logo{width:66px;height:78px;color:var(--ink);margin:0 auto}
+.intro-name{font-family:'Cormorant Garamond',serif;font-weight:600;font-size:36px;margin-top:16px;letter-spacing:.02em}
+.intro-sub{font:700 10px 'Manrope';letter-spacing:.34em;text-transform:uppercase;color:var(--gray);margin-top:8px}
+/* ---------- базовые ---------- */
 .k{display:inline-flex;align-items:center;gap:12px;font:700 11px 'Manrope';letter-spacing:.3em;text-transform:uppercase;color:var(--ink)}
 .k::before{content:"";width:34px;height:1px;background:var(--ink)}
 h1,h2,h3{font-family:'Cormorant Garamond',serif;font-weight:500;line-height:1.05;color:var(--ink)}
@@ -62,42 +70,47 @@ h2{font-size:clamp(30px,4.2vw,56px)}
 .shead h2{margin-top:16px}
 .shead p{color:var(--gray);max-width:480px;font-size:15px;line-height:1.75}
 .progress{position:fixed;top:0;left:0;right:0;height:2px;background:var(--ink);transform-origin:left center;z-index:70}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;font:700 12px 'Manrope';letter-spacing:.16em;text-transform:uppercase;padding:18px 30px;border:1px solid var(--ink);cursor:pointer;text-decoration:none;position:relative;overflow:hidden;background:transparent;color:var(--ink);transition:color .35s,box-shadow .35s;isolation:isolate;-webkit-tap-highlight-color:transparent;white-space:nowrap}
-.btn::before{content:"";position:absolute;inset:0;background:var(--ink);transform:scaleX(0);transform-origin:left center;transition:transform .5s cubic-bezier(.7,0,.2,1);z-index:-1}
-.btn:hover{color:var(--bg);box-shadow:0 16px 34px rgba(18,18,18,.18)}
+/* ---------- кнопки: плавный sweep + блик ---------- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;font:700 12px 'Manrope';letter-spacing:.16em;text-transform:uppercase;padding:18px 30px;border:1px solid var(--ink);cursor:pointer;text-decoration:none;position:relative;overflow:hidden;background:transparent;color:var(--ink);transition:color .5s EASE,box-shadow .5s EASE,border-color .5s;isolation:isolate;-webkit-tap-highlight-color:transparent;white-space:nowrap;will-change:transform}
+.btn::before{content:"";position:absolute;inset:0;background:var(--ink);transform:scaleX(0);transform-origin:left center;transition:transform .65s SWEEP;z-index:-1}
+.btn::after{content:"";position:absolute;top:0;left:-70%;width:45%;height:100%;background:linear-gradient(105deg,transparent,rgba(255,255,255,.4),transparent);transform:skewX(-20deg);transition:left .9s cubic-bezier(.22,.61,.21,1);pointer-events:none}
+.btn:hover{color:var(--bg);box-shadow:0 20px 44px rgba(18,18,18,.16)}
 .btn:hover::before{transform:scaleX(1)}
+.btn:hover::after{left:130%}
 .btn-g{background:var(--ink);color:var(--bg)}
 .btn-g::before{background:var(--bg)}
 .btn-g:hover{color:var(--ink)}
 .btn-sm{padding:13px 22px}
-.btn .arr{transition:transform .35s;display:inline-block}
-.btn:hover .arr{transform:translateX(5px)}
-#hd{position:fixed;top:0;left:0;right:0;z-index:50;transition:background .4s,border-color .4s,box-shadow .4s;border-bottom:1px solid transparent}
+.btn .arr{transition:transform .45s EASE;display:inline-block}
+.btn:hover .arr{transform:translateX(6px)}
+/* ---------- шапка ---------- */
+#hd{position:fixed;top:0;left:0;right:0;z-index:50;transition:background .5s,border-color .5s,box-shadow .5s;border-bottom:1px solid transparent}
 #hd.scrolled{background:rgba(246,244,239,.9);backdrop-filter:blur(16px);border-color:var(--line);box-shadow:0 10px 30px rgba(18,18,18,.05)}
 .hwrap{width:min(1320px,94%);margin:0 auto;height:82px;display:flex;align-items:center;justify-content:space-between;gap:16px}
 .brand{display:flex;align-items:center;gap:14px;text-decoration:none;flex:0 0 auto;min-width:0}
-.lmark{width:36px;height:43px;color:var(--ink);flex:0 0 auto;transition:transform .4s cubic-bezier(.2,.7,.3,1)}
+.lmark{width:36px;height:43px;color:var(--ink);flex:0 0 auto;transition:transform .5s EASE}
 .brand:hover .lmark{transform:translateY(-2px) rotate(-2deg)}
 .bname{font-family:'Cormorant Garamond';font-weight:600;font-size:21px;letter-spacing:.04em;line-height:1.1;display:flex;flex-direction:column;color:var(--ink)}
 .bsub{font:600 9.5px 'Manrope';letter-spacing:.26em;text-transform:uppercase;color:var(--gray)}
 .nav{display:flex;gap:28px}
-.nav a{font:600 11.5px 'Manrope';letter-spacing:.18em;text-transform:uppercase;color:var(--gray);text-decoration:none;transition:color .25s;position:relative}
-.nav a::after{content:"";position:absolute;left:0;bottom:-6px;width:0;height:1px;background:var(--ink);transition:width .35s cubic-bezier(.2,.7,.3,1)}
+.nav a{font:600 11.5px 'Manrope';letter-spacing:.18em;text-transform:uppercase;color:var(--gray);text-decoration:none;transition:color .3s;position:relative}
+.nav a::after{content:"";position:absolute;left:0;bottom:-6px;width:0;height:1px;background:var(--ink);transition:width .45s EASE}
 .nav a:hover{color:var(--ink)}
 .nav a:hover::after{width:100%}
 .hright{display:flex;align-items:center;gap:16px}
-.hphone{font:600 14px 'Manrope';color:var(--ink);text-decoration:none;transition:opacity .25s}
+.hphone{font:600 14px 'Manrope';color:var(--ink);text-decoration:none;transition:opacity .3s}
 .hphone:hover{opacity:.65}
-.burger{display:none;width:44px;height:44px;background:none;border:1px solid var(--line);cursor:pointer;position:relative;flex:0 0 auto;transition:border-color .3s,transform .3s}
+.burger{display:none;width:44px;height:44px;background:none;border:1px solid var(--line);cursor:pointer;position:relative;flex:0 0 auto;transition:border-color .4s,transform .4s}
 .burger:hover{border-color:var(--ink);transform:translateY(-2px)}
-.burger span{position:absolute;left:12px;right:12px;height:1.5px;background:var(--ink);transition:.3s}
+.burger span{position:absolute;left:12px;right:12px;height:1.5px;background:var(--ink);transition:.4s EASE}
 .burger span:nth-child(1){top:16px}.burger span:nth-child(2){top:24px}
 .burger.open span:nth-child(1){top:20px;transform:rotate(45deg)}
 .burger.open span:nth-child(2){top:20px;transform:rotate(-45deg)}
 .mnav{position:fixed;inset:0;background:rgba(246,244,239,.98);backdrop-filter:blur(10px);z-index:49;display:flex;flex-direction:column;justify-content:center;padding:90px 8% 50px;gap:6px;overflow-y:auto}
-.mnav a{font-family:'Cormorant Garamond';font-size:30px;color:var(--ink);text-decoration:none;padding:8px 0;border-bottom:1px solid var(--line);transition:padding-left .3s,color .3s}
+.mnav a{font-family:'Cormorant Garamond';font-size:30px;color:var(--ink);text-decoration:none;padding:8px 0;border-bottom:1px solid var(--line);transition:padding-left .4s,color .4s}
 .mnav a:hover{color:var(--gray);padding-left:10px}
 .mnav .mphone{font:600 15px 'Manrope';border:none;margin-top:14px}
+/* ---------- hero ---------- */
 .hero{padding:175px 0 110px;position:relative;overflow:hidden}
 .aurora{position:absolute;inset:0;pointer-events:none;overflow:hidden}
 .aurora span{position:absolute;border-radius:50%;filter:blur(70px)}
@@ -115,35 +128,38 @@ h2{font-size:clamp(30px,4.2vw,56px)}
 .geo{margin-top:34px;font:700 11px 'Manrope';letter-spacing:.3em;text-transform:uppercase;color:var(--gray);display:flex;align-items:center;gap:12px}
 .geo i{font-style:normal;color:var(--ice)}
 .hright{position:relative}
+.hclip{will-change:clip-path}
 .hframe{position:relative;z-index:1;overflow:hidden;box-shadow:var(--shadow)}
 .hframe::after{content:"";position:absolute;inset:0;transform:translate(18px,18px);border:1px solid rgba(18,18,18,.5);z-index:-1}
-.hframe img{width:100%;height:min(70vh,620px);object-fit:cover;filter:grayscale(1) contrast(1.06);transition:filter .6s}
+.hframe img{width:100%;height:min(70vh,620px);object-fit:cover;filter:grayscale(1) contrast(1.06);transition:filter .8s}
 .hframe:hover img{filter:grayscale(.55) contrast(1.04)}
-.hbadge{position:absolute;left:-26px;bottom:34px;z-index:2;background:var(--card);border:1px solid var(--line);padding:14px 20px;display:flex;align-items:center;gap:10px;font:600 11.5px 'Manrope';letter-spacing:.16em;text-transform:uppercase;box-shadow:0 16px 40px rgba(18,18,18,.1);animation:floaty 5s ease-in-out infinite}
+.hbadge{position:absolute;left:-26px;bottom:34px;z-index:2;background:var(--card);border:1px solid var(--line);padding:14px 20px;display:flex;align-items:center;gap:10px;font:600 11.5px 'Manrope';letter-spacing:.16em;text-transform:uppercase;box-shadow:0 16px 40px rgba(18,18,18,.1);animation:floaty 6s ease-in-out infinite}
 @keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
-.dot{width:8px;height:8px;border-radius:50%;background:var(--ink);box-shadow:0 0 0 0 rgba(18,18,18,.35);animation:pulse 2s infinite}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--ink);box-shadow:0 0 0 0 rgba(18,18,18,.35);animation:pulse 2.4s infinite}
 @keyframes pulse{70%{box-shadow:0 0 0 10px transparent}100%{box-shadow:0 0 0 0 transparent}}
 .shint{position:absolute;bottom:22px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:8px;color:var(--gray);font:700 9.5px 'Manrope';letter-spacing:.34em;text-transform:uppercase;z-index:1}
-.shint svg{animation:bob 1.7s ease-in-out infinite}
+.shint svg{animation:bob 1.8s ease-in-out infinite}
 @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(7px)}}
 .ln{display:block;overflow:hidden;padding-bottom:.08em;margin-bottom:-.08em}
 .ln-i{display:inline-block;will-change:transform}
+/* ---------- маркизы ---------- */
 .outline-mq{padding:26px 0;overflow:hidden;border-bottom:1px solid var(--line)}
-.otrack{display:flex;width:max-content;animation:mq 46s linear infinite}
+.otrack{display:flex;width:max-content;animation:mq 60s linear infinite}
 .otext{font-family:'Cormorant Garamond';font-weight:600;font-size:clamp(56px,8.6vw,132px);line-height:1;color:transparent;-webkit-text-stroke:1px rgba(18,18,18,.3);white-space:nowrap;padding-right:70px}
 .otext b{color:var(--ink);-webkit-text-stroke:0;font-weight:600}
 .otext i{font-style:normal;color:var(--ice);-webkit-text-stroke:0;font-size:.6em;vertical-align:middle;padding:0 10px}
 .marquee{border-top:1px solid var(--line);border-bottom:1px solid var(--line);overflow:hidden;padding:20px 0;background:var(--bg2)}
-.mtrack{display:flex;width:max-content;animation:mq 32s linear infinite}
+.mtrack{display:flex;width:max-content;animation:mq 40s linear infinite}
 .marquee:hover .mtrack{animation-play-state:paused}
 .mgroup{display:flex;align-items:center;gap:52px;padding-right:52px}
 .mgroup span{font-family:'Cormorant Garamond';font-style:italic;font-size:21px;color:var(--gray);white-space:nowrap}
 .mgroup i{color:var(--ice);font-style:normal;font-size:14px}
 @keyframes mq{to{transform:translateX(-50%)}}
+/* ---------- сетки ---------- */
 .cgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line)}
-.ccard{background:var(--card);padding:36px 30px;transition:transform .4s cubic-bezier(.2,.7,.3,1),box-shadow .4s;position:relative;overflow:hidden}
-.ccard::after{content:"";position:absolute;top:0;left:0;height:2px;width:0;background:var(--ink);transition:width .45s cubic-bezier(.2,.7,.3,1)}
-.ccard:hover{transform:translateY(-4px);box-shadow:var(--shadow);z-index:1}
+.ccard{background:var(--card);padding:36px 30px;transition:transform .6s EASE,box-shadow .6s EASE;position:relative;overflow:hidden}
+.ccard::after{content:"";position:absolute;top:0;left:0;height:2px;width:0;background:var(--ink);transition:width .6s EASE}
+.ccard:hover{transform:translateY(-6px);box-shadow:var(--shadow);z-index:1}
 .ccard:hover::after{width:100%}
 .ccard h3{font-size:24px;margin-bottom:10px}
 .ccard p{color:var(--gray);font-size:14px;line-height:1.7;margin-bottom:16px}
@@ -151,9 +167,9 @@ h2{font-size:clamp(30px,4.2vw,56px)}
 .ccard ul li{position:relative;padding-left:16px;margin:7px 0;font-size:13.5px;color:#3c3a36}
 .ccard ul li::before{content:"";position:absolute;left:0;top:10px;width:6px;height:1px;background:var(--ink)}
 .sgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line)}
-.scard{background:var(--card);padding:40px 34px;display:flex;flex-direction:column;transition:transform .4s cubic-bezier(.2,.7,.3,1),box-shadow .4s;position:relative;overflow:hidden}
-.scard::after{content:"";position:absolute;top:0;left:0;height:2px;width:0;background:var(--ink);transition:width .45s cubic-bezier(.2,.7,.3,1)}
-.scard:hover{transform:translateY(-4px);box-shadow:var(--shadow);z-index:1}
+.scard{background:var(--card);padding:40px 34px;display:flex;flex-direction:column;transition:transform .6s EASE,box-shadow .6s EASE;position:relative;overflow:hidden}
+.scard::after{content:"";position:absolute;top:0;left:0;height:2px;width:0;background:var(--ink);transition:width .6s EASE}
+.scard:hover{transform:translateY(-6px);box-shadow:var(--shadow);z-index:1}
 .scard:hover::after{width:100%}
 .snum{font-family:'Cormorant Garamond';font-style:italic;font-size:18px;color:var(--gray);margin-bottom:22px}
 .scard h3{font-size:27px;margin-bottom:12px}
@@ -163,13 +179,13 @@ h2{font-size:clamp(30px,4.2vw,56px)}
 .scard ul li::before{content:"";position:absolute;left:0;top:10px;width:6px;height:1px;background:var(--ink)}
 .sfoot{margin-top:auto;display:flex;align-items:center;justify-content:space-between;gap:12px;border-top:1px solid var(--line);padding-top:18px}
 .price{font:700 14px 'Manrope';letter-spacing:.02em}
-.slink{background:none;border:none;cursor:pointer;font:700 11px 'Manrope';letter-spacing:.18em;text-transform:uppercase;color:var(--ink);padding:0;transition:letter-spacing .3s;position:relative}
-.slink::after{content:"";position:absolute;left:0;bottom:-5px;width:100%;height:1px;background:var(--ink);transform:scaleX(0);transform-origin:right;transition:transform .35s cubic-bezier(.2,.7,.3,1)}
+.slink{background:none;border:none;cursor:pointer;font:700 11px 'Manrope';letter-spacing:.18em;text-transform:uppercase;color:var(--ink);padding:0;transition:letter-spacing .4s;position:relative}
+.slink::after{content:"";position:absolute;left:0;bottom:-5px;width:100%;height:1px;background:var(--ink);transform:scaleX(0);transform-origin:right;transition:transform .45s EASE}
 .slink:hover{letter-spacing:.22em}
 .slink:hover::after{transform:scaleX(1);transform-origin:left}
 .nums{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line)}
-.num-card{background:var(--card);padding:38px 32px;transition:transform .4s,box-shadow .4s;position:relative;overflow:hidden}
-.num-card:hover{transform:translateY(-4px);box-shadow:var(--shadow);z-index:1}
+.num-card{background:var(--card);padding:38px 32px;transition:transform .6s EASE,box-shadow .6s EASE;position:relative;overflow:hidden}
+.num-card:hover{transform:translateY(-6px);box-shadow:var(--shadow);z-index:1}
 .num-card .big{font-family:'Cormorant Garamond';font-weight:600;font-size:clamp(48px,5vw,72px);line-height:1;color:var(--ink)}
 .num-card .big i{font-style:normal;font-size:.45em;color:var(--ice)}
 .num-card small{display:block;margin-top:12px;font:700 10.5px 'Manrope';letter-spacing:.16em;text-transform:uppercase;color:var(--gray);line-height:1.6}
@@ -180,27 +196,24 @@ h2{font-size:clamp(30px,4.2vw,56px)}
 .calc-left h3{font-size:24px;margin-bottom:8px}
 .calc-left .chint{color:var(--gray);font-size:13px;margin-bottom:24px}
 .chips{display:flex;flex-wrap:wrap;gap:10px}
-.chip{border:1px solid var(--line);background:none;padding:13px 18px;font:600 12px 'Manrope';letter-spacing:.06em;cursor:pointer;transition:.25s;color:var(--ink);-webkit-tap-highlight-color:transparent}
-.chip:hover{border-color:var(--ink)}
+.chip{border:1px solid var(--line);background:none;padding:13px 18px;font:600 12px 'Manrope';letter-spacing:.06em;cursor:pointer;transition:all .4s EASE;color:var(--ink);-webkit-tap-highlight-color:transparent}
+.chip:hover{border-color:var(--ink);transform:translateY(-2px)}
 .chip.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
-.urg{margin-top:28px;display:flex;gap:12px;align-items:flex-start;cursor:pointer;font-size:13px;color:var(--gray);line-height:1.5}
-.urg input{position:absolute;opacity:0;width:0}
-.urg .box{margin-top:0}
 .calc-right{background:var(--ink);color:var(--bg);padding:38px 36px;display:flex;flex-direction:column;position:relative;overflow:hidden}
 .calc-right::after{content:"❄";position:absolute;right:26px;top:22px;color:var(--ice);opacity:.7;font-size:16px}
 .calc-right .cl{font:700 10px 'Manrope';letter-spacing:.26em;text-transform:uppercase;color:rgba(246,244,239,.55)}
 .cprice{font-family:'Cormorant Garamond';font-weight:600;font-size:clamp(44px,4.6vw,64px);line-height:1;margin:18px 0 4px;color:var(--bg)}
 .cprice small{font:600 14px 'Manrope';color:rgba(246,244,239,.6);letter-spacing:.06em}
-.cnote{font-size:12px;color:rgba(246,244,239,.55);margin-bottom:22px}
+.cnote{font-size:12px;color:rgba(246,244,239,.55);margin-bottom:22px;line-height:1.6}
 .cinc{list-style:none;margin-bottom:28px}
 .cinc li{position:relative;padding-left:18px;margin:8px 0;font-size:13px;color:rgba(246,244,239,.8)}
 .cinc li::before{content:"";position:absolute;left:0;top:9px;width:7px;height:1px;background:var(--ice)}
 .calc-right .btn{margin-top:auto;border-color:var(--bg);color:var(--bg)}
 .calc-right .btn::before{background:var(--bg)}
 .calc-right .btn:hover{color:var(--ink)}
-/* ---------- pricing ---------- */
+/* ---------- тарифы ---------- */
 .pgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;align-items:stretch}
-.pcard{border:1px solid var(--line);background:var(--card);padding:44px 36px;display:flex;flex-direction:column;position:relative;transition:transform .4s cubic-bezier(.2,.7,.3,1),border-color .4s,box-shadow .4s}
+.pcard{border:1px solid var(--line);background:var(--card);padding:44px 36px;display:flex;flex-direction:column;position:relative;transition:transform .6s EASE,border-color .6s,box-shadow .6s EASE}
 .pcard:hover{transform:translateY(-8px);border-color:var(--ink);box-shadow:var(--shadow)}
 .pcard.hot{border-color:var(--ink);background:linear-gradient(180deg,rgba(18,18,18,.04),var(--card) 60%)}
 .ptag{position:absolute;top:-13px;left:36px;background:var(--ink);color:var(--bg);font:700 10px 'Manrope';letter-spacing:.2em;text-transform:uppercase;padding:7px 14px}
@@ -213,10 +226,11 @@ h2{font-size:clamp(30px,4.2vw,56px)}
 .pcard ul li::before{content:"✓";position:absolute;left:0;font-size:12px}
 .pcard .btn{width:100%}
 .pnote{margin-top:26px;color:var(--gray);font-size:14px;text-align:center}
-.pnote a{color:var(--ink);text-decoration:underline;text-underline-offset:4px;transition:opacity .25s}
+.pnote a{color:var(--ink);text-decoration:underline;text-underline-offset:4px;transition:opacity .3s}
 .pnote a:hover{opacity:.65}
+/* ---------- команда ---------- */
 .tgrid{display:grid;grid-template-columns:1fr 1fr;gap:22px}
-.tcard{border:1px solid var(--line);background:var(--card);padding:46px 42px;display:flex;flex-direction:column;transition:border-color .4s,transform .4s cubic-bezier(.2,.7,.3,1),box-shadow .4s}
+.tcard{border:1px solid var(--line);background:var(--card);padding:46px 42px;display:flex;flex-direction:column;transition:border-color .6s,transform .6s EASE,box-shadow .6s EASE}
 .tcard:hover{border-color:var(--ink);transform:translateY(-6px);box-shadow:var(--shadow)}
 .tmono{font-family:'Cormorant Garamond';font-style:italic;font-size:58px;color:rgba(18,18,18,.15);line-height:1;margin-bottom:20px}
 .trole{font:700 10.5px 'Manrope';letter-spacing:.24em;text-transform:uppercase;color:var(--gray);margin-bottom:12px}
@@ -226,14 +240,15 @@ h2{font-size:clamp(30px,4.2vw,56px)}
 .tcard ul li{position:relative;padding-left:16px;margin:8px 0;font-size:14px;color:#3c3a36}
 .tcard ul li::before{content:"";position:absolute;left:0;top:10px;width:6px;height:1px;background:var(--ink)}
 .tfacts{margin-top:auto;border-top:1px solid var(--line);padding-top:18px;display:flex;gap:10px;flex-wrap:wrap}
-.tfacts span{font:700 10px 'Manrope';letter-spacing:.16em;text-transform:uppercase;color:var(--gray);border:1px solid var(--line);padding:7px 12px;transition:border-color .3s,color .3s}
+.tfacts span{font:700 10px 'Manrope';letter-spacing:.16em;text-transform:uppercase;color:var(--gray);border:1px solid var(--line);padding:7px 12px;transition:border-color .4s,color .4s}
 .tcard:hover .tfacts span{border-color:var(--ink);color:var(--ink)}
 .prins{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);margin-top:22px}
-.prin{background:var(--card);padding:32px 28px;transition:transform .4s,box-shadow .4s}
+.prin{background:var(--card);padding:32px 28px;transition:transform .6s EASE,box-shadow .6s EASE}
 .prin:hover{transform:translateY(-4px);box-shadow:var(--shadow);z-index:1}
 .prin .pn2{font-family:'Cormorant Garamond';font-style:italic;font-size:22px;color:var(--ice);margin-bottom:10px}
 .prin h4{font-family:'Cormorant Garamond';font-weight:600;font-size:22px;margin-bottom:8px}
 .prin p{color:var(--gray);font-size:13.5px;line-height:1.7}
+/* ---------- процесс ---------- */
 .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:34px;position:relative}
 .pstep{border-top:1px solid var(--line);padding-top:34px;position:relative}
 .pstep .pline{position:absolute;top:-1px;left:0;height:1px;background:var(--ink);transform-origin:left center;width:100%}
@@ -242,21 +257,23 @@ h2{font-size:clamp(30px,4.2vw,56px)}
 .pstep h3{font-size:23px;margin-bottom:10px}
 .pstep p{color:var(--gray);font-size:14px;line-height:1.7}
 .pstep .psub{margin-top:12px;font:700 10.5px 'Manrope';letter-spacing:.18em;text-transform:uppercase;color:var(--ice)}
-.gbar{margin-top:56px;border:1px solid var(--line);background:var(--card);padding:32px 36px;display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;transition:box-shadow .4s,transform .4s}
+.gbar{margin-top:56px;border:1px solid var(--line);background:var(--card);padding:32px 36px;display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;transition:box-shadow .6s EASE,transform .6s EASE}
 .gbar:hover{box-shadow:var(--shadow);transform:translateY(-3px)}
 .gbar b{font-family:'Cormorant Garamond';font-weight:600;font-size:25px}
 .gbar span{color:var(--gray);font-size:14px;max-width:580px}
+/* ---------- faq ---------- */
 .faqwrap{max-width:860px;margin:0 auto}
 .qa{border-bottom:1px solid var(--line)}
-.qa-q{width:100%;display:flex;justify-content:space-between;align-items:center;gap:24px;padding:26px 0;background:none;border:none;color:var(--ink);font:600 18px 'Manrope';cursor:pointer;text-align:left;transition:color .25s,padding-left .3s}
+.qa-q{width:100%;display:flex;justify-content:space-between;align-items:center;gap:24px;padding:26px 0;background:none;border:none;color:var(--ink);font:600 18px 'Manrope';cursor:pointer;text-align:left;transition:color .3s,padding-left .4s}
 .qa-q:hover{color:var(--gray);padding-left:8px}
-.qa-i{flex:0 0 14px;width:14px;height:14px;position:relative;transition:transform .4s cubic-bezier(.2,.7,.3,1)}
+.qa-i{flex:0 0 14px;width:14px;height:14px;position:relative;transition:transform .5s EASE}
 .qa-q:hover .qa-i{transform:rotate(90deg)}
-.qa-i::before,.qa-i::after{content:"";position:absolute;background:var(--ink);transition:transform .3s}
+.qa-i::before,.qa-i::after{content:"";position:absolute;background:var(--ink);transition:transform .4s EASE}
 .qa-i::before{left:0;top:6px;width:14px;height:1.6px}
 .qa-i::after{left:6px;top:0;width:1.6px;height:14px}
 .qa.open .qa-i::after{transform:scaleY(0)}
 .qa-a p{padding:0 40px 26px 0;color:var(--gray);font-size:15px;line-height:1.8}
+/* ---------- заявка ---------- */
 #request{background:linear-gradient(180deg,transparent,rgba(18,18,18,.04) 30%,transparent)}
 .rgrid{display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:start}
 .rleft h2{margin:18px 0 20px}
@@ -265,7 +282,7 @@ h2{font-size:clamp(30px,4.2vw,56px)}
 .rlist li{position:relative;padding-left:26px;margin:13px 0;font-size:15px;color:#2e2c29}
 .rlist li::before{content:"✓";position:absolute;left:0}
 .rcontacts{display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--line);padding-top:28px;max-width:440px}
-.rcontacts a{text-decoration:none;font:600 16px 'Manrope';transition:opacity .25s,letter-spacing .3s;width:fit-content}
+.rcontacts a{text-decoration:none;font:600 16px 'Manrope';transition:opacity .3s,letter-spacing .4s;width:fit-content}
 .rcontacts a:hover{opacity:.65;letter-spacing:.03em}
 .rhours,.raddr{font-size:13px;color:var(--gray)}
 .rmess{display:flex;gap:12px;margin-top:22px;flex-wrap:wrap}
@@ -275,23 +292,23 @@ h2{font-size:clamp(30px,4.2vw,56px)}
 .fsub{color:var(--gray);font-size:13px;margin-bottom:30px}
 .frow{margin-bottom:26px;position:relative}
 .frow label{display:block;font:700 10.5px 'Manrope';letter-spacing:.22em;text-transform:uppercase;color:var(--gray);margin-bottom:8px}
-.frow input,.frow select,.frow textarea{width:100%;background:transparent;border:none;border-bottom:1px solid rgba(18,18,18,.3);color:var(--ink);font:500 16px 'Manrope';padding:11px 0;outline:none;transition:border-color .3s;border-radius:0}
+.frow input,.frow select,.frow textarea{width:100%;background:transparent;border:none;border-bottom:1px solid rgba(18,18,18,.3);color:var(--ink);font:500 16px 'Manrope';padding:11px 0;outline:none;transition:border-color .4s;border-radius:0}
 .frow select{appearance:none;-webkit-appearance:none;cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23121212' stroke-width='1.5'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 4px center}
 .frow select:invalid{color:var(--gray)}
 .frow select option{background:#fff;color:var(--ink)}
 .frow textarea{resize:vertical;min-height:88px;line-height:1.6}
 .frow input:focus,.frow select:focus,.frow textarea:focus{border-color:var(--ink)}
 .frow input::placeholder,.frow textarea::placeholder{color:#a5a19a}
-.fmsg{position:absolute;left:0;bottom:-17px;font-size:11px;color:var(--err);opacity:0;transition:.2s;letter-spacing:.04em}
+.fmsg{position:absolute;left:0;bottom:-17px;font-size:11px;color:var(--err);opacity:0;transition:.3s;letter-spacing:.04em}
 .frow.bad input,.frow.bad select{border-color:var(--err)}
 .frow.bad .fmsg{opacity:1}
 .hp{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}
 .agree{display:flex;gap:12px;align-items:flex-start;cursor:pointer;font-size:12.5px;color:var(--gray);line-height:1.6;margin:6px 0 28px}
 .agree input{position:absolute;opacity:0;width:0}
-.box{flex:0 0 18px;width:18px;height:18px;border:1px solid rgba(18,18,18,.4);margin-top:1px;position:relative;transition:.2s}
+.box{flex:0 0 18px;width:18px;height:18px;border:1px solid rgba(18,18,18,.4);margin-top:1px;position:relative;transition:.3s}
 .agree:hover .box{border-color:var(--ink)}
 .agree input:checked + .box{background:var(--ink);border-color:var(--ink)}
-.box::after{content:"";position:absolute;left:5px;top:2px;width:4px;height:9px;border:solid var(--bg);border-width:0 2px 2px 0;transform:rotate(45deg) scale(0);transition:.2s}
+.box::after{content:"";position:absolute;left:5px;top:2px;width:4px;height:9px;border:solid var(--bg);border-width:0 2px 2px 0;transform:rotate(45deg) scale(0);transition:.25s}
 .agree input:checked + .box::after{transform:rotate(45deg) scale(1)}
 .agree a{color:var(--ink);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
 .fsubmit{width:100%}
@@ -307,15 +324,15 @@ h2{font-size:clamp(30px,4.2vw,56px)}
 footer{border-top:1px solid var(--line);padding:70px 0 0;background:var(--bg2)}
 .fgrid{display:grid;grid-template-columns:1.4fr 1fr 1fr 1.2fr;gap:44px;padding-bottom:60px}
 .fgrid h4{font:700 11px 'Manrope';letter-spacing:.24em;text-transform:uppercase;color:var(--gray);margin-bottom:20px}
-.fgrid a{display:block;color:#4c4a46;text-decoration:none;font-size:14px;margin:10px 0;transition:color .25s,padding-left .3s}
+.fgrid a{display:block;color:#4c4a46;text-decoration:none;font-size:14px;margin:10px 0;transition:color .3s,padding-left .4s}
 .fgrid a:hover{color:var(--ink);padding-left:6px}
 .fabout{color:var(--gray);font-size:14px;line-height:1.75;max-width:310px;margin-top:16px}
 .fbrand .lmark{width:46px;height:55px}
 .fbottom{border-top:1px solid var(--line);padding:22px 0;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--dgray)}
-.fbottom a{color:#6e6a63;text-decoration:none;cursor:pointer;transition:color .25s}
+.fbottom a{color:#6e6a63;text-decoration:none;cursor:pointer;transition:color .3s}
 .fbottom a:hover{color:var(--ink)}
-.totop{position:fixed;right:26px;bottom:26px;width:50px;height:50px;border:1px solid var(--line);background:rgba(255,255,255,.9);backdrop-filter:blur(10px);color:var(--ink);cursor:pointer;z-index:55;display:grid;place-items:center;transition:background .3s,color .3s,border-color .3s}
-.totop:hover{border-color:var(--ink);background:var(--ink);color:var(--bg)}
+.totop{position:fixed;right:26px;bottom:26px;width:50px;height:50px;border:1px solid var(--line);background:rgba(255,255,255,.9);backdrop-filter:blur(10px);color:var(--ink);cursor:pointer;z-index:55;display:grid;place-items:center;transition:background .4s,color .4s,border-color .4s,transform .4s}
+.totop:hover{border-color:var(--ink);background:var(--ink);color:var(--bg);transform:translateY(-3px)}
 .mbar{position:fixed;left:0;right:0;bottom:0;z-index:56;display:none;gap:10px;padding:10px 12px calc(10px + env(safe-area-inset-bottom));background:rgba(246,244,239,.95);backdrop-filter:blur(14px);border-top:1px solid var(--line)}
 .mbar a{flex:1;padding:15px 10px}
 .mbar .mcall{flex:0 0 54px;padding:15px 0}
@@ -323,7 +340,7 @@ footer{border-top:1px solid var(--line);padding:70px 0 0;background:var(--bg2)}
 .mcard{width:min(680px,92%);max-height:82vh;overflow:auto;background:var(--card);border:1px solid var(--line);padding:46px;position:relative;box-shadow:var(--shadow)}
 .mcard h3{font-size:29px;margin-bottom:18px}
 .mcard p{color:var(--gray);font-size:14px;line-height:1.8;margin-bottom:12px}
-.mclose{position:absolute;top:18px;right:18px;width:40px;height:40px;background:none;border:1px solid var(--line);color:var(--ink);cursor:pointer;font-size:16px;transition:.25s}
+.mclose{position:absolute;top:18px;right:18px;width:40px;height:40px;background:none;border:1px solid var(--line);color:var(--ink);cursor:pointer;font-size:16px;transition:.3s}
 .mclose:hover{border-color:var(--ink);background:var(--ink);color:var(--bg);transform:rotate(90deg)}
 @media(max-width:1100px){
   .nav{display:none}.burger{display:block}.hphone{display:none}
@@ -399,7 +416,6 @@ const CLIENTS = [
   { t: "УК, ТСЖ и подрядчикам ЖКХ", d: "Сфера ЖКХ — наша ежедневная практика: от предписаний ГЖИ до судов.", l: ["Споры с ГЖИ", "Работа с должниками", "Споры с собственниками", "Договоры с РСО"] },
   { t: "Частным лицам", d: "Гражданам, которым нужен юрист без лишних слов и переплат.", l: ["Договоры и сделки", "Споры с застройщиками", "Защита прав потребителей", "Претензии и иски"] }
 ];
-/* Цены = медиана рынка + 10% (премиальное позиционирование) */
 const SERVICES = [
   { n: "01", t: "Тендеры и госзакупки", d: "44-ФЗ и 223-ФЗ под ключ: от анализа закупки до подписания контракта.", l: ["Подготовка и подача заявок", "Анализ закупки на скрытые риски", "Сопровождение контракта", "Обеспечение и банковские гарантии"], p: "от 7 700 ₽", base: 7700, per: "", svc: "Тендеры и госзакупки (44-ФЗ, 223-ФЗ)" },
   { n: "02", t: "ФАС и споры в закупках", d: "Защищаем участников закупок от необоснованных отказов и действий заказчиков.", l: ["Жалобы в ФАС", "Представительство на рассмотрениях", "Обжалование итогов тендеров", "Защита от включения в РНП"], p: "от 33 000 ₽", base: 33000, per: "", svc: "ФАС и споры в закупках" },
@@ -432,8 +448,7 @@ const STEPS = [
   { n: "04", t: "Результат", d: "Работаем и держим вас в курсе на каждом шаге: отчёты, документы, статусы — в одном чате.", s: "Отчёт после каждого действия" }
 ];
 const FAQ = [
-  ["Сколько стоит консультация?", "Первая консультация — бесплатно, до 30 минут, очно или онлайн. Дальнейшая работа оценивается по прайсу и фиксируется в договоре до начала оказания услуг."],
-  ["Почему цены чуть выше средних по рынку?", "Мы позиционируем себя как премиальную практику: каждое дело ведут основатели лично, цена фиксируется в договоре и не меняется. Это стоит на 10% дороже рынка — и экономит вам нервы и сроки."],
+  ["Сколько стоит консультацию?", "Первая консультация — бесплатно, до 30 минут, очно или онлайн. Дальнейшая работа оценивается по прайсу и фиксируется в договоре до начала оказания услуг."],
   ["Что происходит после отправки заявки?", "Заявка мгновенно приходит на почту компании, и в течение двух часов в рабочее время юрист связывается с вами: уточняет детали и назначает бесплатную консультацию. Данные заявки конфиденциальны."],
   ["Вы работаете с другими городами?", "Да. Офис находится в Нижневартовске, но тендерное сопровождение, договорная работа и консультации полностью ведутся онлайн по всей России. В судах ХМАО участвуем лично, в других регионах — совместно с партнёрами или по видеосвязи."],
   ["Гарантируете ли вы результат?", "Мы гарантируем честную оценку перспектив и качественную работу. Если дело бесперспективно — скажем об этом на первой консультации и не возьмём деньги за «борьбу ради борьбы». По ряду категорий возможна оплата за результат."],
@@ -462,10 +477,10 @@ function Logo({ className }) {
 function Reveal({ children, delay = 0, x = 0, scale = 1, className = "", style }) {
   return (
     <motion.div className={className} style={style}
-      initial={{ opacity: 0, y: 28, x, scale }}
-      whileInView={{ opacity: 1, y: 0, x: 0, scale: 1 }}
+      initial={{ opacity: 0, y: 28, x, scale, filter: "blur(6px)" }}
+      whileInView={{ opacity: 1, y: 0, x: 0, scale: 1, filter: "blur(0px)" }}
       viewport={{ once: true, margin: "-70px" }}
-      transition={{ duration: .8, ease: EASE, delay }}>
+      transition={{ duration: .9, ease: EASE, delay }}>
       {children}
     </motion.div>
   );
@@ -485,7 +500,7 @@ function useAnimatedNumber(target) {
   const [val, setVal] = useState(target);
   const prev = useRef(target);
   useEffect(() => {
-    const c = animate(prev.current, target, { duration: .7, ease: EASE, onUpdate: (v) => setVal(Math.round(v)) });
+    const c = animate(prev.current, target, { duration: .8, ease: EASE, onUpdate: (v) => setVal(Math.round(v)) });
     prev.current = target;
     return () => c.stop();
   }, [target]);
@@ -494,19 +509,19 @@ function useAnimatedNumber(target) {
 function Magnetic({ href, className, children, onClick, type }) {
   const ref = useRef(null);
   const mx = useMotionValue(0), my = useMotionValue(0);
-  const sx = useSpring(mx, { stiffness: 180, damping: 14 });
-  const sy = useSpring(my, { stiffness: 180, damping: 14 });
+  const sx = useSpring(mx, { stiffness: 120, damping: 16, mass: .5 });
+  const sy = useSpring(my, { stiffness: 120, damping: 16, mass: .5 });
   const move = (e) => {
     if (window.matchMedia("(pointer:coarse)").matches) return;
     const r = ref.current.getBoundingClientRect();
-    mx.set((e.clientX - r.left - r.width / 2) * .22);
-    my.set((e.clientY - r.top - r.height / 2) * .3);
+    mx.set((e.clientX - r.left - r.width / 2) * .2);
+    my.set((e.clientY - r.top - r.height / 2) * .28);
   };
   const leave = () => { mx.set(0); my.set(0); };
   const Tag = href ? motion.a : motion.button;
   return (
     <Tag ref={ref} href={href} type={type} onClick={onClick} className={className}
-      style={{ x: sx, y: sy }} whileTap={{ scale: .96 }}
+      style={{ x: sx, y: sy }} whileTap={{ scale: .97 }}
       onMouseMove={move} onMouseLeave={leave}>
       {children}
     </Tag>
@@ -528,6 +543,7 @@ function maskPhone(raw) {
 const fmt = (n) => n.toLocaleString("ru-RU");
 
 export default function App() {
+  const [intro, setIntro] = useState(true);
   const [scrolled, setScrolled] = useState(false);
   const [showTop, setShowTop] = useState(false);
   const [menu, setMenu] = useState(false);
@@ -547,12 +563,18 @@ export default function App() {
   const [fallbackHref, setFallbackHref] = useState(null);
 
   const [calcIdx, setCalcIdx] = useState(0);
-  const [urgent, setUrgent] = useState(false);
 
   const heroRef = useRef(null);
   const reqRef = useRef(null);
   const reqInView = useInView(reqRef, { margin: "-15% 0px -15% 0px" });
   useEffect(() => setBarHide(reqInView), [reqInView]);
+
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) { setIntro(false); return; }
+    const t = setTimeout(() => setIntro(false), 1500);
+    return () => clearTimeout(t);
+  }, []);
+  useEffect(() => { document.body.style.overflow = intro ? "hidden" : (menu || modal ? "hidden" : ""); }, [intro, menu, modal]);
 
   const { scrollYProgress } = useScroll();
   const barScale = useSpring(scrollYProgress, { stiffness: 120, damping: 22 });
@@ -561,13 +583,10 @@ export default function App() {
   const heroScroll = useScroll({ target: heroRef, offset: ["start start", "end start"] });
   const imgY = useTransform(heroScroll.scrollYProgress, [0, 1], [0, 120]);
 
-  useEffect(() => { document.body.style.overflow = menu || modal ? "hidden" : ""; }, [menu, modal]);
-
   const pickSvc = (v) => { setSvc(v); setBad((b) => ({ ...b, svc: false })); document.getElementById("request")?.scrollIntoView({ behavior: "smooth" }); };
 
   const calcSvc = SERVICES[calcIdx];
-  const calcPrice = Math.round((calcSvc.base * (urgent ? 1.3 : 1)) / 100) * 100;
-  const animPrice = useAnimatedNumber(calcPrice);
+  const animPrice = useAnimatedNumber(calcSvc.base);
 
   const submit = (e) => {
     e.preventDefault();
@@ -597,6 +616,19 @@ export default function App() {
   return (
     <>
       <style>{CSS}</style>
+
+      <AnimatePresence>
+        {intro && (
+          <motion.div className="intro" key="intro" exit={{ y: "-100%" }} transition={{ duration: .8, ease: [0.7, 0, 0.3, 1] }}>
+            <motion.div className="intro-in" initial={{ opacity: 0, scale: .92, filter: "blur(8px)" }} animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }} transition={{ duration: .8, ease: EASE }}>
+              <Logo className="lmark intro-logo" />
+              <div className="intro-name">ДоговорОфф</div>
+              <div className="intro-sub">юридическая компания</div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <motion.div className="progress" style={{ scaleX: barScale }} />
 
       <header id="hd" className={scrolled ? "scrolled" : ""}>
@@ -619,9 +651,9 @@ export default function App() {
 
       <AnimatePresence>
         {menu && (
-          <motion.nav className="mnav" initial={{ y: "-100%" }} animate={{ y: 0 }} exit={{ y: "-100%" }} transition={{ duration: .5, ease: [0.7, 0, 0.3, 1] }}>
+          <motion.nav className="mnav" initial={{ y: "-100%" }} animate={{ y: 0 }} exit={{ y: "-100%" }} transition={{ duration: .55, ease: [0.7, 0, 0.3, 1] }}>
             {[["#clients", "Клиенты"], ["#services", "Услуги"], ["#calc", "Калькулятор"], ["#pricing", "Тарифы"], ["#team", "Команда"], ["#process", "Процесс"], ["#faq", "Вопросы"], ["#request", "Оставить заявку"]].map(([h, t], i) => (
-              <motion.a key={h} href={h} onClick={() => setMenu(false)} initial={{ opacity: 0, x: -24 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: .15 + i * .05 }}>{t}</motion.a>
+              <motion.a key={h} href={h} onClick={() => setMenu(false)} initial={{ opacity: 0, x: -24 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: .15 + i * .05, duration: .5, ease: EASE }}>{t}</motion.a>
             ))}
             <a className="mphone" href={CONFIG.phoneHref}>{CONFIG.phone}</a>
           </motion.nav>
@@ -631,9 +663,9 @@ export default function App() {
       <main id="top">
         <section className="hero" ref={heroRef}>
           <div className="aurora" aria-hidden="true">
-            <motion.span className="a1" animate={{ x: [0, 60, 0], y: [0, -40, 0] }} transition={{ duration: 14, repeat: Infinity, ease: "easeInOut" }} />
-            <motion.span className="a2" animate={{ x: [0, -70, 0], y: [0, 30, 0] }} transition={{ duration: 16, repeat: Infinity, ease: "easeInOut" }} />
-            <motion.span className="a3" animate={{ x: [0, 40, 0], y: [0, 50, 0] }} transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }} />
+            <motion.span className="a1" animate={{ x: [0, 60, 0], y: [0, -40, 0] }} transition={{ duration: 16, repeat: Infinity, ease: "easeInOut" }} />
+            <motion.span className="a2" animate={{ x: [0, -70, 0], y: [0, 30, 0] }} transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }} />
+            <motion.span className="a3" animate={{ x: [0, 40, 0], y: [0, 50, 0] }} transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }} />
           </div>
           <svg className="contours" viewBox="0 0 1200 220" preserveAspectRatio="none" aria-hidden="true">
             <path d="M0 160 C 150 110, 300 200, 460 150 S 760 90, 920 150 S 1120 190, 1200 140" fill="none" stroke="var(--ice)" strokeOpacity=".35" strokeWidth="1"/>
@@ -642,27 +674,29 @@ export default function App() {
           </svg>
           <div className="wrap hgrid">
             <div className="hleft">
-              <Reveal><span className="k">Юридическая компания · Нижневартовск · ХМАО</span></Reveal>
+              <Reveal delay={.7}><span className="k">Юридическая компания · Нижневартовск · ХМАО</span></Reveal>
               <h1>
-                <span className="ln"><motion.span className="ln-i" initial={{ y: "112%" }} animate={{ y: 0 }} transition={{ duration: 1, ease: [0.2, 0.7, 0.2, 1], delay: .1 }}>Защищаем бизнес.</motion.span></span>
-                <span className="ln"><motion.span className="ln-i" initial={{ y: "112%" }} animate={{ y: 0 }} transition={{ duration: 1, ease: [0.2, 0.7, 0.2, 1], delay: .26 }}><em>Выигрываем</em> споры.</motion.span></span>
+                <span className="ln"><motion.span className="ln-i" initial={{ y: "112%" }} animate={{ y: 0 }} transition={{ duration: 1.1, ease: EASE, delay: .85 }}>Защищаем бизнес.</motion.span></span>
+                <span className="ln"><motion.span className="ln-i" initial={{ y: "112%" }} animate={{ y: 0 }} transition={{ duration: 1.1, ease: EASE, delay: 1 }}><em>Выигрываем</em> споры.</motion.span></span>
               </h1>
-              <Reveal delay={.35}><p className="lead">«ДоговорОфф» — тендеры и госзакупки, арбитраж, юридический аутсорсинг и сопровождение ЖКХ. Северный характер: спокойно, точно, надёжно.</p></Reveal>
-              <Reveal delay={.45} className="hcta">
+              <Reveal delay={1.1}><p className="lead">«ДоговорОфф» — тендеры и госзакупки, арбитраж, юридический аутсорсинг и сопровождение ЖКХ. Северный характер: спокойно, точно, надёжно.</p></Reveal>
+              <Reveal delay={1.2} className="hcta">
                 <Magnetic href="#request" className="btn btn-g"><span className="btxt">Получить консультацию</span><span className="arr">→</span></Magnetic>
                 <Magnetic href="#calc" className="btn"><span className="btxt">Рассчитать стоимость</span></Magnetic>
               </Reveal>
-              <Reveal delay={.55} className="hstats">
+              <Reveal delay={1.3} className="hstats">
                 <div><b>0 ₽</b><span>первая консультация</span></div>
                 <div><b>до 2 ч</b><span>ответ на заявку</span></div>
                 <div><b>24/7</b><span>приём заявок онлайн</span></div>
               </Reveal>
-              <Reveal delay={.65}><div className="geo"><i>❄</i>{CONFIG.geo} · Нижневартовск</div></Reveal>
+              <Reveal delay={1.4}><div className="geo"><i>❄</i>{CONFIG.geo} · Нижневартовск</div></Reveal>
             </div>
-            <Reveal delay={.25} scale={.94} className="hright">
-              <div className="hframe">
-                <motion.img style={{ y: imgY }} src="https://image.qwenlm.ai/public_source/5a65b698-a4d8-42a4-a7fa-7b27fae0ed8f/11ef7ac18-ea4d-456c-b225-61a5d38b455e.png" alt="Офис юридической компании ДоговорОфф" />
-              </div>
+            <Reveal delay={1.05} scale={.96} className="hright">
+              <motion.div className="hclip" initial={{ clipPath: "inset(100% 0 0 0)" }} animate={{ clipPath: "inset(0 0 0 0)" }} transition={{ duration: 1.2, ease: EASE, delay: 1.05 }}>
+                <div className="hframe">
+                  <motion.img style={{ y: imgY }} src="https://image.qwenlm.ai/public_source/5a65b698-a4d8-42a4-a7fa-7b27fae0ed8f/11ef7ac18-ea4d-456c-b225-61a5d38b455e.png" alt="Офис юридической компании ДоговорОфф" />
+                </div>
+              </motion.div>
               <div className="hbadge"><span className="dot"></span>Приём заявок открыт</div>
             </Reveal>
           </div>
@@ -744,7 +778,6 @@ export default function App() {
           </div>
         </section>
 
-        {/* КАЛЬКУЛЯТОР */}
         <section className="sec" id="calc">
           <div className="wrap">
             <Reveal className="shead">
@@ -754,22 +787,17 @@ export default function App() {
             <Reveal className="calc">
               <div className="calc-left">
                 <h3>Направление</h3>
-                <p className="chint">Нажмите на услугу и отметьте срочность, если нужно быстрее.</p>
+                <p className="chint">Нажмите на услугу — справа появится расчёт.</p>
                 <div className="chips">
                   {SERVICES.map((s, i) => (
                     <button key={s.n} className={"chip" + (calcIdx === i ? " on" : "")} onClick={() => setCalcIdx(i)}>{s.t}</button>
                   ))}
                 </div>
-                <label className="urg">
-                  <input type="checkbox" checked={urgent} onChange={(e) => setUrgent(e.target.checked)} />
-                  <span className="box"></span>
-                  <span>Срочное выполнение — вне очереди, в сжатые сроки <b>(+30%)</b></span>
-                </label>
               </div>
               <div className="calc-right">
                 <span className="cl">Ориентировочная стоимость</span>
-                <div className="cprice">от {fmt(animPrice)} ₽<small>{urgent ? " · срочно" : calcSvc.per ? " " + calcSvc.per : ""}</small></div>
-                <p className="cnote">Цена на 10% выше средней по рынку — потому что дело ведут основатели лично, а стоимость не меняется после подписания договора.</p>
+                <div className="cprice">от {fmt(animPrice)} ₽<small>{calcSvc.per ? " " + calcSvc.per : ""}</small></div>
+                <p className="cnote">Расчёт предварительный. Точную сумму зафиксируем в договоре — и она не изменится.</p>
                 <ul className="cinc">
                   {calcSvc.l.slice(0, 3).map((x) => (<li key={x}>{x}</li>))}
                 </ul>
@@ -835,8 +863,8 @@ export default function App() {
             <div className="steps">
               {STEPS.map((s, i) => (
                 <Reveal key={s.n} delay={i * .1} className="pstep">
-                  <motion.span className="pline" initial={{ scaleX: 0 }} whileInView={{ scaleX: 1 }} viewport={{ once: true }} transition={{ duration: .9, ease: EASE, delay: i * .12 + .2 }} />
-                  <motion.span className="pdot" initial={{ scale: 0 }} whileInView={{ scale: 1 }} viewport={{ once: true }} transition={{ type: "spring", stiffness: 300, damping: 15, delay: i * .12 + .3 }} />
+                  <motion.span className="pline" initial={{ scaleX: 0 }} whileInView={{ scaleX: 1 }} viewport={{ once: true }} transition={{ duration: 1, ease: EASE, delay: i * .12 + .2 }} />
+                  <motion.span className="pdot" initial={{ scale: 0 }} whileInView={{ scale: 1 }} viewport={{ once: true }} transition={{ type: "spring", stiffness: 260, damping: 18, delay: i * .12 + .3 }} />
                   <div className="pn">{s.n}</div><h3>{s.t}</h3><p>{s.d}</p><div className="psub">{s.s}</div>
                 </Reveal>
               ))}
@@ -861,7 +889,7 @@ export default function App() {
                   </button>
                   <AnimatePresence initial={false}>
                     {openFaq === i && (
-                      <motion.div className="qa-a" key="a" initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: .45, ease: EASE }} style={{ overflow: "hidden" }}>
+                      <motion.div className="qa-a" key="a" initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: .5, ease: EASE }} style={{ overflow: "hidden" }}>
                         <p>{a}</p>
                       </motion.div>
                     )}
@@ -902,7 +930,7 @@ export default function App() {
               <div className="fcard">
                 <AnimatePresence mode="wait" initial={false}>
                   {!done ? (
-                    <motion.form key="f" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -14 }} onSubmit={submit} noValidate>
+                    <motion.form key="f" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -14 }} transition={{ duration: .5, ease: EASE }} onSubmit={submit} noValidate>
                       <h3>Оставить заявку</h3>
                       <p className="fsub">Заполните форму — это займёт минуту. Заявка придёт на {CONFIG.email}</p>
                       <div className={"frow" + (bad.name ? " bad" : "")}>
@@ -936,11 +964,11 @@ export default function App() {
                         <span>Согласен на обработку персональных данных в соответствии с <a onClick={(e) => { e.preventDefault(); setModal(true); }}>политикой конфиденциальности</a> *</span>
                       </label>
                       {agreeBad && <span className="fmsg" style={{ position: "static", display: "block", margin: "-18px 0 18px", opacity: 1 }}>Необходимо согласие</span>}
-                      <motion.button whileTap={{ scale: .97 }} type="submit" className={"btn btn-g fsubmit" + (loading ? " loading" : "")}><span className="btxt">Отправить заявку</span><span className="arr">→</span></motion.button>
+                      <motion.button whileTap={{ scale: .98 }} type="submit" className={"btn btn-g fsubmit" + (loading ? " loading" : "")}><span className="btxt">Отправить заявку</span><span className="arr">→</span></motion.button>
                       <p className="fnote">Нажимая кнопку, вы получаете бесплатную консультацию юриста</p>
                     </motion.form>
                   ) : (
-                    <motion.div key="s" className="fsuccess" initial={{ opacity: 0, scale: .96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}>
+                    <motion.div key="s" className="fsuccess" initial={{ opacity: 0, scale: .96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={{ duration: .6, ease: EASE }}>
                       <svg viewBox="0 0 72 72" width="84" height="84" style={{ margin: "0 auto 26px", display: "block" }}>
                         <motion.circle cx="36" cy="36" r="34" fill="none" stroke="var(--ink)" strokeWidth="1.5" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 1, ease: "easeOut" }} />
                         <motion.path d="M22 37l10 10 18-20" fill="none" stroke="var(--ink)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: .6, delay: .7 }} />
@@ -948,7 +976,7 @@ export default function App() {
                       <h3>Заявка принята</h3>
                       <p>Спасибо за доверие. Юрист свяжется с вами в течение двух часов в рабочее время.</p>
                       {fallbackHref && <a className="btn" href={fallbackHref} style={{ margin: "6px auto" }}>Продублировать письмом →</a>}
-                      <motion.button whileTap={{ scale: .97 }} className="btn" onClick={resetForm} style={{ margin: "6px auto 0" }}>Отправить ещё одну</motion.button>
+                      <motion.button whileTap={{ scale: .98 }} className="btn" onClick={resetForm} style={{ margin: "6px auto 0" }}>Отправить ещё одну</motion.button>
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -1001,7 +1029,7 @@ export default function App() {
 
       <AnimatePresence>
         {!barHide && (
-          <motion.div className="mbar" initial={{ y: "110%" }} animate={{ y: 0 }} exit={{ y: "110%" }} transition={{ duration: .4, ease: EASE }}>
+          <motion.div className="mbar" initial={{ y: "110%" }} animate={{ y: 0 }} exit={{ y: "110%" }} transition={{ duration: .45, ease: EASE }}>
             <a className="btn mcall" href={CONFIG.phoneHref} aria-label="Позвонить">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z" /></svg>
             </a>
@@ -1012,8 +1040,8 @@ export default function App() {
 
       <AnimatePresence>
         {modal && (
-          <motion.div className="modal" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={(e) => { if (e.target === e.currentTarget) setModal(false); }}>
-            <motion.div className="mcard" initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 12, opacity: 0 }} transition={{ duration: .35, ease: EASE }}>
+          <motion.div className="modal" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: .35 }} onClick={(e) => { if (e.target === e.currentTarget) setModal(false); }}>
+            <motion.div className="mcard" initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 12, opacity: 0 }} transition={{ duration: .4, ease: EASE }}>
               <button className="mclose" aria-label="Закрыть" onClick={() => setModal(false)}>✕</button>
               <h3>Политика конфиденциальности</h3>
               <p>1. Оставляя заявку на сайте, вы предоставляете согласие на обработку персональных данных: имя, номер телефона и текст обращения.</p>
