@@ -12,16 +12,18 @@ html.lenis,html.lenis body{height:auto}
 .cursor-dot{width:6px;height:6px;background:#121212;margin:-3px 0 0 -3px}
 .cursor-ring{width:38px;height:38px;border:1px solid rgba(18,18,18,.4);margin:-19px 0 0 -19px;transition:background .3s,border-color .3s}
 .cursor-ring.on{background:rgba(127,168,186,.16);border-color:#7fa8ba}
-/* ---- премиальная шапка ---- */
-#hd .hwrap{height:80px}
-#hd .hphone{white-space:nowrap;font-size:13px;letter-spacing:.02em}
-#hd .nav{gap:38px}
-#hd .nav a{font:600 10.5px 'Manrope';letter-spacing:.26em}
+/* ---- премиальная шапка (компактная) ---- */
+#hd .hwrap{height:80px;gap:14px}
+#hd .hphone{white-space:nowrap;font-size:12.5px;letter-spacing:.02em}
+#hd .nav{gap:24px}
+#hd .nav a{font:600 10px 'Manrope';letter-spacing:.18em}
 #hd .nav a::after{width:100%;bottom:-7px;transform:scaleX(0);transform-origin:center;transition:transform .5s cubic-bezier(.22,.61,.21,1)}
 #hd .nav a:hover::after{transform:scaleX(1)}
-#hd .nav a + a::before{content:"";position:absolute;left:-21px;top:50%;width:3px;height:3px;margin-top:-1px;border-radius:50%;background:var(--ice);opacity:.75}
-#hd .btn-sm{padding:15px 30px;font:700 10px 'Manrope';letter-spacing:.24em;box-shadow:inset 0 0 0 1px rgba(246,244,239,.28)}
+#hd .nav a + a::before{content:"";position:absolute;left:-14px;top:50%;width:3px;height:3px;margin-top:-1px;border-radius:50%;background:var(--ice);opacity:.75}
+#hd .hright{flex:0 0 auto;gap:14px}
+#hd .btn-sm{padding:13px 24px;font:700 10px 'Manrope';letter-spacing:.16em;white-space:nowrap;box-shadow:inset 0 0 0 1px rgba(246,244,239,.28)}
 #hd .btn-sm:hover{box-shadow:inset 0 0 0 1px rgba(18,18,18,.15),0 16px 34px rgba(18,18,18,.16)}
+@media(max-width:1400px){#hd .hphone{display:none}}
 @media(max-width:1100px){#hd .nav a + a::before{display:none}}
 `;
 
