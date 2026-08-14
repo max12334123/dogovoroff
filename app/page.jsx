@@ -17,7 +17,8 @@ const CONFIG = {
   email: "dogovor.off@mail.ru",
   web3formsKey: "109ee3ca-96c1-4a49-8dd9-9c3611d26b16",
   telegram: "https://t.me/dogovor_off",
-  whatsapp: "https://wa.me/73466000000",
+  /* Ссылка на ваш профиль/чат в мессенджере MAX (замените на свою) */
+  max: "https://max.ru/",
   address: "г. Нижневартовск, ул. Ленина, 6, офис 402",
   hours: "Пн–Пт 09:00–19:00 · заявки — 24/7",
   geo: "61°32′ N — 76°58′ E"
@@ -97,7 +98,6 @@ h2{font-size:clamp(30px,4.2vw,56px)}
 .mnav a{font-family:'Cormorant Garamond';font-size:30px;color:var(--ink);text-decoration:none;padding:8px 0;border-bottom:1px solid var(--line);transition:padding-left .3s,color .3s}
 .mnav a:hover{color:var(--gray);padding-left:10px}
 .mnav .mphone{font:600 15px 'Manrope';border:none;margin-top:14px}
-/* ---------- hero + север ---------- */
 .hero{padding:175px 0 110px;position:relative;overflow:hidden}
 .aurora{position:absolute;inset:0;pointer-events:none;overflow:hidden}
 .aurora span{position:absolute;border-radius:50%;filter:blur(70px)}
@@ -128,7 +128,6 @@ h2{font-size:clamp(30px,4.2vw,56px)}
 @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(7px)}}
 .ln{display:block;overflow:hidden;padding-bottom:.08em;margin-bottom:-.08em}
 .ln-i{display:inline-block;will-change:transform}
-/* ---------- маркизы ---------- */
 .outline-mq{padding:26px 0;overflow:hidden;border-bottom:1px solid var(--line)}
 .otrack{display:flex;width:max-content;animation:mq 46s linear infinite}
 .otext{font-family:'Cormorant Garamond';font-weight:600;font-size:clamp(56px,8.6vw,132px);line-height:1;color:transparent;-webkit-text-stroke:1px rgba(18,18,18,.3);white-space:nowrap;padding-right:70px}
@@ -141,7 +140,6 @@ h2{font-size:clamp(30px,4.2vw,56px)}
 .mgroup span{font-family:'Cormorant Garamond';font-style:italic;font-size:21px;color:var(--gray);white-space:nowrap}
 .mgroup i{color:var(--ice);font-style:normal;font-size:14px}
 @keyframes mq{to{transform:translateX(-50%)}}
-/* ---------- сетки ---------- */
 .cgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line)}
 .ccard{background:var(--card);padding:36px 30px;transition:transform .4s cubic-bezier(.2,.7,.3,1),box-shadow .4s;position:relative;overflow:hidden}
 .ccard::after{content:"";position:absolute;top:0;left:0;height:2px;width:0;background:var(--ink);transition:width .45s cubic-bezier(.2,.7,.3,1)}
@@ -169,7 +167,6 @@ h2{font-size:clamp(30px,4.2vw,56px)}
 .slink::after{content:"";position:absolute;left:0;bottom:-5px;width:100%;height:1px;background:var(--ink);transform:scaleX(0);transform-origin:right;transition:transform .35s cubic-bezier(.2,.7,.3,1)}
 .slink:hover{letter-spacing:.22em}
 .slink:hover::after{transform:scaleX(1);transform-origin:left}
-/* ---------- инфографика-цифры ---------- */
 .nums{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line)}
 .num-card{background:var(--card);padding:38px 32px;transition:transform .4s,box-shadow .4s;position:relative;overflow:hidden}
 .num-card:hover{transform:translateY(-4px);box-shadow:var(--shadow);z-index:1}
@@ -177,6 +174,30 @@ h2{font-size:clamp(30px,4.2vw,56px)}
 .num-card .big i{font-style:normal;font-size:.45em;color:var(--ice)}
 .num-card small{display:block;margin-top:12px;font:700 10.5px 'Manrope';letter-spacing:.16em;text-transform:uppercase;color:var(--gray);line-height:1.6}
 .num-card::after{content:"❄";position:absolute;right:18px;top:16px;color:var(--ice);opacity:.55;font-size:14px}
+/* ---------- калькулятор ---------- */
+.calc{display:grid;grid-template-columns:1.1fr .9fr;gap:22px;align-items:stretch}
+.calc-left{border:1px solid var(--line);background:var(--card);padding:38px 36px}
+.calc-left h3{font-size:24px;margin-bottom:8px}
+.calc-left .chint{color:var(--gray);font-size:13px;margin-bottom:24px}
+.chips{display:flex;flex-wrap:wrap;gap:10px}
+.chip{border:1px solid var(--line);background:none;padding:13px 18px;font:600 12px 'Manrope';letter-spacing:.06em;cursor:pointer;transition:.25s;color:var(--ink);-webkit-tap-highlight-color:transparent}
+.chip:hover{border-color:var(--ink)}
+.chip.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.urg{margin-top:28px;display:flex;gap:12px;align-items:flex-start;cursor:pointer;font-size:13px;color:var(--gray);line-height:1.5}
+.urg input{position:absolute;opacity:0;width:0}
+.urg .box{margin-top:0}
+.calc-right{background:var(--ink);color:var(--bg);padding:38px 36px;display:flex;flex-direction:column;position:relative;overflow:hidden}
+.calc-right::after{content:"❄";position:absolute;right:26px;top:22px;color:var(--ice);opacity:.7;font-size:16px}
+.calc-right .cl{font:700 10px 'Manrope';letter-spacing:.26em;text-transform:uppercase;color:rgba(246,244,239,.55)}
+.cprice{font-family:'Cormorant Garamond';font-weight:600;font-size:clamp(44px,4.6vw,64px);line-height:1;margin:18px 0 4px;color:var(--bg)}
+.cprice small{font:600 14px 'Manrope';color:rgba(246,244,239,.6);letter-spacing:.06em}
+.cnote{font-size:12px;color:rgba(246,244,239,.55);margin-bottom:22px}
+.cinc{list-style:none;margin-bottom:28px}
+.cinc li{position:relative;padding-left:18px;margin:8px 0;font-size:13px;color:rgba(246,244,239,.8)}
+.cinc li::before{content:"";position:absolute;left:0;top:9px;width:7px;height:1px;background:var(--ice)}
+.calc-right .btn{margin-top:auto;border-color:var(--bg);color:var(--bg)}
+.calc-right .btn::before{background:var(--bg)}
+.calc-right .btn:hover{color:var(--ink)}
 /* ---------- pricing ---------- */
 .pgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;align-items:stretch}
 .pcard{border:1px solid var(--line);background:var(--card);padding:44px 36px;display:flex;flex-direction:column;position:relative;transition:transform .4s cubic-bezier(.2,.7,.3,1),border-color .4s,box-shadow .4s}
@@ -194,7 +215,6 @@ h2{font-size:clamp(30px,4.2vw,56px)}
 .pnote{margin-top:26px;color:var(--gray);font-size:14px;text-align:center}
 .pnote a{color:var(--ink);text-decoration:underline;text-underline-offset:4px;transition:opacity .25s}
 .pnote a:hover{opacity:.65}
-/* ---------- team ---------- */
 .tgrid{display:grid;grid-template-columns:1fr 1fr;gap:22px}
 .tcard{border:1px solid var(--line);background:var(--card);padding:46px 42px;display:flex;flex-direction:column;transition:border-color .4s,transform .4s cubic-bezier(.2,.7,.3,1),box-shadow .4s}
 .tcard:hover{border-color:var(--ink);transform:translateY(-6px);box-shadow:var(--shadow)}
@@ -214,7 +234,6 @@ h2{font-size:clamp(30px,4.2vw,56px)}
 .prin .pn2{font-family:'Cormorant Garamond';font-style:italic;font-size:22px;color:var(--ice);margin-bottom:10px}
 .prin h4{font-family:'Cormorant Garamond';font-weight:600;font-size:22px;margin-bottom:8px}
 .prin p{color:var(--gray);font-size:13.5px;line-height:1.7}
-/* ---------- process ---------- */
 .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:34px;position:relative}
 .pstep{border-top:1px solid var(--line);padding-top:34px;position:relative}
 .pstep .pline{position:absolute;top:-1px;left:0;height:1px;background:var(--ink);transform-origin:left center;width:100%}
@@ -227,7 +246,6 @@ h2{font-size:clamp(30px,4.2vw,56px)}
 .gbar:hover{box-shadow:var(--shadow);transform:translateY(-3px)}
 .gbar b{font-family:'Cormorant Garamond';font-weight:600;font-size:25px}
 .gbar span{color:var(--gray);font-size:14px;max-width:580px}
-/* ---------- faq ---------- */
 .faqwrap{max-width:860px;margin:0 auto}
 .qa{border-bottom:1px solid var(--line)}
 .qa-q{width:100%;display:flex;justify-content:space-between;align-items:center;gap:24px;padding:26px 0;background:none;border:none;color:var(--ink);font:600 18px 'Manrope';cursor:pointer;text-align:left;transition:color .25s,padding-left .3s}
@@ -239,7 +257,6 @@ h2{font-size:clamp(30px,4.2vw,56px)}
 .qa-i::after{left:6px;top:0;width:1.6px;height:14px}
 .qa.open .qa-i::after{transform:scaleY(0)}
 .qa-a p{padding:0 40px 26px 0;color:var(--gray);font-size:15px;line-height:1.8}
-/* ---------- request ---------- */
 #request{background:linear-gradient(180deg,transparent,rgba(18,18,18,.04) 30%,transparent)}
 .rgrid{display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:start}
 .rleft h2{margin:18px 0 20px}
@@ -252,6 +269,7 @@ h2{font-size:clamp(30px,4.2vw,56px)}
 .rcontacts a:hover{opacity:.65;letter-spacing:.03em}
 .rhours,.raddr{font-size:13px;color:var(--gray)}
 .rmess{display:flex;gap:12px;margin-top:22px;flex-wrap:wrap}
+.maxlogo{display:inline-flex;align-items:center;justify-content:center;font:800 10px 'Manrope';letter-spacing:.06em;border:1.5px solid currentColor;border-radius:6px;padding:3px 6px}
 .fcard{background:var(--card);border:1px solid var(--line);padding:46px 44px;position:relative;box-shadow:0 30px 80px rgba(18,18,18,.07)}
 .fcard h3{font-size:29px;margin-bottom:6px}
 .fsub{color:var(--gray);font-size:13px;margin-bottom:30px}
@@ -307,7 +325,6 @@ footer{border-top:1px solid var(--line);padding:70px 0 0;background:var(--bg2)}
 .mcard p{color:var(--gray);font-size:14px;line-height:1.8;margin-bottom:12px}
 .mclose{position:absolute;top:18px;right:18px;width:40px;height:40px;background:none;border:1px solid var(--line);color:var(--ink);cursor:pointer;font-size:16px;transition:.25s}
 .mclose:hover{border-color:var(--ink);background:var(--ink);color:var(--bg);transform:rotate(90deg)}
-/* ---------- адаптив ---------- */
 @media(max-width:1100px){
   .nav{display:none}.burger{display:block}.hphone{display:none}
   .hgrid{grid-template-columns:1fr;gap:60px}
@@ -316,6 +333,7 @@ footer{border-top:1px solid var(--line);padding:70px 0 0;background:var(--bg2)}
   .steps{grid-template-columns:1fr 1fr;gap:40px}
   .rgrid{grid-template-columns:1fr;gap:60px}
   .fgrid{grid-template-columns:1fr 1fr}
+  .calc{grid-template-columns:1fr}
 }
 @media(max-width:760px){
   html{scroll-padding-top:76px}
@@ -366,6 +384,8 @@ footer{border-top:1px solid var(--line);padding:70px 0 0;background:var(--bg2)}
   .mbar{display:flex}
   .totop{bottom:auto;top:14px;right:12px;width:44px;height:44px}
   .mcard{padding:34px 22px}
+  .calc-left,.calc-right{padding:30px 22px}
+  .cprice{font-size:44px}
 }
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{animation:none!important;transition:none!important}
@@ -379,13 +399,14 @@ const CLIENTS = [
   { t: "УК, ТСЖ и подрядчикам ЖКХ", d: "Сфера ЖКХ — наша ежедневная практика: от предписаний ГЖИ до судов.", l: ["Споры с ГЖИ", "Работа с должниками", "Споры с собственниками", "Договоры с РСО"] },
   { t: "Частным лицам", d: "Гражданам, которым нужен юрист без лишних слов и переплат.", l: ["Договоры и сделки", "Споры с застройщиками", "Защита прав потребителей", "Претензии и иски"] }
 ];
+/* Цены = медиана рынка + 10% (премиальное позиционирование) */
 const SERVICES = [
-  { n: "01", t: "Тендеры и госзакупки", d: "44-ФЗ и 223-ФЗ под ключ: от анализа закупки до подписания контракта.", l: ["Подготовка и подача заявок", "Анализ закупки на скрытые риски", "Сопровождение контракта", "Обеспечение и банковские гарантии"], p: "от 5 000 ₽", svc: "Тендеры и госзакупки (44-ФЗ, 223-ФЗ)" },
-  { n: "02", t: "ФАС и споры в закупках", d: "Защищаем участников закупок от необоснованных отказов и действий заказчиков.", l: ["Жалобы в ФАС", "Представительство на рассмотрениях", "Обжалование итогов тендеров", "Защита от включения в РНП"], p: "от 30 000 ₽", svc: "ФАС и споры в закупках" },
-  { n: "03", t: "Юраутсорсинг бизнеса", d: "Штатный юрист не по карману? Мы закрываем правовые вопросы компании целиком.", l: ["Абонентское обслуживание", "Договоры и претензионная работа", "Кадровые документы", "Сопровождение проверок"], p: "от 15 000 ₽/мес", svc: "Юридический аутсорсинг бизнеса" },
-  { n: "04", t: "ЖКХ, УК и ТСЖ", d: "Сопровождаем управляющие организации и защищаем их в спорах с жителями и надзором.", l: ["Работа с ГЖИ и муниципалитетом", "Взыскание задолженности", "Споры с собственниками", "Договоры с ресурсоснабжающими организациями"], p: "от 10 000 ₽", svc: "ЖКХ, УК и ТСЖ" },
-  { n: "05", t: "Арбитраж и суды", d: "Представляем интересы в арбитражных судах и судах общей юрисдикции.", l: ["Взыскание долгов и убытков", "Оспаривание сделок и решений", "Банкротство кредитора", "Возможна оплата за результат"], p: "от 30 000 ₽", svc: "Арбитраж и суды" },
-  { n: "06", t: "Договоры и претензии", d: "Документы, которые работают на вас, а не против вас.", l: ["Разработка и аудит договоров", "Претензионная переписка", "Правовые заключения", "Сопровождение переговоров"], p: "от 3 000 ₽", svc: "Договоры и претензии" }
+  { n: "01", t: "Тендеры и госзакупки", d: "44-ФЗ и 223-ФЗ под ключ: от анализа закупки до подписания контракта.", l: ["Подготовка и подача заявок", "Анализ закупки на скрытые риски", "Сопровождение контракта", "Обеспечение и банковские гарантии"], p: "от 7 700 ₽", base: 7700, per: "", svc: "Тендеры и госзакупки (44-ФЗ, 223-ФЗ)" },
+  { n: "02", t: "ФАС и споры в закупках", d: "Защищаем участников закупок от необоснованных отказов и действий заказчиков.", l: ["Жалобы в ФАС", "Представительство на рассмотрениях", "Обжалование итогов тендеров", "Защита от включения в РНП"], p: "от 33 000 ₽", base: 33000, per: "", svc: "ФАС и споры в закупках" },
+  { n: "03", t: "Юраутсорсинг бизнеса", d: "Штатный юрист не по карману? Мы закрываем правовые вопросы компании целиком.", l: ["Абонентское обслуживание", "Договоры и претензионная работа", "Кадровые документы", "Сопровождение проверок"], p: "от 24 200 ₽/мес", base: 24200, per: "/мес", svc: "Юридический аутсорсинг бизнеса" },
+  { n: "04", t: "ЖКХ, УК и ТСЖ", d: "Сопровождаем управляющие организации и защищаем их в спорах с жителями и надзором.", l: ["Работа с ГЖИ и муниципалитетом", "Взыскание задолженности", "Споры с собственниками", "Договоры с ресурсоснабжающими организациями"], p: "от 13 200 ₽", base: 13200, per: "", svc: "ЖКХ, УК и ТСЖ" },
+  { n: "05", t: "Арбитраж и суды", d: "Представляем интересы в арбитражных судах и судах общей юрисдикции.", l: ["Взыскание долгов и убытков", "Оспаривание сделок и решений", "Банкротство кредитора", "Возможна оплата за результат"], p: "от 49 500 ₽", base: 49500, per: "", svc: "Арбитраж и суды" },
+  { n: "06", t: "Договоры и претензии", d: "Документы, которые работают на вас, а не против вас.", l: ["Разработка и аудит договоров", "Претензионная переписка", "Правовые заключения", "Сопровождение переговоров"], p: "от 4 400 ₽", base: 4400, per: "", svc: "Договоры и претензии" }
 ];
 const NUMS = [
   { to: 6, suf: "", txt: "практик права — глубоко и ежедневно" },
@@ -396,9 +417,9 @@ const NUMS = [
   { to: 0, suf: " ₽", txt: "первая консультация — бесплатно" }
 ];
 const PLANS = [
-  { name: "Старт", desc: "Разовая задача или консультация", sum: "от 3 000 ₽", small: "", hot: false, svc: "Другое / не знаю", l: ["Консультация юриста — 60 минут", "Разовый документ: договор, претензия", "Правовое заключение по вопросу", "Срок выполнения — от 1 рабочего дня", "Оплата по факту согласования объёма"] },
-  { name: "Бизнес", desc: "Юридический отдел на аутсорсе", sum: "от 25 000 ₽", small: " / мес", hot: true, svc: "Юридический аутсорсинг бизнеса", l: ["Всё из тарифа «Старт»", "Безлимитные консультации", "Полный документооборот компании", "Кадровое сопровождение", "Персональный юрист на связи", "Скидка 20% на судебные дела"] },
-  { name: "Тендер", desc: "Тендерный отдел под ключ", sum: "от 35 000 ₽", small: " / мес", hot: false, svc: "Тендеры и госзакупки (44-ФЗ, 223-ФЗ)", l: ["Всё из тарифа «Старт»", "Подбор и анализ закупок", "Заявки по 44-ФЗ и 223-ФЗ под ключ", "Жалобы в ФАС и представительство", "Контракты, обеспечение, сроки", "Ежемесячная отчётность по торгам"] }
+  { name: "Старт", desc: "Разовая задача или консультация", sum: "от 4 400 ₽", small: "", hot: false, svc: "Другое / не знаю", l: ["Консультация юриста — 60 минут", "Разовый документ: договор, претензия", "Правовое заключение по вопросу", "Срок выполнения — от 1 рабочего дня", "Оплата по факту согласования объёма"] },
+  { name: "Бизнес", desc: "Юридический отдел на аутсорсе", sum: "от 24 200 ₽", small: " / мес", hot: true, svc: "Юридический аутсорсинг бизнеса", l: ["Всё из тарифа «Старт»", "Безлимитные консультации", "Полный документооборот компании", "Кадровое сопровождение", "Персональный юрист на связи", "Скидка 20% на судебные дела"] },
+  { name: "Тендер", desc: "Тендерный отдел под ключ", sum: "от 38 500 ₽", small: " / мес", hot: false, svc: "Тендеры и госзакупки (44-ФЗ, 223-ФЗ)", l: ["Всё из тарифа «Старт»", "Подбор и анализ закупок", "Заявки по 44-ФЗ и 223-ФЗ под ключ", "Жалобы в ФАС и представительство", "Контракты, обеспечение, сроки", "Ежемесячная отчётность по торгам"] }
 ];
 const TEAM = [
   { n: "01", role: "Основатель · Начальник юридического отдела", t: "Суды, ЖКХ и сопровождение бизнеса", d: "Высшее юридическое образование. Руководит правовой практикой «ДоговорОфф»: арбитражные и гражданские споры, претензионная работа, абонентское обслуживание компаний и управляющих организаций.", l: ["Арбитраж и взыскание долгов", "Сопровождение УК, ТСЖ и подрядчиков ЖКХ", "Договорная работа и правовые заключения", "Споры с государственными органами"], f: ["Высшее юридическое", "Арбитраж и суды", "ЖКХ и УК", "Договоры"] },
@@ -412,12 +433,12 @@ const STEPS = [
 ];
 const FAQ = [
   ["Сколько стоит консультация?", "Первая консультация — бесплатно, до 30 минут, очно или онлайн. Дальнейшая работа оценивается по прайсу и фиксируется в договоре до начала оказания услуг."],
+  ["Почему цены чуть выше средних по рынку?", "Мы позиционируем себя как премиальную практику: каждое дело ведут основатели лично, цена фиксируется в договоре и не меняется. Это стоит на 10% дороже рынка — и экономит вам нервы и сроки."],
   ["Что происходит после отправки заявки?", "Заявка мгновенно приходит на почту компании, и в течение двух часов в рабочее время юрист связывается с вами: уточняет детали и назначает бесплатную консультацию. Данные заявки конфиденциальны."],
   ["Вы работаете с другими городами?", "Да. Офис находится в Нижневартовске, но тендерное сопровождение, договорная работа и консультации полностью ведутся онлайн по всей России. В судах ХМАО участвуем лично, в других регионах — совместно с партнёрами или по видеосвязи."],
   ["Гарантируете ли вы результат?", "Мы гарантируем честную оценку перспектив и качественную работу. Если дело бесперспективно — скажем об этом на первой консультации и не возьмём деньги за «борьбу ради борьбы». По ряду категорий возможна оплата за результат."],
   ["Как заключается договор и как платить?", "Договор подписываем электронно или очно. Оплата — по счёту или картой, для абонентов — ежемесячный платёж."],
   ["Можно ли оплатить в рассрочку?", "Да, по судебным делам возможна рассрочка: стоимость делится на этапы, оплата привязана к стадиям процесса. Условия фиксируем в договоре."],
-  ["Работаете ли вы с частными лицами?", "Да. Помогаем гражданам по спорам с застройщиками, защите прав потребителей, договорам и сделкам, претензиям и искам. Первая консультация для частных лиц также бесплатна."],
   ["Сохранится ли конфиденциальность?", "Да. С первого обращения действует режим конфиденциальности, по запросу подписываем NDA. Документы хранятся в защищённом контуре, данные не передаются третьим лицам."]
 ];
 const MARQUEE = ["Тендеры и госзакупки", "ФАС", "Арбитраж", "Юраутсорсинг", "ЖКХ и УК", "Договоры", "Претензии", "Банкротство"];
@@ -460,6 +481,16 @@ function Counter({ to, suf = "", duration = 1.8 }) {
   }, [inView, to]);
   return <span ref={ref}>{v}<i>{suf}</i></span>;
 }
+function useAnimatedNumber(target) {
+  const [val, setVal] = useState(target);
+  const prev = useRef(target);
+  useEffect(() => {
+    const c = animate(prev.current, target, { duration: .7, ease: EASE, onUpdate: (v) => setVal(Math.round(v)) });
+    prev.current = target;
+    return () => c.stop();
+  }, [target]);
+  return val;
+}
 function Magnetic({ href, className, children, onClick, type }) {
   const ref = useRef(null);
   const mx = useMotionValue(0), my = useMotionValue(0);
@@ -494,6 +525,7 @@ function maskPhone(raw) {
   if (d.length >= 10) r += "-" + d.slice(9, 11);
   return r;
 }
+const fmt = (n) => n.toLocaleString("ru-RU");
 
 export default function App() {
   const [scrolled, setScrolled] = useState(false);
@@ -514,6 +546,9 @@ export default function App() {
   const [done, setDone] = useState(false);
   const [fallbackHref, setFallbackHref] = useState(null);
 
+  const [calcIdx, setCalcIdx] = useState(0);
+  const [urgent, setUrgent] = useState(false);
+
   const heroRef = useRef(null);
   const reqRef = useRef(null);
   const reqInView = useInView(reqRef, { margin: "-15% 0px -15% 0px" });
@@ -529,6 +564,10 @@ export default function App() {
   useEffect(() => { document.body.style.overflow = menu || modal ? "hidden" : ""; }, [menu, modal]);
 
   const pickSvc = (v) => { setSvc(v); setBad((b) => ({ ...b, svc: false })); document.getElementById("request")?.scrollIntoView({ behavior: "smooth" }); };
+
+  const calcSvc = SERVICES[calcIdx];
+  const calcPrice = Math.round((calcSvc.base * (urgent ? 1.3 : 1)) / 100) * 100;
+  const animPrice = useAnimatedNumber(calcPrice);
 
   const submit = (e) => {
     e.preventDefault();
@@ -567,7 +606,7 @@ export default function App() {
             <span className="bname">{CONFIG.brand}<span className="bsub">юридическая компания · Нижневартовск</span></span>
           </a>
           <nav className="nav">
-            <a href="#clients">Клиенты</a><a href="#services">Услуги</a><a href="#pricing">Тарифы</a>
+            <a href="#clients">Клиенты</a><a href="#services">Услуги</a><a href="#calc">Калькулятор</a><a href="#pricing">Тарифы</a>
             <a href="#team">Команда</a><a href="#process">Процесс</a><a href="#faq">Вопросы</a>
           </nav>
           <div className="hright">
@@ -581,7 +620,7 @@ export default function App() {
       <AnimatePresence>
         {menu && (
           <motion.nav className="mnav" initial={{ y: "-100%" }} animate={{ y: 0 }} exit={{ y: "-100%" }} transition={{ duration: .5, ease: [0.7, 0, 0.3, 1] }}>
-            {[["#clients", "Клиенты"], ["#services", "Услуги"], ["#pricing", "Тарифы"], ["#team", "Команда"], ["#process", "Процесс"], ["#faq", "Вопросы"], ["#request", "Оставить заявку"]].map(([h, t], i) => (
+            {[["#clients", "Клиенты"], ["#services", "Услуги"], ["#calc", "Калькулятор"], ["#pricing", "Тарифы"], ["#team", "Команда"], ["#process", "Процесс"], ["#faq", "Вопросы"], ["#request", "Оставить заявку"]].map(([h, t], i) => (
               <motion.a key={h} href={h} onClick={() => setMenu(false)} initial={{ opacity: 0, x: -24 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: .15 + i * .05 }}>{t}</motion.a>
             ))}
             <a className="mphone" href={CONFIG.phoneHref}>{CONFIG.phone}</a>
@@ -590,7 +629,6 @@ export default function App() {
       </AnimatePresence>
 
       <main id="top">
-        {/* HERO */}
         <section className="hero" ref={heroRef}>
           <div className="aurora" aria-hidden="true">
             <motion.span className="a1" animate={{ x: [0, 60, 0], y: [0, -40, 0] }} transition={{ duration: 14, repeat: Infinity, ease: "easeInOut" }} />
@@ -612,7 +650,7 @@ export default function App() {
               <Reveal delay={.35}><p className="lead">«ДоговорОфф» — тендеры и госзакупки, арбитраж, юридический аутсорсинг и сопровождение ЖКХ. Северный характер: спокойно, точно, надёжно.</p></Reveal>
               <Reveal delay={.45} className="hcta">
                 <Magnetic href="#request" className="btn btn-g"><span className="btxt">Получить консультацию</span><span className="arr">→</span></Magnetic>
-                <Magnetic href="#services" className="btn"><span className="btxt">Услуги компании</span></Magnetic>
+                <Magnetic href="#calc" className="btn"><span className="btxt">Рассчитать стоимость</span></Magnetic>
               </Reveal>
               <Reveal delay={.55} className="hstats">
                 <div><b>0 ₽</b><span>первая консультация</span></div>
@@ -634,7 +672,6 @@ export default function App() {
           </div>
         </section>
 
-        {/* OUTLINE MARQUEE */}
         <div className="outline-mq" aria-hidden="true">
           <div className="otrack">
             {[0, 1].map((g) => (
@@ -645,7 +682,6 @@ export default function App() {
           </div>
         </div>
 
-        {/* CLIENTS */}
         <section className="sec" id="clients">
           <div className="wrap">
             <Reveal className="shead">
@@ -663,7 +699,6 @@ export default function App() {
           </div>
         </section>
 
-        {/* MARQUEE */}
         <div className="marquee" aria-hidden="true">
           <div className="mtrack">
             {[0, 1].map((g) => (
@@ -674,7 +709,6 @@ export default function App() {
           </div>
         </div>
 
-        {/* SERVICES */}
         <section className="sec" id="services">
           <div className="wrap">
             <Reveal className="shead">
@@ -693,7 +727,6 @@ export default function App() {
           </div>
         </section>
 
-        {/* NUMBERS */}
         <section className="sec" id="numbers">
           <div className="wrap">
             <Reveal className="shead">
@@ -711,11 +744,45 @@ export default function App() {
           </div>
         </section>
 
-        {/* PRICING */}
+        {/* КАЛЬКУЛЯТОР */}
+        <section className="sec" id="calc">
+          <div className="wrap">
+            <Reveal className="shead">
+              <div><span className="k">04 · Калькулятор</span><h2>Рассчитайте стоимость</h2></div>
+              <p>Выберите направление — покажем ориентировочную цену. Точную смету зафиксируем в договоре.</p>
+            </Reveal>
+            <Reveal className="calc">
+              <div className="calc-left">
+                <h3>Направление</h3>
+                <p className="chint">Нажмите на услугу и отметьте срочность, если нужно быстрее.</p>
+                <div className="chips">
+                  {SERVICES.map((s, i) => (
+                    <button key={s.n} className={"chip" + (calcIdx === i ? " on" : "")} onClick={() => setCalcIdx(i)}>{s.t}</button>
+                  ))}
+                </div>
+                <label className="urg">
+                  <input type="checkbox" checked={urgent} onChange={(e) => setUrgent(e.target.checked)} />
+                  <span className="box"></span>
+                  <span>Срочное выполнение — вне очереди, в сжатые сроки <b>(+30%)</b></span>
+                </label>
+              </div>
+              <div className="calc-right">
+                <span className="cl">Ориентировочная стоимость</span>
+                <div className="cprice">от {fmt(animPrice)} ₽<small>{urgent ? " · срочно" : calcSvc.per ? " " + calcSvc.per : ""}</small></div>
+                <p className="cnote">Цена на 10% выше средней по рынку — потому что дело ведут основатели лично, а стоимость не меняется после подписания договора.</p>
+                <ul className="cinc">
+                  {calcSvc.l.slice(0, 3).map((x) => (<li key={x}>{x}</li>))}
+                </ul>
+                <Magnetic className="btn" onClick={() => pickSvc(calcSvc.svc)}><span className="btxt">Получить точный расчёт</span><span className="arr">→</span></Magnetic>
+              </div>
+            </Reveal>
+          </div>
+        </section>
+
         <section className="sec" id="pricing">
           <div className="wrap">
             <Reveal className="shead">
-              <div><span className="k">04 · Тарифы</span><h2>Форматы работы</h2></div>
+              <div><span className="k">05 · Тарифы</span><h2>Форматы работы</h2></div>
               <p>От разовой помощи до полноценного юридического отдела на аутсорсе. Стоимость фиксируется в договоре.</p>
             </Reveal>
             <div className="pgrid">
@@ -734,11 +801,10 @@ export default function App() {
           </div>
         </section>
 
-        {/* TEAM */}
         <section className="sec" id="team">
           <div className="wrap">
             <Reveal className="shead">
-              <div><span className="k">05 · Команда</span><h2>Кто ведёт ваши дела</h2></div>
+              <div><span className="k">06 · Команда</span><h2>Кто ведёт ваши дела</h2></div>
               <p>Без конвейера: вашу задачу ведут основатели компании лично. Каждый документ проходит через нас.</p>
             </Reveal>
             <div className="tgrid">
@@ -760,11 +826,10 @@ export default function App() {
           </div>
         </section>
 
-        {/* PROCESS */}
         <section className="sec" id="process">
           <div className="wrap">
             <Reveal className="shead">
-              <div><span className="k">06 · Процесс</span><h2>Как мы работаем</h2></div>
+              <div><span className="k">07 · Процесс</span><h2>Как мы работаем</h2></div>
               <p>Прозрачный маршрут от первого обращения до результата. Вы всегда знаете, что происходит с вашим делом.</p>
             </Reveal>
             <div className="steps">
@@ -783,11 +848,10 @@ export default function App() {
           </div>
         </section>
 
-        {/* FAQ */}
         <section className="sec" id="faq">
           <div className="wrap">
             <Reveal className="shead" style={{ justifyContent: "center", textAlign: "center" }}>
-              <div style={{ margin: "0 auto" }}><span className="k" style={{ justifyContent: "center" }}>07 · Вопросы</span><h2>Частые вопросы</h2></div>
+              <div style={{ margin: "0 auto" }}><span className="k" style={{ justifyContent: "center" }}>08 · Вопросы</span><h2>Частые вопросы</h2></div>
             </Reveal>
             <Reveal className="faqwrap">
               {FAQ.map(([q, a], i) => (
@@ -808,11 +872,10 @@ export default function App() {
           </div>
         </section>
 
-        {/* REQUEST */}
         <section className="sec" id="request" ref={reqRef}>
           <div className="wrap rgrid">
             <Reveal x={-30} className="rleft">
-              <span className="k">08 · Заявка</span>
+              <span className="k">09 · Заявка</span>
               <h2>Обсудим вашу задачу</h2>
               <p>Оставьте заявку — она придёт на почту компании, и юрист свяжется с вами, уточнит детали и предложит формат работы. Первая консультация бесплатна и ни к чему не обязывает.</p>
               <ul className="rlist">
@@ -828,8 +891,11 @@ export default function App() {
                 <span className="rhours">{CONFIG.hours}</span>
               </div>
               <div className="rmess">
-                <Magnetic href={CONFIG.telegram} className="btn btn-sm">Telegram</Magnetic>
-                <Magnetic href={CONFIG.whatsapp} className="btn btn-sm">WhatsApp</Magnetic>
+                <Magnetic href={CONFIG.telegram} className="btn btn-sm">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M21.9 4.6c.3-1.4-.9-2.4-2.2-1.9L2.9 9.3c-1.5.6-1.4 2.7.1 3.2l4.2 1.3 1.6 4.9c.4 1.3 2 1.6 2.9.6l2.2-2.4 4.4 3.2c1.2.9 2.9.2 3.2-1.3l2.4-14.2zM9.4 13.2l8.1-5.1c.4-.2.7.3.4.6l-6.6 6.2-.3 3-1.6-4.7z"/></svg>
+                  Telegram
+                </Magnetic>
+                <Magnetic href={CONFIG.max} className="btn btn-sm"><span className="maxlogo">MAX</span>MAX</Magnetic>
               </div>
             </Reveal>
             <Reveal x={30} delay={.1} className="rright">
@@ -904,7 +970,7 @@ export default function App() {
             </div>
             <div>
               <h4>Навигация</h4>
-              <a href="#clients">Клиенты</a><a href="#services">Услуги</a><a href="#pricing">Тарифы</a><a href="#team">Команда</a><a href="#process">Процесс</a><a href="#faq">Вопросы</a>
+              <a href="#clients">Клиенты</a><a href="#services">Услуги</a><a href="#calc">Калькулятор</a><a href="#pricing">Тарифы</a><a href="#team">Команда</a><a href="#process">Процесс</a><a href="#faq">Вопросы</a>
             </div>
             <div>
               <h4>Практики</h4>
