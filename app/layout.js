@@ -1,16 +1,23 @@
-import Script from "next/script";
+import "./globals.css";
 import Effects from "./effects";
 
 export const metadata = {
-  title: "ДоговорОфф — юридическая компания в Нижневартовске | Тендеры, арбитраж, ЖКХ",
-  description: "Юридические услуги для бизнеса и частных лиц: тендеры 44-ФЗ и 223-ФЗ, ФАС, арбитраж, юраутсорсинг, ЖКХ. Первая консультация бесплатно.",
-  keywords: "юрист Нижневартовск, тендеры, 44-ФЗ, 223-ФЗ, ФАС, арбитраж, ЖКХ, юраутсорсинг, договоры",
+  metadataBase: new URL("https://dogovoroff.vercel.app"),
+  title: "ДоговорОфф — юридическая компания в Нижневартовске",
+  description: "Юридическая помощь бизнесу и частным лицам: тендеры, ФАС, арбитраж, аутсорсинг, ЖКХ, договоры и претензии.",
+  keywords: ["юрист Нижневартовск", "тендеры", "44-ФЗ", "223-ФЗ", "ФАС", "арбитраж", "ЖКХ", "юридический аутсорсинг"],
   openGraph: {
-    title: "ДоговорОфф — юридическая компания",
-    description: "Тендеры, арбитраж, юраутсорсинг, ЖКХ. Работаем по всей России.",
-    type: "website", locale: "ru_RU",
-    images: [{ url: "/og.jpg", width: 1200, height: 630 }],
+    title: "ДоговорОфф — право для сложных решений",
+    description: "Тендеры, арбитраж, юридический аутсорсинг и ЖКХ. Нижневартовск и вся Россия онлайн.",
+    type: "website",
+    locale: "ru_RU",
   },
+  robots: { index: true, follow: true },
+};
+
+export const viewport = {
+  colorScheme: "dark light",
+  themeColor: "#050505",
 };
 
 export default function RootLayout({ children }) {
@@ -19,16 +26,6 @@ export default function RootLayout({ children }) {
       <body>
         {children}
         <Effects />
-        <Script id="yandex-metrika" strategy="afterInteractive">
-          {`
-            (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
-            m[i].l=1*new Date();
-            for(var j=0;j<document.scripts.length;j++){if(document.scripts[j].src===r){return;}}
-            k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})
-            (window,document,"script","https://mc.yandex.ru/metrika/tag.js","ym");
-            ym(00000000,"init",{clickmap:true,trackLinks:true,accurateTrackBounce:true,webvisor:true});
-          `}
-        </Script>
       </body>
     </html>
   );

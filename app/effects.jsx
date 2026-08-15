@@ -1,80 +1,79 @@
 "use client";
-import {useEffect,useState}from"react";
-import Lenis from"lenis";
-import{motion,useMotionValue}from"framer-motion";
 
-const CSS=`
-html.lenis,html.lenis body{height:auto}
-.lenis.lenis-smooth{scroll-behavior:auto!important}
-@media(pointer:fine){html.cc,html.cc *{cursor:none}}
-.cursor-dot,.cursor-ring{position:fixed;left:0;top:0;pointer-events:none;z-index:300;border-radius:50%;display:none;will-change:transform}
-@media(pointer:fine){.cursor-dot,.cursor-ring{display:block}}
-.cursor-dot{width:6px;height:6px;background:#121212;margin:-3px 0 0 -3px}
-.cursor-ring{width:38px;height:38px;border:1px solid rgba(18,18,18,.4);margin:-19px 0 0 -19px;transition:background .3s,border-color .3s}
-.cursor-ring.on{background:rgba(127,168,186,.16);border-color:#7fa8ba}
-/* ---- премиальная шапка (компактная) ---- */
-#hd .hwrap{height:80px;gap:14px}
-#hd .hphone{white-space:nowrap;font-size:12.5px;letter-spacing:.02em}
-#hd .nav{gap:24px}
-#hd .nav a{font:600 10px 'Manrope';letter-spacing:.18em}
-#hd .nav a::after{width:100%;bottom:-7px;transform:scaleX(0);transform-origin:center;transition:transform .5s cubic-bezier(.22,.61,.21,1)}
-#hd .nav a:hover::after{transform:scaleX(1)}
-#hd .nav a + a::before{content:"";position:absolute;left:-14px;top:50%;width:3px;height:3px;margin-top:-1px;border-radius:50%;background:var(--ice);opacity:.75}
-#hd .hright{flex:0 0 auto;gap:14px}
-#hd .btn-sm{padding:13px 24px;font:700 10px 'Manrope';letter-spacing:.16em;white-space:nowrap;box-shadow:inset 0 0 0 1px rgba(246,244,239,.28)}
-#hd .btn-sm:hover{box-shadow:inset 0 0 0 1px rgba(18,18,18,.15),0 16px 34px rgba(18,18,18,.16)}
-@media(max-width:1400px){#hd .hphone{display:none}}
-@media(max-width:1100px){#hd .nav a + a::before{display:none}}
-`;
+import { motion, useMotionValue, useSpring } from "framer-motion";
+import Lenis from "lenis";
+import { useEffect, useState } from "react";
 
-function Cursor(){
-  const[on,setOn]=useState(false);
-  const[hover,setHover]=useState(false);
-  const mx=useMotionValue(-100),my=useMotionValue(-100);
-  useEffect(()=>{
-    const fine=matchMedia("(pointer:fine)").matches;
-    const rm=matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if(!fine||rm)return;
-    setOn(true);
-    document.documentElement.classList.add("cc");
-    const mv=e=>{mx.set(e.clientX);my.set(e.clientY)};
-    const ov=e=>{setHover(!!e.target.closest("a,button,input,select,textarea,label"))};
-    addEventListener("mousemove",mv);addEventListener("mouseover",ov);
-    return()=>{removeEventListener("mousemove",mv);removeEventListener("mouseover",ov);document.documentElement.classList.remove("cc")};
-  },[]);
-  if(!on)return null;
-  return<>
-    <motion.div className="cursor-dot" style={{x:mx,y:my}}/>
-    <motion.div className={"cursor-ring"+(hover?" on":"")} style={{x:mx,y:my}} animate={{scale:hover?1.4:1}} transition={{duration:.25}}/>
-  </>;
+function PremiumCursor() {
+  const [enabled, setEnabled] = useState(false);
+  const [interactive, setInteractive] = useState(false);
+  const [pressed, setPressed] = useState(false);
+  const pointerX = useMotionValue(-100);
+  const pointerY = useMotionValue(-100);
+  const orbitX = useSpring(pointerX, { stiffness: 420, damping: 34, mass: 0.5 });
+  const orbitY = useSpring(pointerY, { stiffness: 420, damping: 34, mass: 0.5 });
+
+  useEffect(() => {
+    const finePointer = window.matchMedia("(pointer: fine)").matches;
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!finePointer || reducedMotion) return undefined;
+
+    setEnabled(true);
+    document.documentElement.classList.add("has-premium-cursor");
+    const move = (event) => {
+      pointerX.set(event.clientX);
+      pointerY.set(event.clientY);
+      setInteractive(Boolean(event.target.closest("a, button, input, select, textarea, label")));
+    };
+    const down = () => setPressed(true);
+    const up = () => setPressed(false);
+    window.addEventListener("mousemove", move, { passive: true });
+    window.addEventListener("mousedown", down);
+    window.addEventListener("mouseup", up);
+    return () => {
+      document.documentElement.classList.remove("has-premium-cursor");
+      window.removeEventListener("mousemove", move);
+      window.removeEventListener("mousedown", down);
+      window.removeEventListener("mouseup", up);
+    };
+  }, [pointerX, pointerY]);
+
+  if (!enabled) return null;
+  return (
+    <>
+      <motion.span className="cursor-core" aria-hidden="true" style={{ x: pointerX, y: pointerY }} />
+      <motion.span className={`cursor-orbit${interactive ? " is-interactive" : ""}${pressed ? " is-pressed" : ""}`} aria-hidden="true" style={{ x: orbitX, y: orbitY }} />
+    </>
+  );
 }
 
-export default function Effects(){
-  useEffect(()=>{
-    if(matchMedia("(prefers-reduced-motion: reduce)").matches)return;
-    const lenis=new Lenis({duration:1.15,easing:t=>Math.min(1,1.001-Math.pow(2,-10*t)),smoothWheel:true});
-    let raf;
-    const loop=t=>{lenis.raf(t);raf=requestAnimationFrame(loop)};
-    raf=requestAnimationFrame(loop);
-    const onClick=e=>{
-      const a=e.target.closest('a[href^="#"]');
-      if(!a)return;
-      const id=a.getAttribute("href");
-      if(id.length>1){const el=document.querySelector(id);if(el){e.preventDefault();lenis.scrollTo(el,{offset:-80});}}
+export default function Effects() {
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return undefined;
+    const lenis = new Lenis({ duration: 1.08, easing: (value) => Math.min(1, 1.001 - 2 ** (-10 * value)), smoothWheel: true });
+    let frame;
+    const animate = (time) => {
+      lenis.raf(time);
+      frame = requestAnimationFrame(animate);
     };
-    document.addEventListener("click",onClick);
-    let pr;
-    const para=()=>{pr=requestAnimationFrame(()=>{
-      const vh=innerHeight;
-      document.querySelectorAll("h2").forEach(h=>{
-        const r=h.getBoundingClientRect();
-        const c=(r.top+r.height/2-vh/2)/vh;
-        h.style.transform=`translateY(${c*-16}px)`;
-      });
-    })};
-    addEventListener("scroll",para,{passive:true});
-    para();
-    return()=>{cancelAnimationFrame(raf);cancelAnimationFrame(pr);removeEventListener("click",onClick);removeEventListener("scroll",para);lenis.destroy();};
-  },[]);
-  return<><style dangerouslySetInnerHTML={{__html:CSS}}/><Cursor/></>;
+    const followAnchor = (event) => {
+      const link = event.target.closest('a[href^="#"]');
+      if (!link) return;
+      const id = link.getAttribute("href");
+      if (!id || id === "#") return;
+      const target = document.querySelector(id);
+      if (!target) return;
+      event.preventDefault();
+      lenis.scrollTo(target, { offset: -82 });
+    };
+    frame = requestAnimationFrame(animate);
+    document.addEventListener("click", followAnchor);
+    return () => {
+      cancelAnimationFrame(frame);
+      document.removeEventListener("click", followAnchor);
+      lenis.destroy();
+    };
+  }, []);
+
+  return <PremiumCursor />;
 }
