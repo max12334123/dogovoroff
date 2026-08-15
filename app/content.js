@@ -5,7 +5,7 @@ export const CONFIG = {
   email: "dogovor.off@mail.ru",
   telegram: "https://t.me/dogovoroff",
   max: "https://max.ru/u/f9LHodD0cOI3FvyOAn7Regyz-ygfprKzJGc_1_DZJlI4cF7xdugW7c6l5fs",
-  address: "Нижневартовск, ул. Ленина, 6, офис 402",
+  address: "Нижневартовск",
   hours: "Пн–Пт 09:00–19:00 · заявки онлайн 24/7",
   geo: "61°32′ N — 76°58′ E",
 };
