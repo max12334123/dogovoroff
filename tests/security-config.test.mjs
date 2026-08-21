@@ -2,9 +2,10 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-const [configSource, contactRouteSource, healthRouteSource, globalStylesSource] = await Promise.all([
+const [configSource, pageSource, envExampleSource, healthRouteSource, globalStylesSource] = await Promise.all([
   readFile(new URL("../next.config.mjs", import.meta.url), "utf8"),
-  readFile(new URL("../app/api/contact/route.js", import.meta.url), "utf8"),
+  readFile(new URL("../app/page.jsx", import.meta.url), "utf8"),
+  readFile(new URL("../.env.example", import.meta.url), "utf8"),
   readFile(new URL("../app/api/health/route.js", import.meta.url), "utf8"),
   readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
 ]);
@@ -25,15 +26,13 @@ test("production responses include the security header baseline", () => {
   assert.match(configSource, /poweredByHeader:\s*false/);
 });
 
-test("contact endpoint validates, rate limits and keeps secrets server-side", () => {
-  assert.match(contactRouteSource, /validateContactPayload/);
-  assert.match(contactRouteSource, /consumeRateLimit/);
-  assert.match(contactRouteSource, /RESEND_API_KEY/);
-  assert.doesNotMatch(contactRouteSource, /NEXT_PUBLIC_RESEND/);
-  assert.match(contactRouteSource, /honeypot/);
-  assert.match(contactRouteSource, /x-forwarded-host/);
-  assert.match(contactRouteSource, /readTextBodyWithLimit/);
-  assert.match(contactRouteSource, /!origin/);
+test("contact integration exposes only the provider's publishable form identifier", () => {
+  assert.match(pageSource, /NEXT_PUBLIC_WEB3FORMS_ACCESS_KEY/);
+  assert.doesNotMatch(pageSource, /RESEND_API_KEY|CONTACT_FROM_EMAIL|CONTACT_TO_EMAIL/);
+  assert.equal(
+    envExampleSource.split(/\r?\n/).find((line) => line.startsWith("NEXT_PUBLIC_WEB3FORMS_ACCESS_KEY=")),
+    "NEXT_PUBLIC_WEB3FORMS_ACCESS_KEY=",
+  );
 });
 
 test("external font styles are CSP-allowed and pinned to immutable versions", () => {

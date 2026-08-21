@@ -25,13 +25,15 @@ test("privacy policy covers the core processing disclosures", () => {
   assert.match(privacySource, /Vercel Inc\./);
   assert.match(privacySource, /jsDelivr CDN/);
   assert.match(privacySource, /Отправить обращение/);
-  assert.match(privacySource, /Resend/);
+  assert.match(privacySource, /Web3Forms/);
+  assert.match(privacySource, /Web3Creative/);
+  assert.doesNotMatch(privacySource, /Resend/);
 });
 
 test("form links to separate policy and consent documents", () => {
   assert.match(homeSource, /href="\/privacy"/);
   assert.match(homeSource, /href="\/personal-data-consent"/);
-  assert.match(homeSource, /fetch\("\/api\/contact"/);
+  assert.match(homeSource, /fetch\("https:\/\/api\.web3forms\.com\/submit"/);
   assert.match(homeSource, /Отправить обращение/);
   assert.doesNotMatch(homeSource, /privacy-modal/);
 });

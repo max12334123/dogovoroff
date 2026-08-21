@@ -11,10 +11,11 @@ import {
 } from "framer-motion";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getNextTabIndex } from "../lib/a11y-utils.mjs";
+import { normalizeContactPayload } from "../lib/contact-form.mjs";
 import { maskPhone, validateLead } from "../lib/form-utils.mjs";
 import { APPROACH, CLIENTS, CONFIG, FAQ, PLANS, PRACTICES, STATS, STEPS, TEAM } from "./content";
-import IceMotion from "./ice-motion";
 import { LEGAL } from "./legal";
+import NorthernMotion from "./northern-motion";
 
 const EASE = [0.22, 1, 0.36, 1];
 const FOCUSABLE_SELECTOR =
@@ -269,20 +270,39 @@ export default function HomePage() {
       return;
     }
 
-    const body = `Имя: ${form.name.trim()}\nТелефон: ${form.phone}\nНаправление: ${form.service}\nЗадача: ${form.message.trim() || "Не указана"}\n\nСогласие на обработку персональных данных: предоставлено\nДокумент: ${LEGAL.siteUrl}/personal-data-consent\nВерсия: ${LEGAL.policyVersion} от ${LEGAL.effectiveDate}`;
+    const lead = normalizeContactPayload({ ...form, submissionId: submissionIdRef.current });
+    const body = `Имя: ${lead.name}\nТелефон: ${lead.phone}\nНаправление: ${lead.service}\nЗадача: ${lead.message || "Не указана"}\n\nСогласие на обработку персональных данных: предоставлено\nДокумент: ${LEGAL.siteUrl}/personal-data-consent\nВерсия: ${LEGAL.policyVersion} от ${LEGAL.effectiveDate}`;
     setMailHref(`mailto:${CONFIG.email}?subject=${encodeURIComponent("Заявка с сайта ДоговорОфф")}&body=${encodeURIComponent(body)}`);
     setSubmitState("sending");
     setSubmitError("");
 
     try {
-      const response = await fetch("/api/contact", {
+      const accessKey = process.env.NEXT_PUBLIC_WEB3FORMS_ACCESS_KEY?.trim();
+      if (!accessKey) {
+        throw new Error("Автоматическая отправка пока не настроена. Отправьте подготовленное письмо — данные уже заполнены.");
+      }
+
+      const response = await fetch("https://api.web3forms.com/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, submissionId: submissionIdRef.current }),
+        body: JSON.stringify({
+          access_key: accessKey,
+          subject: `Новая заявка: ${lead.service}`,
+          from_name: "Сайт ДоговорОфф",
+          name: lead.name,
+          phone: lead.phone,
+          service: lead.service,
+          message: lead.message || "Не указана",
+          botcheck: lead.website,
+          submission_id: lead.submissionId,
+          consent: "Согласие на обработку персональных данных предоставлено",
+          consent_document: `${LEGAL.siteUrl}/personal-data-consent`,
+          consent_version: `${LEGAL.policyVersion} от ${LEGAL.effectiveDate}`,
+        }),
       });
       const result = await response.json().catch(() => ({}));
 
-      if (!response.ok || !result.ok) {
+      if (!response.ok || result.success !== true) {
         if (response.status === 429) {
           throw new Error("Слишком много попыток. Подождите несколько минут или отправьте письмо напрямую.");
         }
@@ -385,17 +405,14 @@ export default function HomePage() {
               </motion.p>
               <motion.div className="hero__actions" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.42, duration: 0.8, ease: EASE }}>
                 <MagneticAction href="#request" className="action--light">Получить консультацию</MagneticAction>
-                <a className="hero__messenger" href={CONFIG.telegram} target="_blank" rel="noreferrer" aria-label="Написать в Telegram">
-                  <Image src="/media/telegram.png" alt="" width={40} height={40} sizes="20px" />
-                </a>
               </motion.div>
               <motion.div className="hero__meta" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.62, duration: 0.9 }}>
                 <span>Нижневартовск</span><a href={`mailto:${CONFIG.email}`}>{CONFIG.email}</a><em>Конфиденциально. Точно. Лично.</em>
               </motion.div>
             </div>
 
-            <motion.figure className="hero__art" initial={{ opacity: 0, clipPath: "inset(0 0 100% 0)" }} animate={{ opacity: 1, clipPath: "inset(0 0 0% 0)" }} transition={{ duration: 1.25, delay: 0.12, ease: EASE }}>
-              <IceMotion />
+            <motion.figure className="hero__art" role="img" aria-label="Абстрактный ледяной разлом — образ северной точности" initial={{ opacity: 0, clipPath: "inset(0 0 100% 0)" }} animate={{ opacity: 1, clipPath: "inset(0 0 0% 0)" }} transition={{ duration: 1.25, delay: 0.12, ease: EASE }}>
+              <NorthernMotion />
             </motion.figure>
           </div>
 
@@ -590,11 +607,11 @@ export default function HomePage() {
               {submitState !== "success" ? (
                 <motion.form key="form" className="lead-form" onSubmit={submitLead} noValidate initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -12 }}>
                   <div className="lead-form__heading"><span>Первичная консультация</span><strong>Бесплатно</strong></div>
-                  <div className="lead-form__honeypot" aria-hidden="true"><label htmlFor="lead-website">Ваш сайт</label><input id="lead-website" name="website" value={form.website} onChange={(event) => updateForm("website", event.target.value)} autoComplete="off" tabIndex={-1} /></div>
-                  <div className="field"><label htmlFor="lead-name">Ваше имя</label><input ref={nameFieldRef} id="lead-name" name="name" value={form.name} onChange={(event) => updateForm("name", event.target.value)} aria-invalid={Boolean(errors.name)} aria-describedby={errors.name ? "lead-name-error" : undefined} autoComplete="name" placeholder="Как к вам обращаться" />{errors.name && <span id="lead-name-error" className="field__error" role="alert">Укажите имя</span>}</div>
-                  <div className="field"><label htmlFor="lead-phone">Телефон</label><input ref={phoneFieldRef} id="lead-phone" name="phone" value={form.phone} onChange={(event) => updateForm("phone", event.target.value ? maskPhone(event.target.value) : "")} aria-invalid={Boolean(errors.phone)} aria-describedby={errors.phone ? "lead-phone-error" : undefined} autoComplete="tel" inputMode="tel" placeholder="+7 (___) ___-__-__" />{errors.phone && <span id="lead-phone-error" className="field__error" role="alert">Введите номер полностью</span>}</div>
+                  <div className="lead-form__honeypot" aria-hidden="true"><label htmlFor="lead-website">Ваш сайт</label><input id="lead-website" name="website" value={form.website} onChange={(event) => updateForm("website", event.target.value)} autoComplete="off" tabIndex={-1} maxLength={200} /></div>
+                  <div className="field"><label htmlFor="lead-name">Ваше имя</label><input ref={nameFieldRef} id="lead-name" name="name" value={form.name} onChange={(event) => updateForm("name", event.target.value)} aria-invalid={Boolean(errors.name)} aria-describedby={errors.name ? "lead-name-error" : undefined} autoComplete="name" placeholder="Как к вам обращаться" maxLength={80} />{errors.name && <span id="lead-name-error" className="field__error" role="alert">Укажите имя</span>}</div>
+                  <div className="field"><label htmlFor="lead-phone">Телефон</label><input ref={phoneFieldRef} id="lead-phone" name="phone" value={form.phone} onChange={(event) => updateForm("phone", event.target.value ? maskPhone(event.target.value) : "")} aria-invalid={Boolean(errors.phone)} aria-describedby={errors.phone ? "lead-phone-error" : undefined} autoComplete="tel" inputMode="tel" placeholder="+7 (___) ___-__-__" maxLength={32} />{errors.phone && <span id="lead-phone-error" className="field__error" role="alert">Введите номер полностью</span>}</div>
                   <div className="field"><label htmlFor="lead-service">Направление</label><select ref={serviceFieldRef} id="lead-service" name="service" value={form.service} onChange={(event) => updateForm("service", event.target.value)} aria-invalid={Boolean(errors.service)} aria-describedby={errors.service ? "lead-service-error" : undefined}><option value="">Выберите направление</option>{PRACTICES.map((practice) => <option key={practice.service}>{practice.service}</option>)}<option>Частный вопрос</option><option>Другое / не знаю</option></select>{errors.service && <span id="lead-service-error" className="field__error" role="alert">Выберите направление</span>}</div>
-                  <div className="field"><label htmlFor="lead-message">Коротко о задаче</label><textarea id="lead-message" name="message" value={form.message} onChange={(event) => updateForm("message", event.target.value)} placeholder="Пары предложений достаточно" rows={4} /></div>
+                  <div className="field"><label htmlFor="lead-message">Коротко о задаче</label><textarea id="lead-message" name="message" value={form.message} onChange={(event) => updateForm("message", event.target.value)} placeholder="Пары предложений достаточно" rows={4} maxLength={2000} /></div>
                   <div className={`consent${errors.agree ? " consent--error" : ""}`}>
                     <input ref={consentFieldRef} id="lead-consent" type="checkbox" checked={form.agree} onChange={(event) => updateForm("agree", event.target.checked)} aria-invalid={Boolean(errors.agree)} aria-describedby={errors.agree ? "lead-consent-error" : undefined} />
                     <span><label htmlFor="lead-consent">Даю отдельное согласие на обработку персональных данных</label> (<a href="/personal-data-consent" target="_blank" rel="noreferrer">текст согласия</a>).</span>
@@ -625,7 +642,7 @@ export default function HomePage() {
           </footer>
 
           <AnimatePresence>
-            {!formVisible && <motion.div className="mobile-action-bar" initial={{ y: "120%" }} animate={{ y: 0 }} exit={{ y: "120%" }} transition={{ duration: 0.45, ease: EASE }}><a href={CONFIG.telegram} target="_blank" rel="noreferrer">Telegram</a><a href="#request">Оставить заявку</a></motion.div>}
+            {!formVisible && <motion.div className="mobile-action-bar" initial={{ y: "120%" }} animate={{ y: 0 }} exit={{ y: "120%" }} transition={{ duration: 0.45, ease: EASE }}><a href="#request">Оставить заявку</a></motion.div>}
           </AnimatePresence>
         </div>
       </div>
