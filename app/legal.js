@@ -8,6 +8,6 @@ export const LEGAL = Object.freeze({
   email: "dogovor.off@mail.ru",
   siteName: SITE_NAME,
   siteUrl: SITE_URL,
-  policyVersion: "1.0",
-  effectiveDate: "15 августа 2026 года",
+  policyVersion: "1.1",
+  effectiveDate: "21 августа 2026 года",
 });

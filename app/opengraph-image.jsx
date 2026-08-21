@@ -88,7 +88,7 @@ export default function OpenGraphImage() {
               letterSpacing: "0.08em",
             }}
           >
-            <span>TENDERS · FAS · ARBITRATION · BUSINESS</span>
+            <span>TENDERS · ARBITRATION · BUSINESS · HOUSING</span>
             <span>RUSSIA · ONLINE</span>
           </div>
         </div>

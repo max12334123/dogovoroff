@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=960, height=1200" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      :root {
+        --abyss: #050505;
+        --frost: #fafaf7;
+        --silver: #a4a6a7;
+        --glacial: #8fb9ca;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      html,
+      body {
+        width: 960px;
+        height: 1200px;
+        overflow: hidden;
+        background: var(--abyss);
+      }
+
+      #root,
+      .scene {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: var(--abyss);
+      }
+
+      .camera {
+        position: absolute;
+        inset: -72px;
+        transform-origin: 52% 38%;
+        will-change: transform;
+      }
+
+      .ice-plane,
+      .ice-plane img {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+      }
+
+      .ice-plane {
+        overflow: hidden;
+        will-change: transform;
+      }
+
+      .ice-plane img {
+        object-fit: cover;
+        object-position: 50% 50%;
+        user-select: none;
+      }
+
+      .ice-plane--left,
+      .ice-plane--right,
+      .ice-plane--center {
+        background-image: url("assets/northern-ice-source.png");
+        background-position: 50% 50%;
+        background-size: cover;
+      }
+
+      .ice-plane--base {
+        z-index: 1;
+      }
+
+      .ice-plane--left {
+        z-index: 2;
+        opacity: 0.34;
+        clip-path: polygon(0 0, 44% 0, 38% 45%, 53% 65%, 31% 100%, 0 100%);
+        mix-blend-mode: screen;
+      }
+
+      .ice-plane--right {
+        z-index: 3;
+        opacity: 0.3;
+        clip-path: polygon(64% 0, 100% 0, 100% 100%, 65% 100%, 76% 66%, 58% 49%);
+        mix-blend-mode: screen;
+      }
+
+      .ice-plane--center {
+        z-index: 4;
+        opacity: 0.19;
+        clip-path: polygon(42% 20%, 66% 0, 55% 42%, 72% 63%, 49% 100%, 35% 100%, 49% 58%, 34% 42%);
+        mix-blend-mode: screen;
+      }
+
+      .polar-glow {
+        position: absolute;
+        z-index: 5;
+        top: 5%;
+        left: 21%;
+        width: 66%;
+        height: 62%;
+        border-radius: 50%;
+        opacity: 0.27;
+        background: radial-gradient(ellipse at center, rgba(143, 185, 202, 0.42) 0%, rgba(143, 185, 202, 0.11) 36%, rgba(143, 185, 202, 0) 72%);
+        mix-blend-mode: screen;
+        transform-origin: 54% 46%;
+        will-change: opacity, transform;
+      }
+
+      .snow-field {
+        position: absolute;
+        z-index: 6;
+        inset: 0;
+        overflow: hidden;
+        pointer-events: none;
+      }
+
+      .snow-particle {
+        position: absolute;
+        width: var(--size);
+        height: var(--size);
+        border-radius: 50%;
+        opacity: 0;
+        background: rgba(236, 244, 244, 0.88);
+        box-shadow: 0 0 8px rgba(143, 185, 202, 0.42);
+        will-change: transform, opacity;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="northern-hero"
+      data-start="0"
+      data-duration="12"
+      data-width="960"
+      data-height="1200"
+    >
+      <div id="scene" class="clip scene" data-start="0" data-duration="12" data-track-index="0">
+        <div class="camera" id="camera" data-layout-allow-overflow>
+          <div class="ice-plane ice-plane--base">
+            <img src="assets/northern-ice-source.png" alt="" crossorigin="anonymous" />
+          </div>
+          <div class="ice-plane ice-plane--left" id="ice-left">
+          </div>
+          <div class="ice-plane ice-plane--right" id="ice-right">
+          </div>
+          <div class="ice-plane ice-plane--center" id="ice-center">
+          </div>
+          <div class="polar-glow" id="polar-glow"></div>
+        </div>
+        <div class="snow-field" id="snow-field" aria-hidden="true" data-layout-ignore></div>
+      </div>
+    </div>
+
+    <script>
+      const snowField = document.getElementById("snow-field");
+      const particleCount = 18;
+      const groups = ["a", "b", "c"];
+
+      for (let index = 0; index < particleCount; index += 1) {
+        const particle = document.createElement("span");
+        const x = (index * 173 + 67) % 940;
+        const y = (index * 251 + 113) % 1160;
+        const size = 1 + ((index * 7) % 4) * 0.72;
+        particle.className = `snow-particle snow-particle--${groups[index % groups.length]}`;
+        particle.style.left = `${x}px`;
+        particle.style.top = `${y}px`;
+        particle.style.setProperty("--size", `${size}px`);
+        snowField.appendChild(particle);
+      }
+
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      tl.fromTo(
+        "#camera",
+        { x: -9, y: 11, scale: 1.075 },
+        { x: 10, y: -9, scale: 1.112, duration: 6, ease: "sine.inOut" },
+        0,
+      );
+      tl.to("#camera", { x: -9, y: 11, scale: 1.075, duration: 6, ease: "sine.inOut" }, 6);
+
+      tl.fromTo(
+        "#ice-left",
+        { x: 0, y: 0, scale: 1 },
+        { x: -13, y: 7, scale: 1.009, duration: 4.2, ease: "power1.inOut" },
+        0,
+      );
+      tl.to("#ice-left", { x: 0, y: 0, scale: 1, duration: 7.8, ease: "sine.inOut" }, 4.2);
+
+      tl.fromTo(
+        "#ice-right",
+        { x: 0, y: 0, scale: 1 },
+        { x: 12, y: -6, scale: 1.008, duration: 7.2, ease: "sine.inOut" },
+        0,
+      );
+      tl.to("#ice-right", { x: 0, y: 0, scale: 1, duration: 4.8, ease: "power1.inOut" }, 7.2);
+
+      tl.fromTo(
+        "#ice-center",
+        { x: 0, y: 0, scale: 1 },
+        { x: -5, y: -9, scale: 1.013, duration: 5.85, ease: "sine.inOut" },
+        0,
+      );
+      tl.to("#ice-center", { x: 0, y: 0, scale: 1, duration: 6.15, ease: "sine.inOut" }, 5.85);
+
+      const glow = document.getElementById("polar-glow");
+      const glowPhase = { value: 0 };
+      tl.to(
+        glowPhase,
+        {
+          value: Math.PI * 6,
+          duration: 12,
+          ease: "none",
+          onUpdate: () => {
+            const wave = Math.sin(glowPhase.value);
+            glow.style.opacity = String(0.27 + wave * 0.028);
+            glow.style.transform = `scale(${1 + wave * 0.012})`;
+          },
+        },
+        0,
+      );
+
+      const particlePlans = [
+        [".snow-particle--a", 1.95, 5, -52, 7, 0.36],
+        [".snow-particle--b", 2.925, 3, -74, -9, 0.28],
+        [".snow-particle--c", 1.4625, 7, -39, 5, 0.22],
+      ];
+
+      for (const [selector, duration, repeat, travelY, travelX, opacity] of particlePlans) {
+        tl.fromTo(
+          selector,
+          { x: 0, y: 0, opacity: 0, scale: 0.72 },
+          {
+            x: (index) => (index % 2 === 0 ? travelX : -travelX),
+            y: (index) => travelY - (index % 4) * 8,
+            opacity: (index) => opacity - (index % 3) * 0.045,
+            scale: 1,
+            duration,
+            repeat,
+            yoyo: true,
+            ease: "sine.inOut",
+          },
+          0,
+        );
+      }
+
+      window.__timelines["northern-hero"] = tl;
+    </script>
+  </body>
+</html>
