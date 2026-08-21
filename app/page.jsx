@@ -10,11 +10,28 @@ import {
   useSpring,
 } from "framer-motion";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { getNextTabIndex } from "../lib/a11y-utils.mjs";
 import { maskPhone, validateLead } from "../lib/form-utils.mjs";
 import { APPROACH, CLIENTS, CONFIG, FAQ, PLANS, PRACTICES, STATS, STEPS, TEAM } from "./content";
 import IceMotion from "./ice-motion";
+import { LEGAL } from "./legal";
 
 const EASE = [0.22, 1, 0.36, 1];
+const FOCUSABLE_SELECTOR =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+function createSubmissionId() {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function getFocusableElements(container) {
+  if (!container) return [];
+
+  return Array.from(container.querySelectorAll(FOCUSABLE_SELECTOR)).filter(
+    (element) => element.getAttribute("aria-hidden") !== "true",
+  );
+}
 
 function Brand({ compact = false }) {
   return (
@@ -114,13 +131,23 @@ export default function HomePage() {
   const [openPractice, setOpenPractice] = useState(0);
   const [activePrice, setActivePrice] = useState(0);
   const [openFaq, setOpenFaq] = useState(0);
-  const [privacyOpen, setPrivacyOpen] = useState(false);
   const [formVisible, setFormVisible] = useState(false);
-  const [form, setForm] = useState({ name: "", phone: "", service: "", message: "", agree: false });
+  const [form, setForm] = useState({ name: "", phone: "", service: "", message: "", website: "", agree: false });
   const [errors, setErrors] = useState({});
   const [submitState, setSubmitState] = useState("idle");
+  const [submitError, setSubmitError] = useState("");
   const [mailHref, setMailHref] = useState("");
+  const siteContentRef = useRef(null);
+  const menuTriggerRef = useRef(null);
+  const mobileNavRef = useRef(null);
+  const menuRestoreFocusRef = useRef(true);
+  const priceTabRefs = useRef([]);
+  const nameFieldRef = useRef(null);
+  const phoneFieldRef = useRef(null);
+  const serviceFieldRef = useRef(null);
+  const consentFieldRef = useRef(null);
   const requestRef = useRef(null);
+  const submissionIdRef = useRef(createSubmissionId());
   const { scrollYProgress } = useScroll();
   const progress = useSpring(scrollYProgress, { stiffness: 120, damping: 28, mass: 0.35 });
   const selectedPractice = useMemo(() => PRACTICES[activePrice], [activePrice]);
@@ -133,19 +160,63 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
-    document.body.classList.toggle("is-locked", menuOpen || privacyOpen);
-    const onKeyDown = (event) => {
-      if (event.key === "Escape") {
-        setMenuOpen(false);
-        setPrivacyOpen(false);
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
+    document.body.classList.toggle("is-locked", menuOpen);
     return () => {
       document.body.classList.remove("is-locked");
-      window.removeEventListener("keydown", onKeyDown);
     };
-  }, [menuOpen, privacyOpen]);
+  }, [menuOpen]);
+
+  useEffect(() => {
+    if (!siteContentRef.current) return undefined;
+    siteContentRef.current.inert = menuOpen;
+    return () => {
+      if (siteContentRef.current) siteContentRef.current.inert = false;
+    };
+  }, [menuOpen]);
+
+  useEffect(() => {
+    if (!menuOpen || !mobileNavRef.current) return undefined;
+
+    const navigation = mobileNavRef.current;
+    menuRestoreFocusRef.current = true;
+    const focusFirstLink = window.requestAnimationFrame(() => {
+      getFocusableElements(navigation)[0]?.focus();
+    });
+
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        menuRestoreFocusRef.current = true;
+        setMenuOpen(false);
+        return;
+      }
+
+      if (event.key !== "Tab") return;
+      const focusable = [menuTriggerRef.current, ...getFocusableElements(navigation)].filter(Boolean);
+      if (!focusable.length) return;
+
+      const currentIndex = focusable.indexOf(document.activeElement);
+      if (event.shiftKey && currentIndex <= 0) {
+        event.preventDefault();
+        focusable.at(-1)?.focus();
+      } else if (!event.shiftKey && currentIndex === focusable.length - 1) {
+        event.preventDefault();
+        focusable[0]?.focus();
+      } else if (currentIndex === -1) {
+        event.preventDefault();
+        focusable[0]?.focus();
+      }
+    };
+
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.cancelAnimationFrame(focusFirstLink);
+      document.removeEventListener("keydown", onKeyDown);
+      if (menuRestoreFocusRef.current) {
+        window.requestAnimationFrame(() => menuTriggerRef.current?.focus());
+      }
+    };
+  }, [menuOpen]);
 
   useEffect(() => {
     if (!requestRef.current) return undefined;
@@ -157,6 +228,24 @@ export default function HomePage() {
   const updateForm = (field, value) => {
     setForm((current) => ({ ...current, [field]: value }));
     setErrors((current) => ({ ...current, [field]: false }));
+    if (submitState === "error") {
+      setSubmitState("idle");
+      setSubmitError("");
+    }
+  };
+
+  const closeMenuAfterNavigation = () => {
+    menuRestoreFocusRef.current = false;
+    setMenuOpen(false);
+  };
+
+  const handlePriceKeyDown = (event, index) => {
+    const nextIndex = getNextTabIndex(event.key, index, PRACTICES.length);
+    if (nextIndex === null) return;
+
+    event.preventDefault();
+    setActivePrice(nextIndex);
+    priceTabRefs.current[nextIndex]?.focus();
   };
 
   const chooseService = (service) => {
@@ -164,30 +253,65 @@ export default function HomePage() {
     document.querySelector("#request")?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const submitLead = (event) => {
+  const submitLead = async (event) => {
     event.preventDefault();
     const nextErrors = validateLead(form);
     setErrors(nextErrors);
-    if (Object.values(nextErrors).some(Boolean)) return;
+    if (Object.values(nextErrors).some(Boolean)) {
+      const invalidFields = {
+        name: nameFieldRef,
+        phone: phoneFieldRef,
+        service: serviceFieldRef,
+        agree: consentFieldRef,
+      };
+      const firstInvalid = Object.keys(invalidFields).find((field) => nextErrors[field]);
+      window.requestAnimationFrame(() => invalidFields[firstInvalid]?.current?.focus());
+      return;
+    }
 
-    const body = `Имя: ${form.name.trim()}\nТелефон: ${form.phone}\nНаправление: ${form.service}\nЗадача: ${form.message.trim() || "Не указана"}`;
+    const body = `Имя: ${form.name.trim()}\nТелефон: ${form.phone}\nНаправление: ${form.service}\nЗадача: ${form.message.trim() || "Не указана"}\n\nСогласие на обработку персональных данных: предоставлено\nДокумент: ${LEGAL.siteUrl}/personal-data-consent\nВерсия: ${LEGAL.policyVersion} от ${LEGAL.effectiveDate}`;
     setMailHref(`mailto:${CONFIG.email}?subject=${encodeURIComponent("Заявка с сайта ДоговорОфф")}&body=${encodeURIComponent(body)}`);
-    setSubmitState("success");
+    setSubmitState("sending");
+    setSubmitError("");
+
+    try {
+      const response = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...form, submissionId: submissionIdRef.current }),
+      });
+      const result = await response.json().catch(() => ({}));
+
+      if (!response.ok || !result.ok) {
+        if (response.status === 429) {
+          throw new Error("Слишком много попыток. Подождите несколько минут или отправьте письмо напрямую.");
+        }
+        throw new Error("Автоматическая отправка пока недоступна. Отправьте подготовленное письмо — данные уже заполнены.");
+      }
+
+      setSubmitState("success");
+    } catch (error) {
+      setSubmitState("error");
+      setSubmitError(error instanceof Error ? error.message : "Не удалось отправить обращение. Попробуйте ещё раз.");
+    }
   };
 
   const resetForm = () => {
-    setForm({ name: "", phone: "", service: "", message: "", agree: false });
+    setForm({ name: "", phone: "", service: "", message: "", website: "", agree: false });
     setErrors({});
+    setSubmitError("");
     setMailHref("");
     setSubmitState("idle");
+    submissionIdRef.current = createSubmissionId();
   };
 
   return (
     <>
-      <a className="skip-link" href="#main">Перейти к содержанию</a>
-      <motion.div className="scroll-progress" style={{ scaleX: progress }} />
+      <div className="site-shell">
+        <a className="skip-link" href="#main">Перейти к содержанию</a>
+        <motion.div className="scroll-progress" style={{ scaleX: progress }} />
 
-      <header className={`site-header${scrolled ? " site-header--scrolled" : ""}`}>
+        <header className={`site-header${scrolled ? " site-header--scrolled" : ""}`}>
         <div className="site-header__inner">
           <a href="#top" aria-label="ДоговорОфф — на главную"><Brand /></a>
           <p className="site-header__descriptor">Юридическая компания · Нижневартовск</p>
@@ -197,31 +321,52 @@ export default function HomePage() {
             <a href="#team">Команда</a>
             <a href="#request">Контакты</a>
           </nav>
-          <button className="menu-trigger" type="button" aria-expanded={menuOpen} aria-controls="mobile-navigation" onClick={() => setMenuOpen((value) => !value)}>
+          <button
+            ref={menuTriggerRef}
+            className="menu-trigger"
+            type="button"
+            aria-label={menuOpen ? "Закрыть меню" : "Открыть меню"}
+            aria-expanded={menuOpen}
+            aria-haspopup="dialog"
+            aria-controls="mobile-navigation"
+            onClick={() => setMenuOpen((value) => !value)}
+          >
             {menuOpen ? "Закрыть" : "Меню"}
           </button>
         </div>
-      </header>
+        </header>
 
-      <AnimatePresence>
+        <AnimatePresence>
         {menuOpen && (
-          <motion.nav id="mobile-navigation" className="mobile-nav" aria-label="Мобильная навигация" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.35, ease: EASE }}>
-            <div className="mobile-nav__links">
-              <a href="#practices" onClick={() => setMenuOpen(false)}>Практики</a>
-              <a href="#approach" onClick={() => setMenuOpen(false)}>Подход</a>
-              <a href="#formats" onClick={() => setMenuOpen(false)}>Форматы работы</a>
-              <a href="#team" onClick={() => setMenuOpen(false)}>Команда</a>
-              <a href="#request" onClick={() => setMenuOpen(false)}>Контакты</a>
-            </div>
+          <motion.div
+            ref={mobileNavRef}
+            id="mobile-navigation"
+            className="mobile-nav"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Меню сайта"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.35, ease: EASE }}
+          >
+            <nav className="mobile-nav__links" aria-label="Мобильная навигация">
+              <a href="#practices" onClick={closeMenuAfterNavigation}>Практики</a>
+              <a href="#approach" onClick={closeMenuAfterNavigation}>Подход</a>
+              <a href="#formats" onClick={closeMenuAfterNavigation}>Форматы работы</a>
+              <a href="#team" onClick={closeMenuAfterNavigation}>Команда</a>
+              <a href="#request" onClick={closeMenuAfterNavigation}>Контакты</a>
+            </nav>
             <div className="mobile-nav__footer">
-              <a href={CONFIG.phoneHref}>{CONFIG.phone}</a>
+              <a href={`mailto:${CONFIG.email}`}>{CONFIG.email}</a>
               <span>{CONFIG.geo}</span>
             </div>
-          </motion.nav>
+          </motion.div>
         )}
-      </AnimatePresence>
+        </AnimatePresence>
 
-      <main id="main">
+        <div className="site-content" ref={siteContentRef} aria-hidden={menuOpen ? true : undefined}>
+          <main id="main">
         <section className="hero" id="top" aria-labelledby="hero-title">
           <div className="hero__layout">
             <aside className="practice-rail" aria-label="Ключевые практики">
@@ -245,7 +390,7 @@ export default function HomePage() {
                 </a>
               </motion.div>
               <motion.div className="hero__meta" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.62, duration: 0.9 }}>
-                <span>Нижневартовск</span><a href={CONFIG.phoneHref}>{CONFIG.phone}</a><em>Конфиденциально. Точно. Лично.</em>
+                <span>Нижневартовск</span><a href={`mailto:${CONFIG.email}`}>{CONFIG.email}</a><em>Конфиденциально. Точно. Лично.</em>
               </motion.div>
             </div>
 
@@ -327,13 +472,38 @@ export default function HomePage() {
             <div className="estimator__grid">
               <div className="estimator__choices" role="tablist" aria-label="Выбор направления">
                 {PRACTICES.map((practice, index) => (
-                  <button type="button" role="tab" aria-selected={activePrice === index} className={activePrice === index ? "is-active" : ""} onClick={() => setActivePrice(index)} key={practice.number}>
+                  <button
+                    ref={(element) => {
+                      priceTabRefs.current[index] = element;
+                    }}
+                    id={`estimate-tab-${index}`}
+                    type="button"
+                    role="tab"
+                    aria-selected={activePrice === index}
+                    aria-controls="estimate-panel"
+                    tabIndex={activePrice === index ? 0 : -1}
+                    className={activePrice === index ? "is-active" : ""}
+                    onClick={() => setActivePrice(index)}
+                    onKeyDown={(event) => handlePriceKeyDown(event, index)}
+                    key={practice.number}
+                  >
                     <span>{practice.number}</span><strong>{practice.short}</strong>
                   </button>
                 ))}
               </div>
               <AnimatePresence mode="wait">
-                <motion.div className="estimator__result" key={selectedPractice.number} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.35, ease: EASE }} role="tabpanel">
+                <motion.div
+                  id="estimate-panel"
+                  className="estimator__result"
+                  key={selectedPractice.number}
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.35, ease: EASE }}
+                  role="tabpanel"
+                  aria-labelledby={`estimate-tab-${activePrice}`}
+                  tabIndex={0}
+                >
                   <p className="eyebrow">{selectedPractice.short}</p>
                   <h3>{selectedPractice.title}</h3>
                   <p>{selectedPractice.description}</p>
@@ -411,7 +581,7 @@ export default function HomePage() {
         <section className="request" id="request" ref={requestRef} aria-labelledby="request-title">
           <div className="request__info">
             <div><p className="section-heading__index">08 / 08</p><p className="eyebrow">Контакт</p><h2 id="request-title">Обсудим вашу задачу лично.</h2><p>Для начала достаточно имени и номера телефона. Детали и документы безопаснее обсудить после первого контакта.</p></div>
-            <div className="request__contacts"><a href={CONFIG.phoneHref}>{CONFIG.phone}</a><a href={`mailto:${CONFIG.email}`}>{CONFIG.email}</a><span>{CONFIG.address}</span><span>{CONFIG.hours}</span></div>
+            <div className="request__contacts"><a href={`mailto:${CONFIG.email}`}>{CONFIG.email}</a><span>{CONFIG.address}</span><span>{CONFIG.hours}</span></div>
             <div className="request__messengers"><MessengerLink href={CONFIG.telegram} icon="/media/telegram.png" label="Telegram" light /><MessengerLink href={CONFIG.max} icon="/media/max.png" label="MAX" light /></div>
           </div>
 
@@ -420,54 +590,46 @@ export default function HomePage() {
               {submitState !== "success" ? (
                 <motion.form key="form" className="lead-form" onSubmit={submitLead} noValidate initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -12 }}>
                   <div className="lead-form__heading"><span>Первичная консультация</span><strong>Бесплатно</strong></div>
-                  <div className="field"><label htmlFor="lead-name">Ваше имя</label><input id="lead-name" name="name" value={form.name} onChange={(event) => updateForm("name", event.target.value)} aria-invalid={Boolean(errors.name)} autoComplete="name" placeholder="Как к вам обращаться" />{errors.name && <span className="field__error">Укажите имя</span>}</div>
-                  <div className="field"><label htmlFor="lead-phone">Телефон</label><input id="lead-phone" name="phone" value={form.phone} onChange={(event) => updateForm("phone", event.target.value ? maskPhone(event.target.value) : "")} aria-invalid={Boolean(errors.phone)} autoComplete="tel" inputMode="tel" placeholder="+7 (___) ___-__-__" />{errors.phone && <span className="field__error">Введите номер полностью</span>}</div>
-                  <div className="field"><label htmlFor="lead-service">Направление</label><select id="lead-service" name="service" value={form.service} onChange={(event) => updateForm("service", event.target.value)} aria-invalid={Boolean(errors.service)}><option value="">Выберите направление</option>{PRACTICES.map((practice) => <option key={practice.service}>{practice.service}</option>)}<option>Частный вопрос</option><option>Другое / не знаю</option></select>{errors.service && <span className="field__error">Выберите направление</span>}</div>
+                  <div className="lead-form__honeypot" aria-hidden="true"><label htmlFor="lead-website">Ваш сайт</label><input id="lead-website" name="website" value={form.website} onChange={(event) => updateForm("website", event.target.value)} autoComplete="off" tabIndex={-1} /></div>
+                  <div className="field"><label htmlFor="lead-name">Ваше имя</label><input ref={nameFieldRef} id="lead-name" name="name" value={form.name} onChange={(event) => updateForm("name", event.target.value)} aria-invalid={Boolean(errors.name)} aria-describedby={errors.name ? "lead-name-error" : undefined} autoComplete="name" placeholder="Как к вам обращаться" />{errors.name && <span id="lead-name-error" className="field__error" role="alert">Укажите имя</span>}</div>
+                  <div className="field"><label htmlFor="lead-phone">Телефон</label><input ref={phoneFieldRef} id="lead-phone" name="phone" value={form.phone} onChange={(event) => updateForm("phone", event.target.value ? maskPhone(event.target.value) : "")} aria-invalid={Boolean(errors.phone)} aria-describedby={errors.phone ? "lead-phone-error" : undefined} autoComplete="tel" inputMode="tel" placeholder="+7 (___) ___-__-__" />{errors.phone && <span id="lead-phone-error" className="field__error" role="alert">Введите номер полностью</span>}</div>
+                  <div className="field"><label htmlFor="lead-service">Направление</label><select ref={serviceFieldRef} id="lead-service" name="service" value={form.service} onChange={(event) => updateForm("service", event.target.value)} aria-invalid={Boolean(errors.service)} aria-describedby={errors.service ? "lead-service-error" : undefined}><option value="">Выберите направление</option>{PRACTICES.map((practice) => <option key={practice.service}>{practice.service}</option>)}<option>Частный вопрос</option><option>Другое / не знаю</option></select>{errors.service && <span id="lead-service-error" className="field__error" role="alert">Выберите направление</span>}</div>
                   <div className="field"><label htmlFor="lead-message">Коротко о задаче</label><textarea id="lead-message" name="message" value={form.message} onChange={(event) => updateForm("message", event.target.value)} placeholder="Пары предложений достаточно" rows={4} /></div>
-                  <label className={`consent${errors.agree ? " consent--error" : ""}`}><input type="checkbox" checked={form.agree} onChange={(event) => updateForm("agree", event.target.checked)} /><span>Согласен на обработку данных по <button type="button" onClick={() => setPrivacyOpen(true)}>условиям конфиденциальности</button>.</span></label>
-                  {errors.agree && <span className="field__error field__error--consent">Нужно согласие на обработку данных</span>}
-                  <MagneticAction className="action--dark lead-form__submit" type="submit">Подготовить обращение</MagneticAction>
-                  <p className="lead-form__note">Данные не отправляются автоматически: после проверки откроется ваше почтовое приложение.</p>
+                  <div className={`consent${errors.agree ? " consent--error" : ""}`}>
+                    <input ref={consentFieldRef} id="lead-consent" type="checkbox" checked={form.agree} onChange={(event) => updateForm("agree", event.target.checked)} aria-invalid={Boolean(errors.agree)} aria-describedby={errors.agree ? "lead-consent-error" : undefined} />
+                    <span><label htmlFor="lead-consent">Даю отдельное согласие на обработку персональных данных</label> (<a href="/personal-data-consent" target="_blank" rel="noreferrer">текст согласия</a>).</span>
+                  </div>
+                  {errors.agree && <span id="lead-consent-error" className="field__error field__error--consent" role="alert">Нужно согласие на обработку данных</span>}
+                  {submitError && <div className="lead-form__submit-error" role="alert"><p>{submitError}</p><a href={mailHref}>Отправить по электронной почте</a></div>}
+                  <MagneticAction className="action--dark lead-form__submit" type="submit" disabled={submitState === "sending"}>{submitState === "sending" ? "Отправляем…" : "Отправить обращение"}</MagneticAction>
+                  <p className="lead-form__note">После отправки заявка поступит компании напрямую. Порядок обработки описан в <a href="/privacy" target="_blank" rel="noreferrer">Политике</a>.</p>
                 </motion.form>
               ) : (
                 <motion.div key="success" className="lead-success" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.55, ease: EASE }}>
-                  <p className="eyebrow">Обращение подготовлено</p><h3>Остался один шаг.</h3><p>Откройте письмо, проверьте данные и отправьте его компании.</p>
-                  <a className="action action--dark lead-success__action" href={mailHref}><span>Открыть письмо</span></a>
-                  <button className="text-link" type="button" onClick={resetForm}>Заполнить заново</button>
+                  <p className="eyebrow">Обращение отправлено</p><h3>Спасибо. Мы на связи.</h3><p>Заявка поступила компании. Мы свяжемся с вами по указанному номеру в рабочее время.</p>
+                  <button className="text-link lead-success__action" type="button" onClick={resetForm}>Отправить ещё одно обращение</button>
                 </motion.div>
               )}
             </AnimatePresence>
           </div>
         </section>
-      </main>
+          </main>
 
-      <footer className="site-footer">
+          <footer className="site-footer">
         <div className="site-footer__top">
           <div><a href="#top" aria-label="ДоговорОфф — наверх"><Brand compact /></a><p>Право для сложных решений. Нижневартовск и вся Россия онлайн.</p></div>
           <nav aria-label="Навигация в подвале"><a href="#practices">Практики</a><a href="#formats">Форматы</a><a href="#team">Команда</a><a href="#faq">Вопросы</a></nav>
-          <div className="site-footer__contacts"><a href={CONFIG.phoneHref}>{CONFIG.phone}</a><a href={`mailto:${CONFIG.email}`}>{CONFIG.email}</a><span>{CONFIG.address}</span></div>
+          <div className="site-footer__contacts"><a href={`mailto:${CONFIG.email}`}>{CONFIG.email}</a><span>{CONFIG.address}</span></div>
         </div>
-        <div className="site-footer__bottom"><span>© {new Date().getFullYear()} «ДоговорОфф» · Не является публичной офертой</span><button type="button" onClick={() => setPrivacyOpen(true)}>Конфиденциальность</button><span>{CONFIG.geo}</span></div>
-      </footer>
+        <div className="site-footer__bottom"><span>© {new Date().getFullYear()} «ДоговорОфф» · Не является публичной офертой</span><a href="/privacy">Политика обработки данных</a><a href="/personal-data-consent">Согласие</a><span>{CONFIG.geo}</span></div>
+          </footer>
 
-      <AnimatePresence>
-        {!formVisible && <motion.div className="mobile-action-bar" initial={{ y: "120%" }} animate={{ y: 0 }} exit={{ y: "120%" }} transition={{ duration: 0.45, ease: EASE }}><a href={CONFIG.phoneHref}>Позвонить</a><a href="#request">Оставить заявку</a></motion.div>}
-      </AnimatePresence>
+          <AnimatePresence>
+            {!formVisible && <motion.div className="mobile-action-bar" initial={{ y: "120%" }} animate={{ y: 0 }} exit={{ y: "120%" }} transition={{ duration: 0.45, ease: EASE }}><a href={CONFIG.telegram} target="_blank" rel="noreferrer">Telegram</a><a href="#request">Оставить заявку</a></motion.div>}
+          </AnimatePresence>
+        </div>
+      </div>
 
-      <AnimatePresence>
-        {privacyOpen && (
-          <motion.div className="privacy-modal" role="presentation" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onMouseDown={(event) => { if (event.target === event.currentTarget) setPrivacyOpen(false); }}>
-            <motion.div className="privacy-modal__panel" role="dialog" aria-modal="true" aria-labelledby="privacy-title" initial={{ y: 28, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 18, opacity: 0 }} transition={{ duration: 0.42, ease: EASE }}>
-              <div className="privacy-modal__top"><p className="eyebrow">Персональные данные</p><button type="button" onClick={() => setPrivacyOpen(false)}>Закрыть</button></div>
-              <h2 id="privacy-title">Условия конфиденциальности</h2>
-              <p>В форме указываются имя, номер телефона, направление и необязательный текст обращения. Сайт только формирует черновик письма; данные не отправляются автоматически и не передаются стороннему сервису формы.</p>
-              <p>Не добавляйте банковские сведения, копии документов и подробности, которые не нужны для первого контакта. После открытия почтового приложения вы можете изменить или удалить любые данные до отправки.</p>
-              <p>Запрос по уже отправленному письму можно направить на {CONFIG.email}.</p>
-              <p className="privacy-modal__note">Этот краткий текст описывает работу формы и не заменяет полную политику оператора персональных данных с реквизитами организации.</p>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </>
   );
 }

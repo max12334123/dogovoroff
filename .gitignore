@@ -3,3 +3,4 @@ node_modules/
 .asset-downloads/
 .env*
 !.env.example
+.vercel
