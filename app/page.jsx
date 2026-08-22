@@ -569,7 +569,7 @@ export default function HomePage() {
                   </div>
                   <div className="team-profile__content">
                     <p className="team-profile__role">{member.role}</p>
-                    <h3>{member.name}</h3>
+                    <h3>{member.title}</h3>
                     <dl className="team-profile__facts">
                       <div><dt>Опыт</dt><dd>{member.experience}</dd></div>
                       <div><dt>Город</dt><dd>{member.location}</dd></div>
@@ -577,7 +577,7 @@ export default function HomePage() {
                     </dl>
                     <p className="team-profile__text">{member.text}</p>
                     <p className="team-profile__focus"><span>Фокус</span>{member.focus}</p>
-                    <div className="team-profile__tags" aria-label={`Направления работы: ${member.name}`}>{member.tags.map((tag) => <span key={tag}>{tag}</span>)}</div>
+                    <div className="team-profile__tags" aria-label={`Направления работы: ${member.title}`}>{member.tags.map((tag) => <span key={tag}>{tag}</span>)}</div>
                   </div>
                 </Reveal>
               ))}

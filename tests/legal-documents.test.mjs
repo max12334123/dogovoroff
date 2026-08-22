@@ -38,17 +38,18 @@ test("form links to separate policy and consent documents", () => {
   assert.doesNotMatch(homeSource, /privacy-modal/);
 });
 
-test("legal pages use confirmed operator details and omit removed office details", () => {
+test("legal pages identify the operator without publishing personal names or removed office details", () => {
   assert.match(sitemapSource, /\$\{SITE_URL\}\/privacy/);
   assert.match(sitemapSource, /\$\{SITE_URL\}\/personal-data-consent/);
 
-  assert.match(legalSource, /Алимагомедов Бадрудин Нурмагомедович/);
+  assert.match(legalSource, /operatorBrand: "«ДоговорОфф»"/);
   assert.match(legalSource, /самозанятый/);
   assert.match(legalSource, /город Нижневартовск/);
   assert.match(legalSource, /dogovor\.off@mail\.ru/);
   assert.match(legalSource, /operatorDetailsConfirmed: true/);
 
   const publicLegalSource = `${legalSource}\n${privacySource}\n${consentSource}`;
+  assert.doesNotMatch(publicLegalSource, /Алимагомедов|Бадрудин|Нурмагомедович|Анастасия/i);
   assert.doesNotMatch(publicLegalSource, /Ленина\s*6|офис\s*402/i);
   assert.match(consentSource, /не означает подписку на рекламу/);
   assert.match(consentSource, /со дня отправки обращения через форму сайта или самостоятельной отправки письма/);

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
 import test from "node:test";
 
 const [contentSource, pageSource, stylesSource] = await Promise.all([
@@ -8,12 +8,12 @@ const [contentSource, pageSource, stylesSource] = await Promise.all([
   readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
 ]);
 
-test("team profiles use the supplied names, roles, and verified experience", () => {
+test("team profiles remain anonymous while preserving roles and verified experience", () => {
   for (const requiredCopy of [
-    "Бадрудин",
+    "Юридический отдел",
     "Основатель · Начальник юридического отдела",
     "Более 7 лет",
-    "Анастасия",
+    "Тендерный отдел",
     "Сооснователь · Начальник тендерного отдела",
     "Более 5 лет",
     "Высшее юридическое",
@@ -24,6 +24,8 @@ test("team profiles use the supplied names, roles, and verified experience", () 
 
   assert.match(contentSource, /помощником судьи/);
   assert.match(contentSource, /тендерами, закупками и договорами/);
+  assert.doesNotMatch(contentSource, /Бадрудин|Анастасия/);
+  assert.doesNotMatch(pageSource, /member\.name/);
   assert.doesNotMatch(contentSource, /team-badrudin-dark\.webp/);
   assert.doesNotMatch(contentSource, /team-anastasia-dark\.webp/);
 });
@@ -35,6 +37,20 @@ test("team profiles remain semantic and do not render portraits", () => {
   assert.doesNotMatch(pageSource, /member\.imageAlt/);
   assert.match(stylesSource, /\.team-profile__topline/);
   assert.doesNotMatch(stylesSource, /\.team-profile__media/);
+});
+
+test("retired leadership portraits are absent from public assets", async () => {
+  for (const filename of [
+    "team-badrudin.webp",
+    "team-badrudin-dark.webp",
+    "team-anastasia.webp",
+    "team-anastasia-dark.webp",
+  ]) {
+    await assert.rejects(
+      access(new URL(`../public/media/${filename}`, import.meta.url)),
+      (error) => error?.code === "ENOENT",
+    );
+  }
 });
 
 test("primary calls to action lead directly to the form without covering the hero action", () => {

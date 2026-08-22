@@ -104,7 +104,7 @@ export const PLANS = [
 export const TEAM = [
   {
     number: "01",
-    name: "Бадрудин",
+    title: "Юридический отдел",
     role: "Основатель · Начальник юридического отдела",
     experience: "Более 7 лет",
     education: "Высшее юридическое",
@@ -115,7 +115,7 @@ export const TEAM = [
   },
   {
     number: "02",
-    name: "Анастасия",
+    title: "Тендерный отдел",
     role: "Сооснователь · Начальник тендерного отдела",
     experience: "Более 5 лет",
     education: "Высшее юридическое",
