@@ -24,8 +24,8 @@ test("team profiles use the supplied names, roles, and verified experience", () 
 
   assert.match(contentSource, /помощником судьи/);
   assert.match(contentSource, /тендерами, закупками и договорами/);
-  assert.match(contentSource, /team-badrudin\.webp/);
-  assert.match(contentSource, /team-anastasia\.webp/);
+  assert.match(contentSource, /team-badrudin-dark\.webp/);
+  assert.match(contentSource, /team-anastasia-dark\.webp/);
 });
 
 test("team portraits are semantic, responsive, and optimized", async () => {
@@ -35,8 +35,8 @@ test("team portraits are semantic, responsive, and optimized", async () => {
   assert.match(stylesSource, /\.team-profile__media/);
 
   const portraits = await Promise.all([
-    stat(new URL("../public/media/team-badrudin.webp", import.meta.url)),
-    stat(new URL("../public/media/team-anastasia.webp", import.meta.url)),
+    stat(new URL("../public/media/team-badrudin-dark.webp", import.meta.url)),
+    stat(new URL("../public/media/team-anastasia-dark.webp", import.meta.url)),
   ]);
 
   for (const portrait of portraits) {
