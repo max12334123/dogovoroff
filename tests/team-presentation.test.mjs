@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFile, stat } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const [contentSource, pageSource, stylesSource] = await Promise.all([
@@ -24,24 +24,17 @@ test("team profiles use the supplied names, roles, and verified experience", () 
 
   assert.match(contentSource, /помощником судьи/);
   assert.match(contentSource, /тендерами, закупками и договорами/);
-  assert.match(contentSource, /team-badrudin-dark\.webp/);
-  assert.match(contentSource, /team-anastasia-dark\.webp/);
+  assert.doesNotMatch(contentSource, /team-badrudin-dark\.webp/);
+  assert.doesNotMatch(contentSource, /team-anastasia-dark\.webp/);
 });
 
-test("team portraits are semantic, responsive, and optimized", async () => {
+test("team profiles remain semantic and do not render portraits", () => {
   assert.match(pageSource, /<Reveal as="article" className="team-profile"/);
-  assert.match(pageSource, /alt=\{member\.imageAlt\}/);
-  assert.match(pageSource, /sizes="\(max-width: 740px\) 100vw, 50vw"/);
-  assert.match(stylesSource, /\.team-profile__media/);
-
-  const portraits = await Promise.all([
-    stat(new URL("../public/media/team-badrudin-dark.webp", import.meta.url)),
-    stat(new URL("../public/media/team-anastasia-dark.webp", import.meta.url)),
-  ]);
-
-  for (const portrait of portraits) {
-    assert.ok(portrait.size > 20_000 && portrait.size < 350_000, "team portrait must stay optimized");
-  }
+  assert.match(pageSource, /className="team-profile__topline"/);
+  assert.doesNotMatch(pageSource, /member\.image/);
+  assert.doesNotMatch(pageSource, /member\.imageAlt/);
+  assert.match(stylesSource, /\.team-profile__topline/);
+  assert.doesNotMatch(stylesSource, /\.team-profile__media/);
 });
 
 test("primary calls to action lead directly to the form without covering the hero action", () => {

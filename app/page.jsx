@@ -563,9 +563,9 @@ export default function HomePage() {
             <div className="team-grid">
               {TEAM.map((member, index) => (
                 <Reveal as="article" className="team-profile" key={member.number} delay={index * 0.1}>
-                  <div className="team-profile__media">
-                    <Image src={member.image} alt={member.imageAlt} fill sizes="(max-width: 740px) 100vw, 50vw" />
-                    <div className="team-profile__media-meta"><span>{member.number}</span><strong>{member.experience}</strong></div>
+                  <div className="team-profile__topline">
+                    <span>{member.number}</span>
+                    <strong>{member.experience} опыта</strong>
                   </div>
                   <div className="team-profile__content">
                     <p className="team-profile__role">{member.role}</p>
