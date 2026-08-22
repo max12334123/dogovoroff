@@ -1,47 +1,41 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { existsSync, readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
-import { PRACTICE_PAGES } from "../app/practices/practice-data.js";
+import { PRACTICES } from "../app/content.js";
 
-const [homeSource, indexSource, detailSource, sitemapSource] = await Promise.all([
-  readFile(new URL("../app/page.jsx", import.meta.url), "utf8"),
-  readFile(new URL("../app/practices/page.jsx", import.meta.url), "utf8"),
-  readFile(new URL("../app/practices/[slug]/page.jsx", import.meta.url), "utf8"),
-  readFile(new URL("../app/sitemap.js", import.meta.url), "utf8"),
-]);
+const homeSource = readFileSync(new URL("../app/page.jsx", import.meta.url), "utf8");
+const sitemapSource = readFileSync(new URL("../app/sitemap.js", import.meta.url), "utf8");
+const globalsSource = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8");
+const routeFiles = [
+  "../app/practices/page.jsx",
+  "../app/practices/[slug]/page.jsx",
+  "../app/practices/practice-chrome.jsx",
+  "../app/practices/practice-data.js",
+].map((path) => fileURLToPath(new URL(path, import.meta.url)));
 
-test("every published practice has a complete standalone page definition", () => {
-  assert.equal(PRACTICE_PAGES.length, 5);
-  assert.equal(new Set(PRACTICE_PAGES.map(({ slug }) => slug)).size, 5);
+test("practice information lives only in the original home-page section", () => {
+  for (const routeFile of routeFiles) assert.equal(existsSync(routeFile), false);
 
-  for (const practice of PRACTICE_PAGES) {
-    assert.match(practice.slug, /^[a-z0-9-]+$/);
-    assert.ok(practice.seoTitle.length >= 20);
-    assert.ok(practice.seoDescription.length >= 70);
-    assert.equal(practice.situations.length, 4);
-    assert.equal(practice.stages.length, 4);
-    assert.equal(practice.outcomes.length, 4);
-  }
+  assert.doesNotMatch(homeSource, /href=[^\n>]*\/practices/);
+  assert.doesNotMatch(sitemapSource, /\/practices/);
+  assert.doesNotMatch(globalsSource, /\.practice-(?:page|header|index-hero|index-list|directory|footer|mobile-cta)/);
 });
 
-test("practice routes are discoverable from the home page, directory, and sitemap", () => {
-  assert.match(homeSource, /href={`\/practices\/\$\{practice\.slug\}`}/);
-  assert.match(homeSource, /href="\/practices"/);
-  assert.match(indexSource, /PRACTICE_PAGES\.map/);
-  assert.match(detailSource, /generateStaticParams/);
-  assert.match(detailSource, /generateMetadata/);
-  assert.match(detailSource, /BreadcrumbList/);
-  assert.match(sitemapSource, /PRACTICE_PAGES\.map/);
+test("the original practice navigation and accordion are preserved", () => {
+  assert.match(homeSource, /PRACTICES\.slice\(0, 4\)\.map\(\(practice\) => \(\s*<a key=\{practice\.number\} href="#practices">/s);
+  assert.match(homeSource, /<a href="#practices">Практики<\/a>/);
+  assert.doesNotMatch(homeSource, /practice-row__(?:actions|detail-link)|practice-directory-link|openPracticeFromHash/);
 });
 
-test("standalone practice copy does not restore FAS or procurement-dispute services", () => {
-  const publishedCopy = JSON.stringify(PRACTICE_PAGES);
+test("all original practice information remains unchanged", () => {
+  assert.equal(PRACTICES.length, 5);
+  assert.deepEqual(PRACTICES.map(({ number }) => number), ["01", "02", "03", "04", "05"]);
+  assert.ok(PRACTICES.every((practice) => practice.details.length === 4));
+  assert.ok(PRACTICES.every((practice) => !("slug" in practice)));
+
+  const publishedCopy = JSON.stringify(PRACTICES);
   assert.doesNotMatch(publishedCopy, /\bФАС\b/i);
   assert.doesNotMatch(publishedCopy, /жалоб[^.]{0,80}закуп/i);
   assert.doesNotMatch(publishedCopy, /спор[^.]{0,80}закуп/i);
-});
-
-test("practice calls to action preselect only a known service", () => {
-  assert.match(detailSource, /encodeURIComponent\(practice\.service\)/);
-  assert.match(homeSource, /item\.slug === requestedService \|\| item\.service === requestedService/);
 });

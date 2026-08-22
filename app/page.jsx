@@ -1,7 +1,6 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
 import {
   AnimatePresence,
   motion,
@@ -236,18 +235,6 @@ export default function HomePage() {
     return () => observer.disconnect();
   }, []);
 
-  useEffect(() => {
-    const requestedService = new URLSearchParams(window.location.search).get("service");
-    if (!requestedService) return;
-
-    const practice = PRACTICES.find(
-      (item) => item.slug === requestedService || item.service === requestedService,
-    );
-    if (practice) {
-      setForm((current) => ({ ...current, service: practice.service }));
-    }
-  }, []);
-
   const updateForm = (field, value) => {
     setForm((current) => ({ ...current, [field]: value }));
     setErrors((current) => ({ ...current, [field]: false }));
@@ -414,7 +401,7 @@ export default function HomePage() {
             <aside className="practice-rail" aria-label="Ключевые практики">
               <p className="practice-rail__title">Практики</p>
               {PRACTICES.slice(0, 4).map((practice) => (
-                <Link key={practice.number} href={`/practices/${practice.slug}`}><span>{practice.number}</span><strong>{practice.short}</strong></Link>
+                <a key={practice.number} href="#practices"><span>{practice.number}</span><strong>{practice.short}</strong></a>
               ))}
             </aside>
 
@@ -467,10 +454,7 @@ export default function HomePage() {
                           <div className="practice-row__panel-inner">
                             <p>В составе работы</p>
                             <ul>{practice.details.map((item) => <li key={item}>{item}</li>)}</ul>
-                            <div className="practice-row__actions">
-                              <Link className="practice-row__detail-link" href={`/practices/${practice.slug}`}>Страница практики</Link>
-                              <MagneticAction onClick={() => chooseService(practice.service)} className="action--dark" type="button">Обсудить задачу</MagneticAction>
-                            </div>
+                            <MagneticAction onClick={() => chooseService(practice.service)} className="action--dark" type="button">Обсудить задачу</MagneticAction>
                           </div>
                         </motion.div>
                       )}
@@ -479,12 +463,6 @@ export default function HomePage() {
                 );
               })}
             </div>
-            <Link className="practice-directory-link" href="/practices">
-              <span>Все практики подробно</span>
-              <svg aria-hidden="true" viewBox="0 0 48 24" width="48" height="24">
-                <path d="M1 12h44M35 2l10 10-10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </Link>
           </div>
         </section>
 
@@ -679,7 +657,7 @@ export default function HomePage() {
           <footer className="site-footer">
         <div className="site-footer__top">
           <div><a href="#top" aria-label="ДоговорОфф — наверх"><Brand compact /></a><p>Право для сложных решений. Нижневартовск и вся Россия онлайн.</p></div>
-          <nav aria-label="Навигация в подвале"><Link href="/practices">Практики</Link><a href="#formats">Форматы</a><a href="#team">Команда</a><a href="#faq">Вопросы</a></nav>
+          <nav aria-label="Навигация в подвале"><a href="#practices">Практики</a><a href="#formats">Форматы</a><a href="#team">Команда</a><a href="#faq">Вопросы</a></nav>
           <div className="site-footer__contacts"><a href={`mailto:${CONFIG.email}`}>{CONFIG.email}</a><span>{CONFIG.address}</span></div>
         </div>
         <div className="site-footer__bottom"><span>© {new Date().getFullYear()} «ДоговорОфф» · Не является публичной офертой</span><a href="/privacy">Политика обработки данных</a><a href="/personal-data-consent">Согласие</a><span>{CONFIG.geo}</span></div>
