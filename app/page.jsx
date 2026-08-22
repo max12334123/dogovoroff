@@ -133,6 +133,7 @@ export default function HomePage() {
   const [activePrice, setActivePrice] = useState(0);
   const [openFaq, setOpenFaq] = useState(0);
   const [formVisible, setFormVisible] = useState(false);
+  const [heroActionVisible, setHeroActionVisible] = useState(true);
   const [form, setForm] = useState({ name: "", phone: "", service: "", message: "", website: "", agree: false });
   const [errors, setErrors] = useState({});
   const [submitState, setSubmitState] = useState("idle");
@@ -148,6 +149,7 @@ export default function HomePage() {
   const serviceFieldRef = useRef(null);
   const consentFieldRef = useRef(null);
   const requestRef = useRef(null);
+  const heroActionRef = useRef(null);
   const submissionIdRef = useRef(createSubmissionId());
   const { scrollYProgress } = useScroll();
   const progress = useSpring(scrollYProgress, { stiffness: 120, damping: 28, mass: 0.35 });
@@ -226,6 +228,13 @@ export default function HomePage() {
     return () => observer.disconnect();
   }, []);
 
+  useEffect(() => {
+    if (!heroActionRef.current) return undefined;
+    const observer = new IntersectionObserver(([entry]) => setHeroActionVisible(entry.isIntersecting), { threshold: 0.35 });
+    observer.observe(heroActionRef.current);
+    return () => observer.disconnect();
+  }, []);
+
   const updateForm = (field, value) => {
     setForm((current) => ({ ...current, [field]: value }));
     setErrors((current) => ({ ...current, [field]: false }));
@@ -251,7 +260,7 @@ export default function HomePage() {
 
   const chooseService = (service) => {
     updateForm("service", service);
-    document.querySelector("#request")?.scrollIntoView({ behavior: "smooth" });
+    document.querySelector("#lead-form")?.scrollIntoView({ behavior: "smooth" });
   };
 
   const submitLead = async (event) => {
@@ -403,8 +412,8 @@ export default function HomePage() {
               <motion.p className="hero__subline" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.8, ease: EASE }}>
                 Право для сложных решений.
               </motion.p>
-              <motion.div className="hero__actions" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.42, duration: 0.8, ease: EASE }}>
-                <MagneticAction href="#request" className="action--light">Получить консультацию</MagneticAction>
+              <motion.div ref={heroActionRef} className="hero__actions" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.42, duration: 0.8, ease: EASE }}>
+                <MagneticAction href="#lead-form" className="action--light">Получить консультацию</MagneticAction>
               </motion.div>
               <motion.div className="hero__meta" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.62, duration: 0.9 }}>
                 <span>Нижневартовск</span><a href={`mailto:${CONFIG.email}`}>{CONFIG.email}</a><em>Конфиденциально. Точно. Лично.</em>
@@ -553,10 +562,23 @@ export default function HomePage() {
             <SectionHeading index="05 / 08" eyebrow="Команда" title="Руководители практик участвуют лично." text="Ключевые решения не уходят в безличный поток. Ответственность остаётся у человека, с которым вы договорились о результате." dark />
             <div className="team-grid">
               {TEAM.map((member, index) => (
-                <Reveal className="team-profile" key={member.number} delay={index * 0.1}>
-                  <p className="team-profile__number">{member.number}</p><p className="team-profile__role">{member.role}</p>
-                  <h3>{member.title}</h3><p className="team-profile__text">{member.text}</p>
-                  <div className="team-profile__tags">{member.tags.map((tag) => <span key={tag}>{tag}</span>)}</div>
+                <Reveal as="article" className="team-profile" key={member.number} delay={index * 0.1}>
+                  <div className="team-profile__media">
+                    <Image src={member.image} alt={member.imageAlt} fill sizes="(max-width: 740px) 100vw, 50vw" />
+                    <div className="team-profile__media-meta"><span>{member.number}</span><strong>{member.experience}</strong></div>
+                  </div>
+                  <div className="team-profile__content">
+                    <p className="team-profile__role">{member.role}</p>
+                    <h3>{member.name}</h3>
+                    <dl className="team-profile__facts">
+                      <div><dt>Опыт</dt><dd>{member.experience}</dd></div>
+                      <div><dt>Город</dt><dd>{member.location}</dd></div>
+                      <div><dt>Образование</dt><dd>{member.education}</dd></div>
+                    </dl>
+                    <p className="team-profile__text">{member.text}</p>
+                    <p className="team-profile__focus"><span>Фокус</span>{member.focus}</p>
+                    <div className="team-profile__tags" aria-label={`Направления работы: ${member.name}`}>{member.tags.map((tag) => <span key={tag}>{tag}</span>)}</div>
+                  </div>
                 </Reveal>
               ))}
             </div>
@@ -602,7 +624,7 @@ export default function HomePage() {
             <div className="request__messengers"><MessengerLink href={CONFIG.telegram} icon="/media/telegram.png" label="Telegram" light /><MessengerLink href={CONFIG.max} icon="/media/max.png" label="MAX" light /></div>
           </div>
 
-          <div className="request__form-wrap">
+          <div className="request__form-wrap" id="lead-form">
             <AnimatePresence mode="wait" initial={false}>
               {submitState !== "success" ? (
                 <motion.form key="form" className="lead-form" onSubmit={submitLead} noValidate initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -12 }}>
@@ -642,7 +664,7 @@ export default function HomePage() {
           </footer>
 
           <AnimatePresence>
-            {!formVisible && <motion.div className="mobile-action-bar" initial={{ y: "120%" }} animate={{ y: 0 }} exit={{ y: "120%" }} transition={{ duration: 0.45, ease: EASE }}><a href="#request">Оставить заявку</a></motion.div>}
+            {!formVisible && !heroActionVisible && <motion.div className="mobile-action-bar" initial={{ y: "120%" }} animate={{ y: 0 }} exit={{ y: "120%" }} transition={{ duration: 0.45, ease: EASE }}><a href="#lead-form">Оставить заявку</a></motion.div>}
           </AnimatePresence>
         </div>
       </div>
