@@ -23,7 +23,8 @@ test("privacy policy covers the core processing disclosures", () => {
   }
 
   assert.match(privacySource, /Vercel Inc\./);
-  assert.match(privacySource, /jsDelivr CDN/);
+  assert.match(privacySource, /Vercel Speed Insights/);
+  assert.doesNotMatch(privacySource, /jsDelivr/);
   assert.match(privacySource, /Отправить обращение/);
   assert.match(privacySource, /Web3Forms/);
   assert.match(privacySource, /Web3Creative/);

@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-const [configSource, pageSource, envExampleSource, healthRouteSource, globalStylesSource] = await Promise.all([
+const [configSource, layoutSource, pageSource, envExampleSource, healthRouteSource, globalStylesSource] = await Promise.all([
   readFile(new URL("../next.config.mjs", import.meta.url), "utf8"),
+  readFile(new URL("../app/layout.js", import.meta.url), "utf8"),
   readFile(new URL("../app/page.jsx", import.meta.url), "utf8"),
   readFile(new URL("../.env.example", import.meta.url), "utf8"),
   readFile(new URL("../app/api/health/route.js", import.meta.url), "utf8"),
@@ -37,11 +38,15 @@ test("contact integration exposes only the provider's publishable form identifie
   );
 });
 
-test("external font styles are CSP-allowed and pinned to immutable versions", () => {
-  assert.match(configSource, /style-src[^\n]+https:\/\/cdn\.jsdelivr\.net/);
-  assert.match(globalStylesSource, /@fontsource\/manrope@5\.3\.0/);
-  assert.match(globalStylesSource, /@fontsource\/cormorant-garamond@5\.3\.0/);
-  assert.doesNotMatch(globalStylesSource, /@latest/);
+test("brand fonts are self-hosted through next/font without an external CDN", () => {
+  assert.match(layoutSource, /import \{ Cormorant_Garamond, Manrope \} from "next\/font\/google"/);
+  assert.match(layoutSource, /variable: "--font-manrope"/);
+  assert.match(layoutSource, /variable: "--font-cormorant"/);
+  assert.match(layoutSource, /subsets: \["cyrillic", "latin"\]/);
+  assert.match(globalStylesSource, /font-family: var\(--font-manrope\), Arial, sans-serif/);
+  assert.match(globalStylesSource, /font-family: var\(--font-cormorant\), Georgia, serif/);
+  assert.doesNotMatch(globalStylesSource, /@import|cdn\.jsdelivr\.net|@fontsource/);
+  assert.doesNotMatch(configSource, /cdn\.jsdelivr\.net/);
 });
 
 test("health endpoint is non-cacheable and contains no sensitive details", () => {

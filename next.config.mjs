@@ -4,9 +4,9 @@ const isDevelopment = process.env.NODE_ENV === "development";
 const contentSecurityPolicy = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline'${isDevelopment ? " 'unsafe-eval'" : ""}`,
-  "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
+  "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
-  "font-src 'self' data: https://cdn.jsdelivr.net",
+  "font-src 'self' data:",
   "connect-src 'self' https://api.web3forms.com",
   "object-src 'none'",
   "base-uri 'self'",
