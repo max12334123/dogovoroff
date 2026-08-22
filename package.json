@@ -1,13 +1,20 @@
 {
   "name": "dogovoroff",
   "private": true,
-  "scripts": { "dev": "next dev", "build": "next build", "start": "next start", "test": "node --test" },
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "test": "node --test"
+  },
   "dependencies": {
+    "@vercel/analytics": "^2.0.1",
+    "framer-motion": "^11.3.19",
+    "lenis": "^1.1.13",
     "next": "15.5.21",
     "react": "19.1.5",
-    "react-dom": "19.1.5",
-    "framer-motion": "^11.3.19",
-    "lenis": "^1.1.13"
+    "react-dom": "19.1.5"
   },
   "overrides": {
     "postcss": "8.5.26",

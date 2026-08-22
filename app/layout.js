@@ -1,3 +1,4 @@
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import Effects from "./effects";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, SITE_URL } from "./site";
@@ -90,6 +91,7 @@ export default function RootLayout({ children }) {
         />
         {children}
         <Effects />
+        <Analytics />
       </body>
     </html>
   );

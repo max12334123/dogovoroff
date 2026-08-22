@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import {
   AnimatePresence,
   motion,
@@ -235,6 +236,18 @@ export default function HomePage() {
     return () => observer.disconnect();
   }, []);
 
+  useEffect(() => {
+    const requestedService = new URLSearchParams(window.location.search).get("service");
+    if (!requestedService) return;
+
+    const practice = PRACTICES.find(
+      (item) => item.slug === requestedService || item.service === requestedService,
+    );
+    if (practice) {
+      setForm((current) => ({ ...current, service: practice.service }));
+    }
+  }, []);
+
   const updateForm = (field, value) => {
     setForm((current) => ({ ...current, [field]: value }));
     setErrors((current) => ({ ...current, [field]: false }));
@@ -401,7 +414,7 @@ export default function HomePage() {
             <aside className="practice-rail" aria-label="Ключевые практики">
               <p className="practice-rail__title">Практики</p>
               {PRACTICES.slice(0, 4).map((practice) => (
-                <a key={practice.number} href="#practices"><span>{practice.number}</span><strong>{practice.short}</strong></a>
+                <Link key={practice.number} href={`/practices/${practice.slug}`}><span>{practice.number}</span><strong>{practice.short}</strong></Link>
               ))}
             </aside>
 
@@ -454,7 +467,10 @@ export default function HomePage() {
                           <div className="practice-row__panel-inner">
                             <p>В составе работы</p>
                             <ul>{practice.details.map((item) => <li key={item}>{item}</li>)}</ul>
-                            <MagneticAction onClick={() => chooseService(practice.service)} className="action--dark" type="button">Обсудить задачу</MagneticAction>
+                            <div className="practice-row__actions">
+                              <Link className="practice-row__detail-link" href={`/practices/${practice.slug}`}>Страница практики</Link>
+                              <MagneticAction onClick={() => chooseService(practice.service)} className="action--dark" type="button">Обсудить задачу</MagneticAction>
+                            </div>
                           </div>
                         </motion.div>
                       )}
@@ -463,6 +479,12 @@ export default function HomePage() {
                 );
               })}
             </div>
+            <Link className="practice-directory-link" href="/practices">
+              <span>Все практики подробно</span>
+              <svg aria-hidden="true" viewBox="0 0 48 24" width="48" height="24">
+                <path d="M1 12h44M35 2l10 10-10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </Link>
           </div>
         </section>
 
@@ -630,12 +652,12 @@ export default function HomePage() {
                 <motion.form key="form" className="lead-form" onSubmit={submitLead} noValidate initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -12 }}>
                   <div className="lead-form__heading"><span>Первичная консультация</span><strong>Бесплатно</strong></div>
                   <div className="lead-form__honeypot" aria-hidden="true"><label htmlFor="lead-website">Ваш сайт</label><input id="lead-website" name="website" value={form.website} onChange={(event) => updateForm("website", event.target.value)} autoComplete="off" tabIndex={-1} maxLength={200} /></div>
-                  <div className="field"><label htmlFor="lead-name">Ваше имя</label><input ref={nameFieldRef} id="lead-name" name="name" value={form.name} onChange={(event) => updateForm("name", event.target.value)} aria-invalid={Boolean(errors.name)} aria-describedby={errors.name ? "lead-name-error" : undefined} autoComplete="name" placeholder="Как к вам обращаться" maxLength={80} />{errors.name && <span id="lead-name-error" className="field__error" role="alert">Укажите имя</span>}</div>
-                  <div className="field"><label htmlFor="lead-phone">Телефон</label><input ref={phoneFieldRef} id="lead-phone" name="phone" value={form.phone} onChange={(event) => updateForm("phone", event.target.value ? maskPhone(event.target.value) : "")} aria-invalid={Boolean(errors.phone)} aria-describedby={errors.phone ? "lead-phone-error" : undefined} autoComplete="tel" inputMode="tel" placeholder="+7 (___) ___-__-__" maxLength={32} />{errors.phone && <span id="lead-phone-error" className="field__error" role="alert">Введите номер полностью</span>}</div>
-                  <div className="field"><label htmlFor="lead-service">Направление</label><select ref={serviceFieldRef} id="lead-service" name="service" value={form.service} onChange={(event) => updateForm("service", event.target.value)} aria-invalid={Boolean(errors.service)} aria-describedby={errors.service ? "lead-service-error" : undefined}><option value="">Выберите направление</option>{PRACTICES.map((practice) => <option key={practice.service}>{practice.service}</option>)}<option>Частный вопрос</option><option>Другое / не знаю</option></select>{errors.service && <span id="lead-service-error" className="field__error" role="alert">Выберите направление</span>}</div>
+                  <div className="field"><label htmlFor="lead-name">Ваше имя</label><input ref={nameFieldRef} id="lead-name" name="name" value={form.name} onChange={(event) => updateForm("name", event.target.value)} aria-invalid={Boolean(errors.name)} aria-describedby={errors.name ? "lead-name-error" : undefined} aria-required="true" required autoComplete="name" placeholder="Как к вам обращаться" maxLength={80} />{errors.name && <span id="lead-name-error" className="field__error" role="alert">Укажите имя</span>}</div>
+                  <div className="field"><label htmlFor="lead-phone">Телефон</label><input ref={phoneFieldRef} id="lead-phone" name="phone" value={form.phone} onChange={(event) => updateForm("phone", event.target.value ? maskPhone(event.target.value) : "")} aria-invalid={Boolean(errors.phone)} aria-describedby={errors.phone ? "lead-phone-error" : undefined} aria-required="true" required autoComplete="tel" inputMode="tel" placeholder="+7 (___) ___-__-__" maxLength={32} />{errors.phone && <span id="lead-phone-error" className="field__error" role="alert">Введите номер полностью</span>}</div>
+                  <div className="field"><label htmlFor="lead-service">Направление</label><select ref={serviceFieldRef} id="lead-service" name="service" value={form.service} onChange={(event) => updateForm("service", event.target.value)} aria-invalid={Boolean(errors.service)} aria-describedby={errors.service ? "lead-service-error" : undefined} aria-required="true" required><option value="">Выберите направление</option>{PRACTICES.map((practice) => <option key={practice.service}>{practice.service}</option>)}<option>Частный вопрос</option><option>Другое / не знаю</option></select>{errors.service && <span id="lead-service-error" className="field__error" role="alert">Выберите направление</span>}</div>
                   <div className="field"><label htmlFor="lead-message">Коротко о задаче</label><textarea id="lead-message" name="message" value={form.message} onChange={(event) => updateForm("message", event.target.value)} placeholder="Пары предложений достаточно" rows={4} maxLength={2000} /></div>
                   <div className={`consent${errors.agree ? " consent--error" : ""}`}>
-                    <input ref={consentFieldRef} id="lead-consent" type="checkbox" checked={form.agree} onChange={(event) => updateForm("agree", event.target.checked)} aria-invalid={Boolean(errors.agree)} aria-describedby={errors.agree ? "lead-consent-error" : undefined} />
+                    <input ref={consentFieldRef} id="lead-consent" type="checkbox" checked={form.agree} onChange={(event) => updateForm("agree", event.target.checked)} aria-invalid={Boolean(errors.agree)} aria-describedby={errors.agree ? "lead-consent-error" : undefined} aria-required="true" required />
                     <span><label htmlFor="lead-consent">Даю отдельное согласие на обработку персональных данных</label> (<a href="/personal-data-consent" target="_blank" rel="noreferrer">текст согласия</a>).</span>
                   </div>
                   {errors.agree && <span id="lead-consent-error" className="field__error field__error--consent" role="alert">Нужно согласие на обработку данных</span>}
@@ -657,7 +679,7 @@ export default function HomePage() {
           <footer className="site-footer">
         <div className="site-footer__top">
           <div><a href="#top" aria-label="ДоговорОфф — наверх"><Brand compact /></a><p>Право для сложных решений. Нижневартовск и вся Россия онлайн.</p></div>
-          <nav aria-label="Навигация в подвале"><a href="#practices">Практики</a><a href="#formats">Форматы</a><a href="#team">Команда</a><a href="#faq">Вопросы</a></nav>
+          <nav aria-label="Навигация в подвале"><Link href="/practices">Практики</Link><a href="#formats">Форматы</a><a href="#team">Команда</a><a href="#faq">Вопросы</a></nav>
           <div className="site-footer__contacts"><a href={`mailto:${CONFIG.email}`}>{CONFIG.email}</a><span>{CONFIG.address}</span></div>
         </div>
         <div className="site-footer__bottom"><span>© {new Date().getFullYear()} «ДоговорОфф» · Не является публичной офертой</span><a href="/privacy">Политика обработки данных</a><a href="/personal-data-consent">Согласие</a><span>{CONFIG.geo}</span></div>

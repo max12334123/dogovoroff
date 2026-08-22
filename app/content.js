@@ -11,6 +11,7 @@ export const CONFIG = {
 export const PRACTICES = [
   {
     number: "01",
+    slug: "tendery-goszakupki",
     short: "Тендеры",
     title: "Тендеры и государственные закупки",
     description: "Сопровождаем участие по 44-ФЗ и 223-ФЗ: от анализа закупки до исполнения контракта.",
@@ -20,6 +21,7 @@ export const PRACTICES = [
   },
   {
     number: "02",
+    slug: "yuridicheskiy-autsorsing",
     short: "Бизнес",
     title: "Юридический аутсорсинг бизнеса",
     description: "Берём на себя ежедневные правовые вопросы компании без содержания штатного отдела.",
@@ -29,6 +31,7 @@ export const PRACTICES = [
   },
   {
     number: "03",
+    slug: "zhkh-uk-tszh",
     short: "ЖКХ",
     title: "ЖКХ, управляющие компании и ТСЖ",
     description: "Ведём сложные отраслевые споры с собственниками, подрядчиками и надзорными органами.",
@@ -38,6 +41,7 @@ export const PRACTICES = [
   },
   {
     number: "04",
+    slug: "arbitrazh-sudebnye-spory",
     short: "Арбитраж",
     title: "Арбитраж и судебные споры",
     description: "Формируем позицию, управляем доказательствами и сопровождаем дело до результата.",
@@ -47,6 +51,7 @@ export const PRACTICES = [
   },
   {
     number: "05",
+    slug: "dogovory-pretenzii-peregovory",
     short: "Договоры",
     title: "Договоры, претензии и переговоры",
     description: "Создаём документы, которые заранее распределяют риски и защищают вашу позицию.",

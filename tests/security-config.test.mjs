@@ -24,6 +24,8 @@ test("production responses include the security header baseline", () => {
   assert.match(configSource, /frame-ancestors 'none'/);
   assert.match(configSource, /object-src 'none'/);
   assert.match(configSource, /poweredByHeader:\s*false/);
+  assert.match(configSource, /isDevelopment \? " 'unsafe-eval'" : ""/);
+  assert.doesNotMatch(configSource, /script-src 'self' 'unsafe-inline' 'unsafe-eval'/);
 });
 
 test("contact integration exposes only the provider's publishable form identifier", () => {
