@@ -6,7 +6,7 @@ import {
 } from "./domain.mjs";
 
 const MAX_RESPONSE_BYTES = 24_576;
-const DEFAULT_TIMEOUT_MS = 25_000;
+const DEFAULT_TIMEOUT_MS = 45_000;
 
 function workerEndpoint(workerUrl) {
   if (typeof workerUrl !== "string" || !workerUrl.trim()) return null;
@@ -30,7 +30,9 @@ function buildMinimizedInput(input) {
     practiceId: practice.id,
     practiceLabel: practice.label,
     answers: Object.fromEntries(
-      Object.entries(normalized.value.answers).map(([key, value]) => [key, maskSensitiveText(value)]),
+      Object.entries(normalized.value.answers)
+        .filter(([key]) => practice.questions.some((question) => question.id === key && question.type !== "date"))
+        .map(([key, value]) => [key, maskSensitiveText(value)]),
     ),
     description: maskSensitiveText(normalized.value.description),
   };
@@ -67,7 +69,7 @@ export async function requestCloudflarePrecheck({
   }
 
   const boundedTimeout = Number.isFinite(timeoutMs)
-    ? Math.min(30_000, Math.max(1, timeoutMs))
+    ? Math.min(50_000, Math.max(1, timeoutMs))
     : DEFAULT_TIMEOUT_MS;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(new Error("provider timeout")), boundedTimeout);

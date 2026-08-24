@@ -26,7 +26,7 @@ const PROVIDER_CARD = {
 };
 
 test("precheck route reserves enough time for bounded Workers AI latency", () => {
-  assert.equal(maxDuration, 30);
+  assert.equal(maxDuration, 50);
 });
 
 function makeRequest(payload, {

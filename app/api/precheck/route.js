@@ -15,7 +15,7 @@ import { LEGAL } from "../../legal.js";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-export const maxDuration = 30;
+export const maxDuration = 50;
 
 const MAX_BODY_BYTES = 8_192;
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1_000;

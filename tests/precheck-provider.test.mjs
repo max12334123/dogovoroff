@@ -51,6 +51,7 @@ test("provider adapter forwards only minimized masked data and validates the res
     "version",
   ]);
   assert.equal("aiConsent" in call.body, false);
+  assert.equal("deadline" in call.body.answers, false);
   assert.doesNotMatch(JSON.stringify(call.body), /test@example\.com|912 345|4510 123456/);
   assert.match(call.body.answers.goal, /\[email скрыт\].*\[телефон скрыт\]/);
   assert.match(call.body.description, /\[номер скрыт\]/);

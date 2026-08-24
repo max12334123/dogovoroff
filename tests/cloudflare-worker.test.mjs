@@ -87,6 +87,10 @@ test("worker rejects unknown minimized fields without invoking AI", async () => 
 test("worker forces exactly one build_precheck_card function call", async () => {
   let aiCalls = 0;
   let captured;
+  const modelCard = {
+    ...PROVIDER_CARD,
+    nextStep: "Передать актуальный проект для проверки.",
+  };
   const worker = createWorker({ verifyOidc: async () => ({ environment: "development" }) });
   const env = {
     ...TEST_ENV,
@@ -97,7 +101,7 @@ test("worker forces exactly one build_precheck_card function call", async () => 
         return {
           tool_calls: [{
             name: "build_precheck_card",
-            arguments: PROVIDER_CARD,
+            arguments: modelCard,
           }],
         };
       },
@@ -114,10 +118,18 @@ test("worker forces exactly one build_precheck_card function call", async () => 
   assert.equal(captured.input.tools[0].function.name, "build_precheck_card");
   assert.equal(captured.input.tools[0].type, "function");
   assert.equal(captured.input.temperature, 0);
+  assert.equal(captured.input.reasoning_effort, "low");
   assert.equal(captured.input.max_completion_tokens, 700);
   assert.equal(captured.input.store, false);
   assert.equal(captured.input.parallel_tool_calls, false);
-  assert.deepEqual(await response.json(), { success: true, result: PROVIDER_CARD });
+  assert.match(captured.input.messages[0].content, /Не используй цифры/);
+  assert.deepEqual(await response.json(), {
+    success: true,
+    result: {
+      ...modelCard,
+      nextStep: "Передать актуальный проект для проверки. Материалы должен проверить юрист.",
+    },
+  });
 });
 
 test("worker returns a generic upstream error for malformed model output", async () => {
