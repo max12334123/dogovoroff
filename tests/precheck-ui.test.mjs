@@ -38,9 +38,12 @@ test("quick form remains default while estimator and header can start the preche
   assert.match(pageSource, /Обсудить формат[\s\S]{0,250}chooseService|chooseService[\s\S]{0,250}Обсудить формат/);
 });
 
-test("header AI action has dedicated responsive premium styling", () => {
+test("header AI action follows the navigation style responsively", () => {
   assert.match(cssSource, /\.site-header__ai\s*\{[\s\S]{0,800}min-height:\s*40px/);
-  assert.match(cssSource, /\.site-header__ai::before[\s\S]{0,500}transform:\s*scaleX\(0\)/);
+  assert.match(cssSource, /\.site-header__ai\s*\{[\s\S]{0,800}color:\s*#d4d4d1/);
+  assert.match(cssSource, /\.site-header__ai\s*\{[\s\S]{0,800}background:\s*transparent/);
+  assert.match(cssSource, /\.site-header__ai::after[\s\S]{0,500}height:\s*1px[\s\S]{0,300}background:\s*var\(--ice\)[\s\S]{0,300}transform:\s*scaleX\(0\)/);
+  assert.match(cssSource, /\.site-header__ai:hover\s*\{[\s\S]{0,200}color:\s*var\(--white\)/);
   assert.match(cssSource, /@media \(max-width:\s*740px\)[\s\S]*?\.site-header__ai[\s\S]{0,500}min-height:\s*36px/);
   assert.match(cssSource, /@media \(max-width:\s*560px\)[\s\S]*?\.site-header__ai-full[\s\S]{0,200}display:\s*none/);
 });
