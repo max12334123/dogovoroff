@@ -3,6 +3,13 @@
   "name": "dogovoroff-precheck-ai",
   "main": "src/index.mjs",
   "compatibility_date": "2026-08-24",
+  "preview_urls": false,
+  "observability": {
+    "enabled": true,
+    "logs": {
+      "enabled": true
+    }
+  },
   "ai": {
     "binding": "AI"
   },

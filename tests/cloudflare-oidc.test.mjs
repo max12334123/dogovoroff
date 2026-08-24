@@ -60,9 +60,10 @@ function dependencies(jwk) {
   return {
     now: () => NOW_SECONDS * 1_000,
     cache: new Map(),
-    fetch: async (url) => {
+    fetch: async (url, options) => {
       fetchCalls += 1;
       assert.equal(url, `${CONFIG.issuer}/.well-known/jwks`);
+      assert.equal(options.redirect, "manual");
       return Response.json({ keys: [jwk] });
     },
     getFetchCalls: () => fetchCalls,

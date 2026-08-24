@@ -6,7 +6,7 @@ import {
 } from "./domain.mjs";
 
 const MAX_RESPONSE_BYTES = 24_576;
-const DEFAULT_TIMEOUT_MS = 10_000;
+const DEFAULT_TIMEOUT_MS = 25_000;
 
 function workerEndpoint(workerUrl) {
   if (typeof workerUrl !== "string" || !workerUrl.trim()) return null;

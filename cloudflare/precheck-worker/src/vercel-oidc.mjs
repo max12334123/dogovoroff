@@ -50,7 +50,7 @@ async function fetchJwks(config, dependencies) {
 
   const response = await fetchFn(`${config.issuer.replace(/\/$/u, "")}/.well-known/jwks`, {
     headers: { accept: "application/json" },
-    redirect: "error",
+    redirect: "manual",
   });
   if (!response?.ok) throw new Error("unable to load JWKS");
 

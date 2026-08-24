@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { POST } from "../app/api/precheck/route.js";
+import { maxDuration, POST } from "../app/api/precheck/route.js";
 
 const VALID_PAYLOAD = {
   version: "1",
@@ -24,6 +24,10 @@ const PROVIDER_CARD = {
   lawyerQuestions: ["Согласованы ли существенные условия?"],
   nextStep: "Передать актуальный проект юристу.",
 };
+
+test("precheck route reserves enough time for bounded Workers AI latency", () => {
+  assert.equal(maxDuration, 30);
+});
 
 function makeRequest(payload, {
   ip = "198.51.100.10",
