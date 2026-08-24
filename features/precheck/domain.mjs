@@ -246,6 +246,20 @@ export function validateProviderResult(value) {
   };
 }
 
+export function mergeTrustedCard(fallback, providerResult) {
+  const validated = validateProviderResult(providerResult);
+  if (!isPlainRecord(fallback) || !validated.ok) return fallback;
+
+  return {
+    ...fallback,
+    ...validated.value,
+    version: fallback.version,
+    practice: fallback.practice,
+    urgency: fallback.urgency,
+    disclaimer: fallback.disclaimer,
+  };
+}
+
 export function buildConfirmedExcerpt(result) {
   if (!isPlainRecord(result)) return "";
   const sections = [

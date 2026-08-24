@@ -5,6 +5,7 @@ import {
   buildFallbackCard,
   calculateUrgency,
   maskSensitiveText,
+  mergeTrustedCard,
   normalizePrecheckPayload,
   validateProviderResult,
 } from "../features/precheck/domain.mjs";
@@ -122,6 +123,27 @@ test("provider result is strict, bounded, and plain text", () => {
   ]) {
     assert.equal(validateProviderResult(value).ok, false);
   }
+});
+
+test("provider enrichment cannot replace trusted card fields", () => {
+  const fallback = buildFallbackCard(
+    normalizePrecheckPayload(validPayload).value,
+    new Date("2026-08-24T06:00:00.000Z"),
+  );
+  const provider = {
+    summary: "Условия требуют предметной проверки.",
+    missingInformation: ["Редакция приложения"],
+    suggestedDocuments: ["Проект договора"],
+    lawyerQuestions: ["Какие условия уже согласованы?"],
+    nextStep: "Передать актуальную редакцию юристу.",
+  };
+  const merged = mergeTrustedCard(fallback, provider);
+
+  assert.deepEqual(merged, { ...fallback, ...provider });
+  assert.equal(merged.version, fallback.version);
+  assert.equal(merged.practice, fallback.practice);
+  assert.deepEqual(merged.urgency, fallback.urgency);
+  assert.equal(merged.disclaimer, fallback.disclaimer);
 });
 
 test("confirmed excerpt is bounded and contains no hidden intake answers", () => {
