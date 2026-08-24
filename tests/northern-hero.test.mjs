@@ -23,6 +23,8 @@ test("hero uses an accessible northern video with resilient fallbacks", () => {
   assert.match(motionSource, /playsInline/);
   assert.match(motionSource, /preload="metadata"/);
   assert.match(motionSource, /useReducedMotion/);
+  assert.match(motionSource, /navigator\.connection\?\.saveData/);
+  assert.match(motionSource, /setVideoAllowed/);
   assert.match(motionSource, /northern-ice-poster\.webp/);
   assert.match(motionSource, /northern-ice-loop\.webm/);
   assert.match(motionSource, /northern-ice-loop\.mp4/);

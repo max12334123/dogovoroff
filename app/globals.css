@@ -1520,6 +1520,13 @@ img {
   text-align: center;
 }
 
+.lead-form__noscript {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
 .lead-form__note a {
   border-bottom: 1px solid currentColor;
   color: var(--black);
@@ -2514,6 +2521,10 @@ img {
     margin-top: 30px;
   }
 
+  .estimator__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .estimator__choices {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -2569,7 +2580,7 @@ img {
   }
 
   .team-profile h3 {
-    font-size: clamp(48px, 16vw, 64px);
+    font-size: clamp(40px, 12vw, 52px);
   }
 
   .team-profile__facts {

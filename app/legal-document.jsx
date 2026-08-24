@@ -15,7 +15,7 @@ export default function LegalDocument({ eyebrow, title, summary, sections, child
         <Link className="legal-header__back" href="/">На главную</Link>
       </header>
 
-      <main id="legal-content">
+      <main id="legal-content" tabIndex={-1}>
         <section className="legal-hero" aria-labelledby="legal-title">
           <p className="eyebrow">{eyebrow}</p>
           <h1 id="legal-title">{title}</h1>

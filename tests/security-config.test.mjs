@@ -2,10 +2,11 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-const [configSource, layoutSource, pageSource, envExampleSource, healthRouteSource, globalStylesSource] = await Promise.all([
+const [configSource, layoutSource, pageSource, contactRouteSource, envExampleSource, healthRouteSource, globalStylesSource] = await Promise.all([
   readFile(new URL("../next.config.mjs", import.meta.url), "utf8"),
   readFile(new URL("../app/layout.js", import.meta.url), "utf8"),
   readFile(new URL("../app/page.jsx", import.meta.url), "utf8"),
+  readFile(new URL("../app/api/contact/route.js", import.meta.url), "utf8"),
   readFile(new URL("../.env.example", import.meta.url), "utf8"),
   readFile(new URL("../app/api/health/route.js", import.meta.url), "utf8"),
   readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
@@ -29,12 +30,14 @@ test("production responses include the security header baseline", () => {
   assert.doesNotMatch(configSource, /script-src 'self' 'unsafe-inline' 'unsafe-eval'/);
 });
 
-test("contact integration exposes only the provider's publishable form identifier", () => {
-  assert.match(pageSource, /NEXT_PUBLIC_WEB3FORMS_ACCESS_KEY/);
+test("contact integration keeps the provider identifier outside the client bundle", () => {
+  assert.doesNotMatch(pageSource, /WEB3FORMS_ACCESS_KEY|api\.web3forms\.com/);
+  assert.match(contactRouteSource, /WEB3FORMS_ACCESS_KEY/);
+  assert.match(contactRouteSource, /api\.web3forms\.com/);
   assert.doesNotMatch(pageSource, /RESEND_API_KEY|CONTACT_FROM_EMAIL|CONTACT_TO_EMAIL/);
   assert.equal(
-    envExampleSource.split(/\r?\n/).find((line) => line.startsWith("NEXT_PUBLIC_WEB3FORMS_ACCESS_KEY=")),
-    "NEXT_PUBLIC_WEB3FORMS_ACCESS_KEY=",
+    envExampleSource.split(/\r?\n/).find((line) => line.startsWith("WEB3FORMS_ACCESS_KEY=")),
+    "WEB3FORMS_ACCESS_KEY=",
   );
 });
 

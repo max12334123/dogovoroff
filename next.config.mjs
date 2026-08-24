@@ -7,10 +7,10 @@ const contentSecurityPolicy = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self' data:",
-  "connect-src 'self' https://api.web3forms.com",
+  "connect-src 'self'",
   "object-src 'none'",
   "base-uri 'self'",
-  "form-action 'self'",
+  "form-action 'none'",
   "frame-ancestors 'none'",
   "upgrade-insecure-requests",
 ].join("; ");

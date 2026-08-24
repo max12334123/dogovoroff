@@ -21,11 +21,6 @@ const EASE = [0.22, 1, 0.36, 1];
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-function createSubmissionId() {
-  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
-  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
-
 function getFocusableElements(container) {
   if (!container) return [];
 
@@ -127,6 +122,7 @@ function MessengerLink({ href, icon, label, light = false }) {
 }
 
 export default function HomePage() {
+  const [hydrated, setHydrated] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [openPractice, setOpenPractice] = useState(0);
@@ -148,12 +144,21 @@ export default function HomePage() {
   const phoneFieldRef = useRef(null);
   const serviceFieldRef = useRef(null);
   const consentFieldRef = useRef(null);
+  const successRef = useRef(null);
   const requestRef = useRef(null);
   const heroActionRef = useRef(null);
-  const submissionIdRef = useRef(createSubmissionId());
   const { scrollYProgress } = useScroll();
   const progress = useSpring(scrollYProgress, { stiffness: 120, damping: 28, mass: 0.35 });
   const selectedPractice = useMemo(() => PRACTICES[activePrice], [activePrice]);
+
+  useEffect(() => setHydrated(true), []);
+
+  useEffect(() => {
+    if (submitState !== "success") return undefined;
+
+    const focusSuccess = window.requestAnimationFrame(() => successRef.current?.focus());
+    return () => window.cancelAnimationFrame(focusSuccess);
+  }, [submitState]);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 18);
@@ -279,35 +284,18 @@ export default function HomePage() {
       return;
     }
 
-    const lead = normalizeContactPayload({ ...form, submissionId: submissionIdRef.current });
+    const lead = normalizeContactPayload(form);
     const body = `Имя: ${lead.name}\nТелефон: ${lead.phone}\nНаправление: ${lead.service}\nЗадача: ${lead.message || "Не указана"}\n\nСогласие на обработку персональных данных: предоставлено\nДокумент: ${LEGAL.siteUrl}/personal-data-consent\nВерсия: ${LEGAL.policyVersion} от ${LEGAL.effectiveDate}`;
     setMailHref(`mailto:${CONFIG.email}?subject=${encodeURIComponent("Заявка с сайта ДоговорОфф")}&body=${encodeURIComponent(body)}`);
     setSubmitState("sending");
     setSubmitError("");
 
     try {
-      const accessKey = process.env.NEXT_PUBLIC_WEB3FORMS_ACCESS_KEY?.trim();
-      if (!accessKey) {
-        throw new Error("Автоматическая отправка пока не настроена. Отправьте подготовленное письмо — данные уже заполнены.");
-      }
-
-      const response = await fetch("https://api.web3forms.com/submit", {
+      const response = await fetch("/api/contact", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          access_key: accessKey,
-          subject: `Новая заявка: ${lead.service}`,
-          from_name: "Сайт ДоговорОфф",
-          name: lead.name,
-          phone: lead.phone,
-          service: lead.service,
-          message: lead.message || "Не указана",
-          botcheck: lead.website,
-          submission_id: lead.submissionId,
-          consent: "Согласие на обработку персональных данных предоставлено",
-          consent_document: `${LEGAL.siteUrl}/personal-data-consent`,
-          consent_version: `${LEGAL.policyVersion} от ${LEGAL.effectiveDate}`,
-        }),
+        credentials: "same-origin",
+        body: JSON.stringify(lead),
       });
       const result = await response.json().catch(() => ({}));
 
@@ -331,7 +319,7 @@ export default function HomePage() {
     setSubmitError("");
     setMailHref("");
     setSubmitState("idle");
-    submissionIdRef.current = createSubmissionId();
+    window.requestAnimationFrame(() => nameFieldRef.current?.focus());
   };
 
   return (
@@ -395,7 +383,7 @@ export default function HomePage() {
         </AnimatePresence>
 
         <div className="site-content" ref={siteContentRef} aria-hidden={menuOpen ? true : undefined}>
-          <main id="main">
+          <main id="main" tabIndex={-1}>
         <section className="hero" id="top" aria-labelledby="hero-title">
           <div className="hero__layout">
             <aside className="practice-rail" aria-label="Ключевые практики">
@@ -629,22 +617,23 @@ export default function HomePage() {
               {submitState !== "success" ? (
                 <motion.form key="form" className="lead-form" onSubmit={submitLead} noValidate initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -12 }}>
                   <div className="lead-form__heading"><span>Первичная консультация</span><strong>Бесплатно</strong></div>
-                  <div className="lead-form__honeypot" aria-hidden="true"><label htmlFor="lead-website">Ваш сайт</label><input id="lead-website" name="website" value={form.website} onChange={(event) => updateForm("website", event.target.value)} autoComplete="off" tabIndex={-1} maxLength={200} /></div>
-                  <div className="field"><label htmlFor="lead-name">Ваше имя</label><input ref={nameFieldRef} id="lead-name" name="name" value={form.name} onChange={(event) => updateForm("name", event.target.value)} aria-invalid={Boolean(errors.name)} aria-describedby={errors.name ? "lead-name-error" : undefined} aria-required="true" required autoComplete="name" placeholder="Как к вам обращаться" maxLength={80} />{errors.name && <span id="lead-name-error" className="field__error" role="alert">Укажите имя</span>}</div>
-                  <div className="field"><label htmlFor="lead-phone">Телефон</label><input ref={phoneFieldRef} id="lead-phone" name="phone" value={form.phone} onChange={(event) => updateForm("phone", event.target.value ? maskPhone(event.target.value) : "")} aria-invalid={Boolean(errors.phone)} aria-describedby={errors.phone ? "lead-phone-error" : undefined} aria-required="true" required autoComplete="tel" inputMode="tel" placeholder="+7 (___) ___-__-__" maxLength={32} />{errors.phone && <span id="lead-phone-error" className="field__error" role="alert">Введите номер полностью</span>}</div>
-                  <div className="field"><label htmlFor="lead-service">Направление</label><select ref={serviceFieldRef} id="lead-service" name="service" value={form.service} onChange={(event) => updateForm("service", event.target.value)} aria-invalid={Boolean(errors.service)} aria-describedby={errors.service ? "lead-service-error" : undefined} aria-required="true" required><option value="">Выберите направление</option>{PRACTICES.map((practice) => <option key={practice.service}>{practice.service}</option>)}<option>Частный вопрос</option><option>Другое / не знаю</option></select>{errors.service && <span id="lead-service-error" className="field__error" role="alert">Выберите направление</span>}</div>
-                  <div className="field"><label htmlFor="lead-message">Коротко о задаче</label><textarea id="lead-message" name="message" value={form.message} onChange={(event) => updateForm("message", event.target.value)} placeholder="Пары предложений достаточно" rows={4} maxLength={2000} /></div>
+                  <div className="lead-form__honeypot" aria-hidden="true"><label htmlFor="lead-website">Ваш сайт</label><input id="lead-website" value={form.website} onChange={(event) => updateForm("website", event.target.value)} autoComplete="off" tabIndex={-1} maxLength={200} /></div>
+                  <div className="field"><label htmlFor="lead-name">Ваше имя</label><input ref={nameFieldRef} id="lead-name" value={form.name} onChange={(event) => updateForm("name", event.target.value)} aria-invalid={Boolean(errors.name)} aria-describedby={errors.name ? "lead-name-error" : undefined} aria-required="true" required autoComplete="name" placeholder="Как к вам обращаться" maxLength={80} />{errors.name && <span id="lead-name-error" className="field__error" role="alert">Укажите имя</span>}</div>
+                  <div className="field"><label htmlFor="lead-phone">Телефон</label><input ref={phoneFieldRef} id="lead-phone" value={form.phone} onChange={(event) => updateForm("phone", event.target.value ? maskPhone(event.target.value) : "")} aria-invalid={Boolean(errors.phone)} aria-describedby={errors.phone ? "lead-phone-error" : undefined} aria-required="true" required autoComplete="tel" inputMode="tel" placeholder="+7 (___) ___-__-__" maxLength={32} />{errors.phone && <span id="lead-phone-error" className="field__error" role="alert">Введите номер полностью</span>}</div>
+                  <div className="field"><label htmlFor="lead-service">Направление</label><select ref={serviceFieldRef} id="lead-service" value={form.service} onChange={(event) => updateForm("service", event.target.value)} aria-invalid={Boolean(errors.service)} aria-describedby={errors.service ? "lead-service-error" : undefined} aria-required="true" required><option value="">Выберите направление</option>{PRACTICES.map((practice) => <option key={practice.service}>{practice.service}</option>)}<option>Частный вопрос</option><option>Другое / не знаю</option></select>{errors.service && <span id="lead-service-error" className="field__error" role="alert">Выберите направление</span>}</div>
+                  <div className="field"><label htmlFor="lead-message">Коротко о задаче</label><textarea id="lead-message" value={form.message} onChange={(event) => updateForm("message", event.target.value)} placeholder="Пары предложений достаточно" rows={4} maxLength={2000} /></div>
                   <div className={`consent${errors.agree ? " consent--error" : ""}`}>
                     <input ref={consentFieldRef} id="lead-consent" type="checkbox" checked={form.agree} onChange={(event) => updateForm("agree", event.target.checked)} aria-invalid={Boolean(errors.agree)} aria-describedby={errors.agree ? "lead-consent-error" : undefined} aria-required="true" required />
                     <span><label htmlFor="lead-consent">Даю отдельное согласие на обработку персональных данных</label> (<a href="/personal-data-consent" target="_blank" rel="noreferrer">текст согласия</a>).</span>
                   </div>
                   {errors.agree && <span id="lead-consent-error" className="field__error field__error--consent" role="alert">Нужно согласие на обработку данных</span>}
                   {submitError && <div className="lead-form__submit-error" role="alert"><p>{submitError}</p><a href={mailHref}>Отправить по электронной почте</a></div>}
-                  <MagneticAction className="action--dark lead-form__submit" type="submit" disabled={submitState === "sending"}>{submitState === "sending" ? "Отправляем…" : "Отправить обращение"}</MagneticAction>
+                  <MagneticAction className="action--dark lead-form__submit" type="submit" disabled={!hydrated || submitState === "sending"}>{submitState === "sending" ? "Отправляем…" : "Отправить обращение"}</MagneticAction>
+                  <noscript><p className="lead-form__noscript">Для отправки формы включите JavaScript или напишите нам по электронной почте либо в мессенджере.</p></noscript>
                   <p className="lead-form__note">После отправки заявка поступит компании напрямую. Порядок обработки описан в <a href="/privacy" target="_blank" rel="noreferrer">Политике</a>.</p>
                 </motion.form>
               ) : (
-                <motion.div key="success" className="lead-success" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.55, ease: EASE }}>
+                <motion.div ref={successRef} key="success" className="lead-success" role="status" aria-live="polite" tabIndex={-1} initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.55, ease: EASE }}>
                   <p className="eyebrow">Обращение отправлено</p><h3>Спасибо. Мы на связи.</h3><p>Заявка поступила компании. Мы свяжемся с вами по указанному номеру в рабочее время.</p>
                   <button className="text-link lead-success__action" type="button" onClick={resetForm}>Отправить ещё одно обращение</button>
                 </motion.div>

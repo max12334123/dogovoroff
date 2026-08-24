@@ -11,7 +11,17 @@ export default function NorthernMotion() {
   const videoRef = useRef(null);
   const [videoReady, setVideoReady] = useState(false);
   const [videoFailed, setVideoFailed] = useState(false);
-  const shouldPlay = !reduceMotion && !videoFailed;
+  const [videoAllowed, setVideoAllowed] = useState(false);
+  const shouldPlay = videoAllowed && !reduceMotion && !videoFailed;
+
+  useEffect(() => {
+    const connection = navigator.connection;
+    const updatePreference = () => setVideoAllowed(!navigator.connection?.saveData);
+
+    updatePreference();
+    connection?.addEventListener?.("change", updatePreference);
+    return () => connection?.removeEventListener?.("change", updatePreference);
+  }, []);
 
   useEffect(() => {
     const video = videoRef.current;

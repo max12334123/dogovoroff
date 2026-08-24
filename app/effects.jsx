@@ -49,10 +49,13 @@ function PremiumCursor() {
 
 export default function Effects() {
   useEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return undefined;
-    const lenis = new Lenis({ duration: 1.08, easing: (value) => Math.min(1, 1.001 - 2 ** (-10 * value)), smoothWheel: true });
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const lenis = reduceMotion
+      ? null
+      : new Lenis({ duration: 1.08, easing: (value) => Math.min(1, 1.001 - 2 ** (-10 * value)), smoothWheel: true });
     let frame;
     const animate = (time) => {
+      if (!lenis) return;
       lenis.raf(time);
       frame = requestAnimationFrame(animate);
     };
@@ -63,15 +66,26 @@ export default function Effects() {
       if (!id || id === "#") return;
       const target = document.querySelector(id);
       if (!target) return;
+
+      const isSkipLink = link.matches(".skip-link");
+      if (!isSkipLink && reduceMotion) return;
+
       event.preventDefault();
-      lenis.scrollTo(target, { offset: -82 });
+      if (window.location.hash !== id) window.history.pushState(null, "", id);
+      if (isSkipLink) {
+        target.focus({ preventScroll: true });
+        target.scrollIntoView({ block: "start" });
+        return;
+      }
+
+      lenis?.scrollTo(target, { offset: -82 });
     };
-    frame = requestAnimationFrame(animate);
+    if (lenis) frame = requestAnimationFrame(animate);
     document.addEventListener("click", followAnchor);
     return () => {
-      cancelAnimationFrame(frame);
+      if (frame) cancelAnimationFrame(frame);
       document.removeEventListener("click", followAnchor);
-      lenis.destroy();
+      lenis?.destroy();
     };
   }, []);
 

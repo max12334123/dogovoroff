@@ -34,6 +34,6 @@ test("privacy policy transparently describes analytics without marketing trackin
   assert.match(privacySource, /сторонних cookies/);
   assert.doesNotMatch(privacySource, /jsDelivr/);
   assert.doesNotMatch(privacySource, /сайт не использует[^.]*аналитик/i);
-  assert.match(legalSource, /policyVersion: "1\.4"/);
-  assert.match(legalSource, /effectiveDate: "22 августа 2026 года"/);
+  assert.match(legalSource, /policyVersion: "1\.5"/);
+  assert.match(legalSource, /effectiveDate: "24 августа 2026 года"/);
 });

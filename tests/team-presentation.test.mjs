@@ -8,6 +8,23 @@ const [contentSource, pageSource, stylesSource] = await Promise.all([
   readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
 ]);
 
+function extractCssBlock(source, marker) {
+  const markerIndex = source.indexOf(marker);
+  assert.notEqual(markerIndex, -1, `Missing CSS block: ${marker}`);
+
+  const blockStart = source.indexOf("{", markerIndex);
+  assert.notEqual(blockStart, -1, `Missing opening brace for: ${marker}`);
+
+  let depth = 0;
+  for (let index = blockStart; index < source.length; index += 1) {
+    if (source[index] === "{") depth += 1;
+    if (source[index] === "}") depth -= 1;
+    if (depth === 0) return source.slice(blockStart + 1, index);
+  }
+
+  assert.fail(`Missing closing brace for: ${marker}`);
+}
+
 test("team profiles remain anonymous while preserving roles and verified experience", () => {
   for (const requiredCopy of [
     "Юридический отдел",
@@ -59,4 +76,19 @@ test("primary calls to action lead directly to the form without covering the her
   assert.match(pageSource, /querySelector\("#lead-form"\)/);
   assert.match(pageSource, /!formVisible && !heroActionVisible/);
   assert.match(stylesSource, /\.request__form-wrap \{[\s\S]*?scroll-margin-top: 84px/);
+});
+
+test("mobile team headings keep long practice names inside the card", () => {
+  const mobileStyles = extractCssBlock(stylesSource, "@media (max-width: 740px)");
+  const headingStyles = extractCssBlock(mobileStyles, ".team-profile h3");
+  const responsiveSize = headingStyles.match(
+    /font-size:\s*clamp\(([\d.]+)px,\s*([\d.]+)vw,\s*([\d.]+)px\)/,
+  );
+
+  assert.ok(responsiveSize, "Mobile team heading must use a responsive clamp");
+
+  const [, minimum, fluid, maximum] = responsiveSize.map(Number);
+  assert.ok(minimum <= 40, `Mobile minimum font size is too large: ${minimum}px`);
+  assert.ok(fluid <= 12, `Mobile fluid font size is too large: ${fluid}vw`);
+  assert.ok(maximum <= 52, `Mobile maximum font size is too large: ${maximum}px`);
 });

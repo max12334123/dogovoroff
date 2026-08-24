@@ -34,7 +34,7 @@ test("privacy policy covers the core processing disclosures", () => {
 test("form links to separate policy and consent documents", () => {
   assert.match(homeSource, /href="\/privacy"/);
   assert.match(homeSource, /href="\/personal-data-consent"/);
-  assert.match(homeSource, /fetch\("https:\/\/api\.web3forms\.com\/submit"/);
+  assert.match(homeSource, /fetch\("\/api\/contact"/);
   assert.match(homeSource, /Отправить обращение/);
   assert.doesNotMatch(homeSource, /privacy-modal/);
 });

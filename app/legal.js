@@ -1,4 +1,4 @@
-import { SITE_NAME, SITE_URL } from "./site";
+import { SITE_NAME, SITE_URL } from "./site.js";
 
 export const LEGAL = Object.freeze({
   operatorBrand: "«ДоговорОфф»",
@@ -8,6 +8,6 @@ export const LEGAL = Object.freeze({
   email: "dogovor.off@mail.ru",
   siteName: SITE_NAME,
   siteUrl: SITE_URL,
-  policyVersion: "1.4",
-  effectiveDate: "22 августа 2026 года",
+  policyVersion: "1.5",
+  effectiveDate: "24 августа 2026 года",
 });
