@@ -1753,9 +1753,13 @@ img {
 .precheck__status {
   min-height: 24px;
   margin-bottom: 18px;
-  color: #8d3025;
+  color: #536267;
   font-size: 12px;
   font-weight: 550;
+}
+
+.precheck__status.is-error {
+  color: #8d3025;
 }
 
 .precheck__status:empty {
@@ -1777,6 +1781,7 @@ img {
 }
 
 .precheck__question legend,
+.precheck__contact-fields > legend,
 .precheck__field > label {
   display: block;
   margin-bottom: 12px;
@@ -1895,6 +1900,114 @@ img {
   text-align: right;
 }
 
+.precheck__field--situation textarea {
+  min-height: 132px;
+}
+
+.precheck__field-meta {
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.precheck__field-meta small:first-child {
+  max-width: 440px;
+  text-align: left;
+}
+
+.precheck__deadline {
+  padding-top: 24px;
+  border-top: 1px solid var(--line-light);
+}
+
+.precheck__deadline-toggle {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  color: var(--black);
+  cursor: pointer;
+}
+
+.precheck__deadline-toggle input {
+  width: 22px;
+  height: 22px;
+  margin-top: 1px;
+  accent-color: var(--black);
+}
+
+.precheck__deadline-toggle span {
+  display: grid;
+  gap: 5px;
+}
+
+.precheck__deadline-toggle strong {
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.precheck__deadline-toggle small {
+  color: #737779;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.precheck__deadline-field {
+  overflow: hidden;
+  margin: 22px 0 0 36px;
+}
+
+.precheck__contact-step {
+  min-width: 0;
+}
+
+.precheck__selection-summary {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: 20px;
+  align-items: baseline;
+  margin-bottom: 30px;
+  padding: 16px 0;
+  border-top: 1px solid var(--line-light);
+  border-bottom: 1px solid var(--line-light);
+}
+
+.precheck__selection-summary span,
+.precheck__selection-summary strong {
+  overflow-wrap: anywhere;
+}
+
+.precheck__selection-summary span {
+  color: #737779;
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.precheck__selection-summary strong {
+  font-size: 13px;
+  font-weight: 550;
+}
+
+.precheck__contact-fields {
+  min-width: 0;
+  border: 0;
+}
+
+.precheck__contact-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.precheck__contact-step .precheck__privacy-note {
+  margin-top: 32px;
+}
+
 .precheck__review dl {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1948,7 +2061,10 @@ img {
 }
 
 .precheck__consent {
+  margin-top: 28px;
   margin-bottom: 10px;
+  padding-top: 24px;
+  border-top: 1px solid var(--line-light);
 }
 
 .precheck__optional {
@@ -1960,6 +2076,10 @@ img {
 
 .precheck__generate {
   width: 100%;
+}
+
+.precheck__submit {
+  min-width: min(430px, 100%);
 }
 
 .precheck__actions {
@@ -2015,6 +2135,41 @@ img {
 .precheck-card__mode-note {
   margin-top: 18px;
   color: #aeb2b3;
+  font-size: 11px;
+}
+
+.precheck-card__delivery {
+  margin-top: 24px;
+  padding: 16px 18px;
+  border-left: 2px solid var(--ice);
+  background: rgba(143, 185, 202, 0.1);
+}
+
+.precheck-card__delivery.is-error {
+  border-left-color: #b16d60;
+  background: rgba(177, 109, 96, 0.12);
+}
+
+.precheck-card__delivery strong {
+  color: var(--white);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.precheck-card__delivery p {
+  margin-top: 7px;
+  color: #d3d4d2;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.precheck-card__delivery a {
+  display: inline-block;
+  margin-top: 10px;
+  border-bottom: 1px solid currentColor;
+  color: var(--ice);
   font-size: 11px;
 }
 
@@ -2528,8 +2683,27 @@ img {
   }
 
   .precheck__review dl,
+  .precheck__contact-grid,
   .precheck-card__grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .precheck__selection-summary {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 7px;
+  }
+
+  .precheck__field-meta {
+    display: grid;
+    gap: 4px;
+  }
+
+  .precheck__field-meta small:last-child {
+    text-align: left;
+  }
+
+  .precheck__deadline-field {
+    margin-left: 0;
   }
 
   .precheck__review dl > div + div {

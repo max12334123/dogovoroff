@@ -1,6 +1,7 @@
 node_modules/
 .next/
 .asset-downloads/
+.codex-audit/
 .env*
 !.env.example
 .vercel

@@ -8,23 +8,35 @@ const [componentSource, pageSource, cssSource] = await Promise.all([
   readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
 ]);
 
-test("guided intake exposes five accessible steps and a live status", () => {
-  assert.match(componentSource, /01\s*\/\s*05|padStart\(2, "0"\)/);
-  assert.match(componentSource, /05\s*\/\s*05|TOTAL_STEPS\s*=\s*5/);
+test("guided intake exposes two accessible steps and one final action", () => {
+  assert.match(componentSource, /TOTAL_STEPS\s*=\s*2/);
+  assert.match(componentSource, /\/ 02/);
   assert.match(componentSource, /aria-live="polite"/);
   assert.match(componentSource, /tabIndex=\{-1\}/);
   assert.match(componentSource, /<fieldset/);
   assert.match(componentSource, /<legend/);
-  assert.match(componentSource, /Карта сформирована в базовом режиме/);
+  assert.match(componentSource, /Расскажите о ситуации/);
+  assert.match(componentSource, /Как с вами связаться/);
+  assert.match(componentSource, /Получить разбор и отправить заявку/);
+  assert.doesNotMatch(componentSource, /Добавить к заявке|Сформировать карту/);
 });
 
 test("AI consent is optional, unselected, and links to both transparency documents", () => {
-  assert.match(componentSource, /checked=\{state\.aiConsent\}/);
+  assert.match(componentSource, /checked=\{aiConsent\}/);
   assert.match(componentSource, /Согласен на передачу очищенного описания в Cloudflare Workers AI/);
   assert.match(componentSource, /href="\/ai-processing-consent"/);
   assert.match(componentSource, /href="\/privacy"/);
-  assert.match(componentSource, /Не указывайте ФИО, телефоны, адреса, реквизиты документов, банковские данные и сведения третьих лиц/);
+  assert.match(componentSource, /Без ФИО, телефонов и реквизитов документов/);
   assert.doesNotMatch(componentSource, /localStorage|sessionStorage|dangerouslySetInnerHTML/);
+});
+
+test("precheck submits the generated card and contacts through one application boundary", () => {
+  assert.match(componentSource, /onSubmitLead/);
+  assert.match(componentSource, /await onSubmitLead\(/);
+  assert.match(pageSource, /onSubmitLead=\{submitPrecheckLead\}/);
+  assert.match(pageSource, /submitPrecheckLead[\s\S]{0,1800}deliverLead\(lead\)/);
+  assert.doesNotMatch(componentSource, /onUseSummary/);
+  assert.doesNotMatch(pageSource, /precheckAttachment|onUseSummary/);
 });
 
 test("quick form remains default while estimator and header can start the precheck flow", () => {
@@ -36,6 +48,7 @@ test("quick form remains default while estimator and header can start the preche
   assert.match(pageSource, /mobile-nav__ai[\s\S]{0,300}onClick=\{startAiPrecheck\}[\s\S]{0,300}AI-разбор/);
   assert.match(pageSource, /Обсудить задачу[\s\S]{0,250}chooseService|chooseService[\s\S]{0,250}Обсудить задачу/);
   assert.match(pageSource, /Обсудить формат[\s\S]{0,250}chooseService|chooseService[\s\S]{0,250}Обсудить формат/);
+  assert.match(pageSource, /form\.service \? practiceIdFromService\(form\.service\) : ""/);
 });
 
 test("header AI action follows the navigation style responsively", () => {

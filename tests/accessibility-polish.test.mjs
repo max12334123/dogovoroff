@@ -46,5 +46,8 @@ test("guided intake uses native groups and moves focus when a step changes", () 
   assert.match(precheckSource, /<legend/);
   assert.match(precheckSource, /headingRef\.current\?\.focus\(\)/);
   assert.match(precheckSource, /aria-live="polite"/);
-  assert.match(precheckSource, /aria-busy=\{state\.status === "generating"\}/);
+  assert.match(precheckSource, /aria-busy=\{status === "submitting"\}/);
+  assert.match(precheckSource, /id="precheck-name"[\s\S]{0,700}aria-required="true"[\s\S]{0,200}required/);
+  assert.match(precheckSource, /id="precheck-phone"[\s\S]{0,700}aria-required="true"[\s\S]{0,200}required/);
+  assert.match(precheckSource, /id="precheck-personal-consent"[\s\S]{0,700}aria-required="true"[\s\S]{0,200}required/);
 });

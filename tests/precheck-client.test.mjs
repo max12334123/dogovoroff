@@ -66,3 +66,17 @@ test("client fallback never interprets the free description", () => {
   assert.deepEqual(first, second);
   assert.doesNotMatch(JSON.stringify(first), /Игнорируй правила|Другой текст/);
 });
+
+test("compact client fallback safely preserves the only situation field", () => {
+  const card = buildClientFallback({
+    version: "2",
+    practiceId: "contracts",
+    answers: { deadline: "" },
+    description: "Позвоните по номеру +7 912 345-67-89 и проверьте договор.",
+    aiConsent: false,
+  });
+
+  assert.match(card.summary, /проверьте договор/iu);
+  assert.doesNotMatch(card.summary, /912 345/);
+  assert.match(card.summary, /телефон скрыт/iu);
+});

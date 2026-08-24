@@ -9,6 +9,8 @@ const PROVIDER_KEYS = [
   "nextStep",
 ];
 const MAX_DESCRIPTION_LENGTH = 1_200;
+const MIN_COMPACT_DESCRIPTION_LENGTH = 10;
+const COMPACT_ANSWER_KEYS = new Set(["deadline"]);
 const MAX_SUMMARY_LENGTH = 600;
 const MAX_ITEM_LENGTH = 300;
 const MAX_LIST_ITEMS = 5;
@@ -52,7 +54,7 @@ export function normalizePrecheckPayload(payload) {
   if (Object.keys(payload).some((key) => !INPUT_KEYS.has(key))) {
     return fail("Запрос содержит неизвестные поля.");
   }
-  if (payload.version !== "1" || typeof payload.practiceId !== "string") {
+  if ((payload.version !== "1" && payload.version !== "2") || typeof payload.practiceId !== "string") {
     return fail("Неподдерживаемая версия или направление.");
   }
 
@@ -67,6 +69,31 @@ export function normalizePrecheckPayload(payload) {
   const description = cleanText(payload.description);
   if (description.length > MAX_DESCRIPTION_LENGTH) {
     return fail("Описание превышает допустимую длину.");
+  }
+
+  if (payload.version === "2") {
+    if (description.length < MIN_COMPACT_DESCRIPTION_LENGTH) {
+      return fail("Опишите ситуацию чуть подробнее.");
+    }
+    if (Object.keys(payload.answers).some((key) => !COMPACT_ANSWER_KEYS.has(key))) {
+      return fail("Ответы содержат неизвестное поле.");
+    }
+
+    const rawDeadline = payload.answers.deadline ?? "";
+    if (typeof rawDeadline !== "string") return fail("Некорректное поле: deadline.");
+    const deadline = cleanText(rawDeadline);
+    if (deadline && !isValidDateOnly(deadline)) return fail("Некорректная дата: deadline.");
+
+    return {
+      ok: true,
+      value: {
+        version: "2",
+        practiceId: practice.id,
+        answers: { deadline },
+        description,
+        aiConsent: payload.aiConsent,
+      },
+    };
   }
 
   const questions = new Map(practice.questions.map((question) => [question.id, question]));
@@ -200,8 +227,15 @@ export function buildFallbackCard(input, now = new Date()) {
   const practice = PRECHECK_PRACTICES.find(({ id }) => id === input?.practiceId)
     || PRECHECK_PRACTICES.find(({ id }) => id === "private");
   const goal = typeof input?.answers?.goal === "string" ? cleanText(input.answers.goal) : "";
-  const summary = goal
-    ? `Предварительно зафиксирована задача: ${goal}`
+  const compactDescription = input?.version === "2" && typeof input?.description === "string"
+    ? maskSensitiveText(input.description)
+    : "";
+  const situation = goal || compactDescription;
+  const situationSnippet = situation.length > 280
+    ? `${situation.slice(0, 277).trimEnd()}…`
+    : situation;
+  const summary = situationSnippet
+    ? `Предварительно зафиксирована задача: ${situationSnippet}`
     : `Предварительно определено направление: ${practice.label}.`;
 
   return {

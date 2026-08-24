@@ -36,10 +36,12 @@ test("precheck controls remain single-column and wrappable at narrow phone width
   const phoneStyles = extractCssBlock(stylesSource, "@media (max-width: 560px)");
   const optionStyles = extractCssBlock(phoneStyles, ".precheck__options");
   const actionStyles = extractCssBlock(phoneStyles, ".precheck__actions");
+  const contactGridStyles = extractCssBlock(phoneStyles, ".precheck__contact-grid");
 
   assert.match(optionStyles, /grid-template-columns:\s*minmax\(0,\s*1fr\)/);
   assert.match(optionStyles, /min-width:\s*0/);
   assert.match(actionStyles, /flex-wrap:\s*wrap/);
+  assert.match(contactGridStyles, /grid-template-columns:\s*minmax\(0,\s*1fr\)/);
 });
 
 test("long legal headings stay within narrow iOS viewports", () => {

@@ -2,31 +2,18 @@
 
 import { track } from "@vercel/analytics";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { useEffect, useMemo, useReducer, useRef } from "react";
-import { PRECHECK_PRACTICES } from "./config.mjs";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { maskPhone, validateLead } from "../../lib/form-utils.mjs";
+import { PRECHECK_PRACTICES, PRECHECK_PRACTICE_IDS } from "./config.mjs";
 import { buildConfirmedExcerpt, normalizePrecheckPayload } from "./domain.mjs";
-import {
-  buildClientFallback,
-  createInitialPrecheckState,
-  reducePrecheckState,
-} from "./client-state.mjs";
+import { buildClientFallback } from "./client-state.mjs";
 
-const TOTAL_STEPS = 5;
-const COMMON_CONTEXT_IDS = new Set(["applicantType", "stage"]);
-const COMMON_DETAIL_IDS = new Set(["goal", "deadline"]);
-const STEP_TITLES = [
-  "Выберите направление",
-  "Определим контекст",
-  "Уточним детали",
-  "Зафиксируем цель и срок",
-  "Получите карту ситуации",
-];
+const TOTAL_STEPS = 2;
+const MIN_DESCRIPTION_LENGTH = 10;
+const STEP_TITLES = ["Расскажите о ситуации", "Как с вами связаться"];
 const STEP_COPY = [
-  "Выберите ближайшее направление. Если сомневаетесь, начните с частного вопроса.",
-  "Два коротких ответа помогут выстроить дальнейшие вопросы.",
-  "Уточнения зависят только от выбранного направления.",
-  "Опишите цель без персональных данных. Дату можно не указывать, если она неизвестна.",
-  "Проверьте вводные. AI-обработка необязательна и не влияет на возможность получить базовую карту.",
+  "Выберите направление и опишите задачу своими словами. Этого достаточно для предварительной карты.",
+  "Оставьте только имя и телефон — разбор сформируется и сразу уйдёт юристу вместе с заявкой.",
 ];
 
 function isUsableCard(value) {
@@ -46,71 +33,6 @@ function isUsableCard(value) {
   );
 }
 
-function QuestionField({ question, value, onChange }) {
-  const required = question.required !== false;
-  const fieldId = `precheck-${question.id}`;
-
-  if (question.type === "radio") {
-    return (
-      <fieldset className="precheck__question">
-        <legend>{question.label}{required ? <span aria-hidden="true"> *</span> : null}</legend>
-        <div className="precheck__options">
-          {question.options.map(([optionId, label]) => (
-            <label key={optionId} className={value === optionId ? "is-selected" : ""}>
-              <input
-                type="radio"
-                name={fieldId}
-                value={optionId}
-                checked={value === optionId}
-                onChange={(event) => onChange(event.target.value)}
-                required={required}
-              />
-              <span>{label}</span>
-            </label>
-          ))}
-        </div>
-      </fieldset>
-    );
-  }
-
-  if (question.type === "select") {
-    return (
-      <div className="precheck__field">
-        <label htmlFor={fieldId}>{question.label}{required ? <span aria-hidden="true"> *</span> : null}</label>
-        <select id={fieldId} value={value} onChange={(event) => onChange(event.target.value)} required={required}>
-          <option value="">Выберите вариант</option>
-          {question.options.map(([optionId, label]) => <option key={optionId} value={optionId}>{label}</option>)}
-        </select>
-      </div>
-    );
-  }
-
-  if (question.type === "date") {
-    return (
-      <div className="precheck__field">
-        <label htmlFor={fieldId}>{question.label}</label>
-        <input id={fieldId} type="date" value={value} onChange={(event) => onChange(event.target.value)} />
-        <small>Оставьте пустым, если дата неизвестна.</small>
-      </div>
-    );
-  }
-
-  return (
-    <div className="precheck__field">
-      <label htmlFor={fieldId}>{question.label}{required ? <span aria-hidden="true"> *</span> : null}</label>
-      <textarea
-        id={fieldId}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        required={required}
-        rows={3}
-        maxLength={question.maxLength}
-      />
-      <small>{value.length} / {question.maxLength}</small>
-    </div>
-  );
-}
-
 function ResultList({ title, items }) {
   if (!items.length) return null;
   return (
@@ -123,26 +45,43 @@ function ResultList({ title, items }) {
 
 export default function PrecheckSection({
   initialPracticeId = "",
-  onUseSummary,
+  onSubmitLead,
   onChooseQuickForm,
 }) {
-  const [state, dispatch] = useReducer(
-    reducePrecheckState,
-    initialPracticeId,
-    createInitialPrecheckState,
+  const [step, setStep] = useState(0);
+  const [practiceId, setPracticeId] = useState(
+    PRECHECK_PRACTICE_IDS.includes(initialPracticeId) ? initialPracticeId : "",
   );
+  const [description, setDescription] = useState("");
+  const [hasDeadline, setHasDeadline] = useState(false);
+  const [deadline, setDeadline] = useState("");
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [website, setWebsite] = useState("");
+  const [agree, setAgree] = useState(false);
+  const [aiConsent, setAiConsent] = useState(false);
+  const [errors, setErrors] = useState({});
+  const [status, setStatus] = useState("editing");
+  const [mode, setMode] = useState(null);
+  const [result, setResult] = useState(null);
+  const [leadSent, setLeadSent] = useState(false);
+  const [error, setError] = useState("");
+  const [announcement, setAnnouncement] = useState("");
+  const [mailHref, setMailHref] = useState("");
   const headingRef = useRef(null);
+  const firstPracticeRef = useRef(null);
+  const descriptionRef = useRef(null);
+  const deadlineRef = useRef(null);
+  const nameRef = useRef(null);
+  const phoneRef = useRef(null);
+  const agreeRef = useRef(null);
   const startedRef = useRef(false);
+  const submittingRef = useRef(false);
   const reduceMotion = useReducedMotion();
   const practice = useMemo(
-    () => PRECHECK_PRACTICES.find(({ id }) => id === state.practiceId) || null,
-    [state.practiceId],
+    () => PRECHECK_PRACTICES.find(({ id }) => id === practiceId) || null,
+    [practiceId],
   );
-  const contextQuestions = practice?.questions.filter(({ id }) => COMMON_CONTEXT_IDS.has(id)) || [];
-  const detailQuestions = practice?.questions.filter(({ id }) => COMMON_DETAIL_IDS.has(id)) || [];
-  const practiceQuestions = practice?.questions.filter(({ id }) => (
-    !COMMON_CONTEXT_IDS.has(id) && !COMMON_DETAIL_IDS.has(id)
-  )) || [];
 
   useEffect(() => {
     if (startedRef.current) return;
@@ -153,243 +92,423 @@ export default function PrecheckSection({
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => headingRef.current?.focus());
     return () => window.cancelAnimationFrame(frame);
-  }, [state.step, state.status]);
+  }, [step, status]);
 
-  const answer = (key, value) => dispatch({ type: "answer", key, value });
-  const questionsForStep = state.step === 1
-    ? contextQuestions
-    : state.step === 2
-      ? practiceQuestions
-      : state.step === 3
-        ? detailQuestions
-        : [];
-
-  const stepIsComplete = () => {
-    if (state.step === 0) return Boolean(practice);
-    if (state.step >= 1 && state.step <= 3) {
-      return questionsForStep.every((question) => (
-        question.required === false || Boolean(state.answers[question.id]?.trim())
-      ));
-    }
-    return true;
+  const clearError = (field) => {
+    setErrors((current) => ({ ...current, [field]: false }));
+    setError("");
+    setAnnouncement("");
   };
 
-  const goNext = () => {
-    if (!stepIsComplete()) {
-      dispatch({ type: "error", message: "Ответьте на отмеченные вопросы, чтобы продолжить." });
-      return;
-    }
-    dispatch({ type: "next" });
-  };
-
-  const selectPractice = (practiceId) => {
-    dispatch({ type: "practice", value: practiceId });
+  const selectPractice = (nextPracticeId) => {
+    setPracticeId(nextPracticeId);
+    clearError("practiceId");
     try { track("precheck_practice_selected"); } catch {}
   };
 
-  const payload = () => ({
-    version: "1",
-    practiceId: state.practiceId,
-    answers: state.answers,
-    description: state.description,
-    aiConsent: state.aiConsent,
+  const compactPayload = () => ({
+    version: "2",
+    practiceId,
+    answers: { deadline: hasDeadline ? deadline : "" },
+    description,
+    aiConsent,
   });
 
-  const generate = async () => {
-    const currentPayload = payload();
-    if (!normalizePrecheckPayload(currentPayload).ok) {
-      dispatch({ type: "error", message: "Проверьте обязательные ответы перед формированием карты." });
+  const continueToContacts = () => {
+    const nextErrors = {
+      practiceId: !practice,
+      description: description.trim().length < MIN_DESCRIPTION_LENGTH,
+      deadline: hasDeadline && !deadline,
+    };
+    setErrors(nextErrors);
+    if (Object.values(nextErrors).some(Boolean)) {
+      setError("Заполните отмеченные поля, чтобы продолжить.");
+      const firstInvalid = [
+        ["practiceId", firstPracticeRef],
+        ["description", descriptionRef],
+        ["deadline", deadlineRef],
+      ].find(([field]) => nextErrors[field]);
+      window.requestAnimationFrame(() => firstInvalid?.[1].current?.focus());
       return;
     }
 
-    dispatch({ type: "generating" });
-    let mode = "fallback";
-    let result = null;
+    setError("");
+    setErrors({});
+    setStep(1);
+  };
+
+  const submit = async () => {
+    if (submittingRef.current) return;
+    const nextErrors = validateLead({ name, phone, service: practice?.service || "", agree });
+    setErrors(nextErrors);
+    if (Object.values(nextErrors).some(Boolean)) {
+      setError("Проверьте имя, телефон и согласие на обработку данных.");
+      const firstInvalid = [
+        ["name", nameRef],
+        ["phone", phoneRef],
+        ["agree", agreeRef],
+      ].find(([field]) => nextErrors[field]);
+      window.requestAnimationFrame(() => firstInvalid?.[1].current?.focus());
+      return;
+    }
+
+    const payload = compactPayload();
+    if (!normalizePrecheckPayload(payload).ok) {
+      setError("Вернитесь к описанию и проверьте обязательные поля.");
+      return;
+    }
+
+    submittingRef.current = true;
+    setStatus("submitting");
+    setError("");
+    setAnnouncement("Формируем карту и отправляем обращение…");
+    let nextMode = "fallback";
+    let nextResult = null;
+
     try {
       const response = await fetch("/api/precheck", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "same-origin",
-        body: JSON.stringify(currentPayload),
+        body: JSON.stringify(payload),
       });
       const body = await response.json().catch(() => null);
       if (response.ok && body?.success === true && isUsableCard(body.result)) {
-        mode = body.mode === "ai" ? "ai" : "fallback";
-        result = body.result;
+        nextMode = body.mode === "ai" ? "ai" : "fallback";
+        nextResult = body.result;
       }
     } catch {}
 
-    if (!result) result = buildClientFallback(currentPayload);
-    if (!result) {
-      dispatch({ type: "error", message: "Не удалось сформировать карту. Вернитесь к ответам и попробуйте снова." });
+    if (!nextResult) nextResult = buildClientFallback(payload);
+    if (!nextResult) {
+      submittingRef.current = false;
+      setStatus("editing");
+      setAnnouncement("");
+      setError("Не удалось сформировать карту. Проверьте данные и попробуйте снова.");
       return;
     }
 
-    dispatch({ type: "result", mode, result });
+    const excerpt = buildConfirmedExcerpt(nextResult);
+    let delivery = {
+      success: false,
+      error: "Автоматическая отправка пока недоступна. Отправьте подготовленное письмо.",
+      mailHref: "",
+    };
+
+    if (excerpt && typeof onSubmitLead === "function") {
+      try {
+        delivery = await onSubmitLead({
+          name,
+          phone,
+          website,
+          agree,
+          description,
+          attachment: {
+            version: "1",
+            mode: nextMode,
+            practiceId,
+            excerpt,
+          },
+        });
+      } catch {}
+    }
+
+    setMode(nextMode);
+    setResult(nextResult);
+    setLeadSent(delivery?.success === true);
+    setMailHref(typeof delivery?.mailHref === "string" ? delivery.mailHref : "");
+    setError(delivery?.success === true ? "" : (delivery?.error || "Не удалось отправить обращение."));
+    setAnnouncement(delivery?.success === true ? "Карта готова. Обращение отправлено." : "Карта готова.");
+    setStatus("result");
+    submittingRef.current = false;
     try { track("precheck_completed"); } catch {}
-    if (mode === "fallback") {
+    if (nextMode === "fallback") {
       try { track("precheck_fallback"); } catch {}
     }
   };
 
-  const useSummary = () => {
-    const excerpt = buildConfirmedExcerpt(state.result);
-    if (!excerpt || typeof onUseSummary !== "function") return;
-    onUseSummary({
-      version: "1",
-      mode: state.mode,
-      practiceId: state.practiceId,
-      excerpt,
-    });
+  const reset = () => {
+    setStep(0);
+    setPracticeId("");
+    setDescription("");
+    setHasDeadline(false);
+    setDeadline("");
+    setName("");
+    setPhone("");
+    setWebsite("");
+    setAgree(false);
+    setAiConsent(false);
+    setErrors({});
+    setStatus("editing");
+    setMode(null);
+    setResult(null);
+    setLeadSent(false);
+    setError("");
+    setAnnouncement("");
+    setMailHref("");
+    submittingRef.current = false;
   };
 
-  const stepContent = () => {
-    if (state.step === 0) {
-      return (
-        <fieldset className="precheck__question precheck__question--practice">
-          <legend>Направление ситуации</legend>
-          <div className="precheck__options precheck__options--practice">
-            {PRECHECK_PRACTICES.map((item, index) => (
-              <label key={item.id} className={state.practiceId === item.id ? "is-selected" : ""}>
-                <input
-                  type="radio"
-                  name="precheck-practice"
-                  value={item.id}
-                  checked={state.practiceId === item.id}
-                  onChange={() => selectPractice(item.id)}
-                  required
-                />
-                <span><em>{String(index + 1).padStart(2, "0")}</em>{item.label}</span>
-              </label>
-            ))}
-          </div>
-        </fieldset>
-      );
-    }
-
-    if (state.step >= 1 && state.step <= 3) {
-      return (
-        <div className="precheck__questions">
-          {questionsForStep.map((question) => (
-            <QuestionField
-              key={question.id}
-              question={question}
-              value={state.answers[question.id] || ""}
-              onChange={(value) => answer(question.id, value)}
-            />
-          ))}
-          {state.step === 3 ? (
-            <div className="precheck__field">
-              <label htmlFor="precheck-description">Короткое описание — необязательно</label>
-              <textarea
-                id="precheck-description"
-                value={state.description}
-                onChange={(event) => dispatch({ type: "description", value: event.target.value })}
-                rows={5}
-                maxLength={1_200}
-                placeholder="Только факты, необходимые для первичного понимания ситуации"
+  const renderSituation = () => (
+    <div className="precheck__questions">
+      <fieldset className="precheck__question precheck__question--practice">
+        <legend>Направление ситуации <span aria-hidden="true">*</span></legend>
+        <div className="precheck__options precheck__options--practice">
+          {PRECHECK_PRACTICES.map((item, index) => (
+            <label key={item.id} className={practiceId === item.id ? "is-selected" : ""}>
+              <input
+                ref={index === 0 ? firstPracticeRef : undefined}
+                type="radio"
+                name="precheck-practice"
+                value={item.id}
+                checked={practiceId === item.id}
+                onChange={() => selectPractice(item.id)}
+                aria-invalid={Boolean(errors.practiceId)}
+                required
               />
-              <small>{state.description.length} / 1200</small>
-            </div>
-          ) : null}
+              <span><em>{String(index + 1).padStart(2, "0")}</em>{item.label}</span>
+            </label>
+          ))}
         </div>
-      );
-    }
+        {errors.practiceId ? <span className="field__error" role="alert">Выберите направление</span> : null}
+      </fieldset>
 
-    if (state.status === "result" && state.result) {
-      return (
-        <article className="precheck-card">
-          <div className="precheck-card__topline">
-            <span>Карта ситуации</span>
-            <strong>{state.mode === "ai" ? "AI + правила" : "Базовый режим"}</strong>
-          </div>
-          {state.mode === "fallback" ? <p className="precheck-card__mode-note">Карта сформирована в базовом режиме</p> : null}
-          <p className="precheck-card__practice">{state.result.practice}</p>
-          <h3>{state.result.summary}</h3>
-          <div className={`precheck-card__urgency precheck-card__urgency--${state.result.urgency.level}`}>
-            <span>{state.result.urgency.label}</span>
-            <p>{state.result.urgency.reason}</p>
-          </div>
-          <div className="precheck-card__grid">
-            <ResultList title="Что уточнить" items={state.result.missingInformation} />
-            <ResultList title="Что подготовить" items={state.result.suggestedDocuments} />
-            <ResultList title="Вопросы юриста" items={state.result.lawyerQuestions} />
-          </div>
-          <div className="precheck-card__next"><span>Следующий шаг</span><p>{state.result.nextStep}</p></div>
-          <p className="precheck-card__disclaimer">{state.result.disclaimer}</p>
-          <div className="precheck__actions precheck__actions--result">
-            <button type="button" className="action action--light" onClick={useSummary}><span>Добавить к заявке</span></button>
-            <button type="button" className="text-link" onClick={() => dispatch({ type: "reset" })}>Начать заново</button>
-          </div>
-        </article>
-      );
-    }
+      <div className="precheck__field precheck__field--situation">
+        <label htmlFor="precheck-description">Что произошло и какой результат вам нужен? <span aria-hidden="true">*</span></label>
+        <textarea
+          ref={descriptionRef}
+          id="precheck-description"
+          value={description}
+          onChange={(event) => {
+            setDescription(event.target.value.slice(0, 1_200));
+            clearError("description");
+          }}
+          aria-invalid={Boolean(errors.description)}
+          aria-describedby={errors.description ? "precheck-description-error precheck-description-hint" : "precheck-description-hint"}
+          aria-required="true"
+          required
+          rows={5}
+          maxLength={1_200}
+          placeholder="Например: получили претензию по договору, нужно подготовить ответ до пятницы"
+        />
+        <div className="precheck__field-meta">
+          <small id="precheck-description-hint">Без ФИО, телефонов и реквизитов документов</small>
+          <small>{description.length} / 1200</small>
+        </div>
+        {errors.description ? <span id="precheck-description-error" className="field__error" role="alert">Добавьте хотя бы 10 символов</span> : null}
+      </div>
 
-    return (
-      <div className="precheck__review">
-        <dl>
-          <div><dt>Направление</dt><dd>{practice?.label}</dd></div>
-          <div><dt>Ответов</dt><dd>{Object.values(state.answers).filter(Boolean).length}</dd></div>
-          <div><dt>Описание</dt><dd>{state.description ? "Добавлено" : "Не добавлено"}</dd></div>
-        </dl>
-        <p className="precheck__privacy-note">
-          Не указывайте ФИО, телефоны, адреса, реквизиты документов, банковские данные и сведения третьих лиц.
-          Подробнее — в <a href="/privacy" target="_blank" rel="noreferrer">Политике обработки данных</a>.
-        </p>
-        <label className="consent precheck__consent">
+      <div className="precheck__deadline">
+        <label className="precheck__deadline-toggle">
           <input
             type="checkbox"
-            checked={state.aiConsent}
-            onChange={(event) => dispatch({ type: "consent", value: event.target.checked })}
+            checked={hasDeadline}
+            onChange={(event) => {
+              setHasDeadline(event.target.checked);
+              if (!event.target.checked) setDeadline("");
+              clearError("deadline");
+            }}
           />
-          <span>
-            Согласен на передачу очищенного описания в Cloudflare Workers AI для предварительной систематизации
-            ({" "}<a href="/ai-processing-consent" target="_blank" rel="noreferrer">условия</a>).
-          </span>
+          <span><strong>Есть срочный срок</strong><small>Например, заседание, ответ на претензию или подача документов</small></span>
         </label>
-        <p className="precheck__optional">Без отметки карта будет сформирована локально по тем же понятным правилам.</p>
-        <button
-          type="button"
-          className="action action--dark precheck__generate"
-          onClick={generate}
-          disabled={state.status === "generating"}
-        >
-          <span>{state.status === "generating" ? "Формируем…" : "Сформировать карту"}</span>
-        </button>
+        <AnimatePresence initial={false}>
+          {hasDeadline ? (
+            <motion.div
+              className="precheck__field precheck__deadline-field"
+              initial={reduceMotion ? false : { opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={reduceMotion ? undefined : { opacity: 0, height: 0 }}
+            >
+              <label htmlFor="precheck-deadline">Ближайшая дата <span aria-hidden="true">*</span></label>
+              <input
+                ref={deadlineRef}
+                id="precheck-deadline"
+                type="date"
+                value={deadline}
+                onChange={(event) => {
+                  setDeadline(event.target.value);
+                  clearError("deadline");
+                }}
+                aria-invalid={Boolean(errors.deadline)}
+                aria-required="true"
+                required
+              />
+              {errors.deadline ? <span className="field__error" role="alert">Укажите дату или отключите срочный срок</span> : null}
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
       </div>
-    );
-  };
+    </div>
+  );
+
+  const renderContacts = () => (
+    <div className="precheck__contact-step">
+      <div className="precheck__selection-summary">
+        <span>Направление</span>
+        <strong>{practice?.label}</strong>
+      </div>
+      <fieldset className="precheck__contact-fields">
+        <legend>Контактные данные</legend>
+        <div className="precheck__contact-grid">
+          <div className="precheck__field">
+            <label htmlFor="precheck-name">Ваше имя <span aria-hidden="true">*</span></label>
+            <input
+              ref={nameRef}
+              id="precheck-name"
+              value={name}
+              onChange={(event) => {
+                setName(event.target.value.slice(0, 80));
+                clearError("name");
+              }}
+              aria-invalid={Boolean(errors.name)}
+              aria-describedby={errors.name ? "precheck-name-error" : undefined}
+              aria-required="true"
+              required
+              autoComplete="name"
+              placeholder="Как к вам обращаться"
+              maxLength={80}
+            />
+            {errors.name ? <span id="precheck-name-error" className="field__error" role="alert">Укажите имя</span> : null}
+          </div>
+          <div className="precheck__field">
+            <label htmlFor="precheck-phone">Телефон <span aria-hidden="true">*</span></label>
+            <input
+              ref={phoneRef}
+              id="precheck-phone"
+              value={phone}
+              onChange={(event) => {
+                setPhone(event.target.value ? maskPhone(event.target.value) : "");
+                clearError("phone");
+              }}
+              aria-invalid={Boolean(errors.phone)}
+              aria-describedby={errors.phone ? "precheck-phone-error" : undefined}
+              aria-required="true"
+              required
+              autoComplete="tel"
+              inputMode="tel"
+              placeholder="+7 (___) ___-__-__"
+              maxLength={32}
+            />
+            {errors.phone ? <span id="precheck-phone-error" className="field__error" role="alert">Введите номер полностью</span> : null}
+          </div>
+        </div>
+      </fieldset>
+
+      <div className="lead-form__honeypot" aria-hidden="true">
+        <label htmlFor="precheck-website">Ваш сайт</label>
+        <input id="precheck-website" value={website} onChange={(event) => setWebsite(event.target.value)} autoComplete="off" tabIndex={-1} maxLength={200} />
+      </div>
+
+      <p className="precheck__privacy-note">
+        Текст ситуации и контакты поступят компании вместе с заявкой. Порядок обработки описан в{" "}
+        <a href="/privacy" target="_blank" rel="noreferrer">Политике обработки данных</a>.
+      </p>
+      <div className={`consent${errors.agree ? " consent--error" : ""}`}>
+        <input
+          ref={agreeRef}
+          id="precheck-personal-consent"
+          type="checkbox"
+          checked={agree}
+          onChange={(event) => {
+            setAgree(event.target.checked);
+            clearError("agree");
+          }}
+          aria-invalid={Boolean(errors.agree)}
+          aria-describedby={errors.agree ? "precheck-consent-error" : undefined}
+          aria-required="true"
+          required
+        />
+        <span>
+          <label htmlFor="precheck-personal-consent">Даю отдельное согласие на обработку персональных данных</label>
+          {" "}(<a href="/personal-data-consent" target="_blank" rel="noreferrer">текст согласия</a>).
+        </span>
+      </div>
+      {errors.agree ? <span id="precheck-consent-error" className="field__error field__error--consent" role="alert">Нужно согласие на обработку данных</span> : null}
+
+      <label className="consent precheck__consent">
+        <input type="checkbox" checked={aiConsent} onChange={(event) => setAiConsent(event.target.checked)} />
+        <span>
+          Согласен на передачу очищенного описания в Cloudflare Workers AI для предварительной систематизации
+          ({" "}<a href="/ai-processing-consent" target="_blank" rel="noreferrer">условия</a>).
+        </span>
+      </label>
+      <p className="precheck__optional">Необязательно. Без отметки карта сформируется в базовом режиме.</p>
+    </div>
+  );
+
+  const renderResult = () => (
+    <article className="precheck-card">
+      <div className="precheck-card__topline">
+        <span>{leadSent ? "Заявка отправлена" : "Карта ситуации"}</span>
+        <strong>{mode === "ai" ? "AI + правила" : "Базовый режим"}</strong>
+      </div>
+      <div className={`precheck-card__delivery${leadSent ? " is-success" : " is-error"}`}>
+        <strong>{leadSent ? "Обращение уже у юриста" : "Автоматическая отправка не завершена"}</strong>
+        <p>{leadSent
+          ? "Мы свяжемся с вами по указанному номеру в рабочее время."
+          : error}</p>
+        {!leadSent && mailHref ? <a href={mailHref}>Отправить подготовленное письмо</a> : null}
+      </div>
+      {mode === "fallback" ? <p className="precheck-card__mode-note">Карта сформирована без AI по понятным правилам</p> : null}
+      <p className="precheck-card__practice">{result.practice}</p>
+      <h3>{result.summary}</h3>
+      <div className={`precheck-card__urgency precheck-card__urgency--${result.urgency.level}`}>
+        <span>{result.urgency.label}</span>
+        <p>{result.urgency.reason}</p>
+      </div>
+      <div className="precheck-card__grid">
+        <ResultList title="Что уточнить" items={result.missingInformation} />
+        <ResultList title="Что подготовить" items={result.suggestedDocuments} />
+        <ResultList title="Вопросы юриста" items={result.lawyerQuestions} />
+      </div>
+      <div className="precheck-card__next"><span>Следующий шаг</span><p>{result.nextStep}</p></div>
+      <p className="precheck-card__disclaimer">{result.disclaimer}</p>
+      <div className="precheck__actions precheck__actions--result">
+        {!leadSent ? <button type="button" className="action action--light" onClick={() => { setStatus("editing"); setStep(1); }}><span>Проверить контакты</span></button> : null}
+        <button type="button" className="text-link" onClick={reset}>Отправить ещё одно обращение</button>
+      </div>
+    </article>
+  );
+
+  const title = status === "result" ? "Разбор готов" : STEP_TITLES[step];
+  const copy = status === "result"
+    ? (leadSent ? "Карта ситуации сформирована, а заявка отправлена одним действием." : "Карта готова. Вы можете проверить контакты или отправить подготовленное письмо.")
+    : STEP_COPY[step];
 
   return (
-    <section className="precheck" aria-labelledby="precheck-heading" aria-busy={state.status === "generating"}>
+    <section className="precheck" aria-labelledby="precheck-heading" aria-busy={status === "submitting"}>
       <div className="precheck__progress" aria-hidden="true">
-        <span>{String(state.step + 1).padStart(2, "0")} / 05</span>
-        <i style={{ width: `${((state.step + 1) / TOTAL_STEPS) * 100}%` }} />
+        <span>{status === "result" ? "Готово" : `${String(step + 1).padStart(2, "0")} / 02`}</span>
+        <i style={{ width: `${status === "result" ? 100 : ((step + 1) / TOTAL_STEPS) * 100}%` }} />
       </div>
       <div className="precheck__intro">
-        <p className="eyebrow">Предварительный разбор · около 2 минут</p>
-        <h3 id="precheck-heading" ref={headingRef} tabIndex={-1}>{STEP_TITLES[state.step]}</h3>
-        <p>{STEP_COPY[state.step]}</p>
+        <p className="eyebrow">Предварительный разбор · около 1 минуты</p>
+        <h3 id="precheck-heading" ref={headingRef} tabIndex={-1}>{title}</h3>
+        <p>{copy}</p>
       </div>
-      <p className="precheck__status" role="status" aria-live="polite">
-        {state.error || state.announcement}
+      <p className={`precheck__status${error ? " is-error" : ""}`} role="status" aria-live="polite">
+        {status === "result" ? "" : (error || announcement)}
       </p>
       <AnimatePresence mode="wait" initial={false}>
         <motion.div
           className="precheck__step"
-          key={`${state.step}-${state.status === "result" ? "result" : "questions"}`}
+          key={status === "result" ? "result" : `step-${step}`}
           initial={reduceMotion ? false : { opacity: 0, x: 18 }}
           animate={{ opacity: 1, x: 0 }}
           exit={reduceMotion ? undefined : { opacity: 0, x: -12 }}
           transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
         >
-          {stepContent()}
+          {status === "result" && result ? renderResult() : step === 0 ? renderSituation() : renderContacts()}
         </motion.div>
       </AnimatePresence>
-      {state.status !== "result" ? (
+      {status !== "result" ? (
         <div className="precheck__actions">
-          {state.step > 0 ? <button type="button" className="text-link" onClick={() => dispatch({ type: "back" })} disabled={state.status === "generating"}>Назад</button> : <button type="button" className="text-link" onClick={onChooseQuickForm}>Перейти к быстрой заявке</button>}
-          {state.step < TOTAL_STEPS - 1 ? <button type="button" className="action action--dark" onClick={goNext}><span>Продолжить</span></button> : null}
+          {step > 0
+            ? <button type="button" className="text-link" onClick={() => { setStep(0); setError(""); setErrors({}); }} disabled={status === "submitting"}>Назад</button>
+            : <button type="button" className="text-link" onClick={onChooseQuickForm}>Перейти к быстрой заявке</button>}
+          {step === 0
+            ? <button type="button" className="action action--dark" onClick={continueToContacts}><span>Продолжить</span></button>
+            : <button type="button" className="action action--dark precheck__submit" onClick={submit} disabled={status === "submitting"}><span>{status === "submitting" ? "Формируем и отправляем…" : "Получить разбор и отправить заявку"}</span></button>}
         </div>
       ) : null}
     </section>

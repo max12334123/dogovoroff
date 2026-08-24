@@ -1,5 +1,5 @@
 import { PRECHECK_PRACTICES, PRECHECK_PRACTICE_IDS } from "./config.mjs";
-import { buildFallbackCard, normalizePrecheckPayload } from "./domain.mjs";
+import { buildFallbackCard, maskSensitiveText, normalizePrecheckPayload } from "./domain.mjs";
 
 function createAnswers(practiceId) {
   const practice = PRECHECK_PRACTICES.find(({ id }) => id === practiceId);
@@ -92,6 +92,12 @@ export function reducePrecheckState(state, event) {
 export function buildClientFallback(payload, now = new Date()) {
   const normalized = normalizePrecheckPayload(payload);
   if (!normalized.ok) return null;
+  if (normalized.value.version === "2") {
+    return buildFallbackCard({
+      ...normalized.value,
+      description: maskSensitiveText(normalized.value.description),
+    }, now);
+  }
   const practice = PRECHECK_PRACTICES.find(({ id }) => id === normalized.value.practiceId);
   const nonInterpretiveAnswers = { ...normalized.value.answers };
 

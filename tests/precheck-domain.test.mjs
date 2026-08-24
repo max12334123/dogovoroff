@@ -26,6 +26,14 @@ const validPayload = {
   aiConsent: true,
 };
 
+const compactPayload = {
+  version: "2",
+  practiceId: "contracts",
+  answers: { deadline: "2026-09-10" },
+  description: "Нужно проверить проект договора поставки до подписания.",
+  aiConsent: false,
+};
+
 test("payload normalization accepts only configured keys and values", () => {
   const result = normalizePrecheckPayload(validPayload);
 
@@ -66,6 +74,27 @@ test("normalization trims text and rejects malformed dates", () => {
   }).ok, false);
 });
 
+test("compact payload needs only a meaningful situation and optional deadline", () => {
+  const normalized = normalizePrecheckPayload({
+    ...compactPayload,
+    description: "  Нужно проверить договор\r\nдо подписания.  ",
+  });
+
+  assert.equal(normalized.ok, true);
+  assert.deepEqual(normalized.value, {
+    ...compactPayload,
+    description: "Нужно проверить договор\nдо подписания.",
+  });
+
+  for (const payload of [
+    { ...compactPayload, description: "Коротко" },
+    { ...compactPayload, answers: { deadline: "2026-02-30" } },
+    { ...compactPayload, answers: { deadline: "", injected: "yes" } },
+  ]) {
+    assert.equal(normalizePrecheckPayload(payload).ok, false);
+  }
+});
+
 test("urgency uses Yekaterinburg calendar dates and exact boundaries", () => {
   const now = new Date("2026-08-24T06:00:00.000Z");
 
@@ -101,6 +130,15 @@ test("fallback card keeps trusted fields deterministic", () => {
   assert.ok(card.suggestedDocuments.length <= 5);
   assert.ok(card.lawyerQuestions.length <= 5);
   assert.match(card.disclaimer, /не юридическое заключение/i);
+});
+
+test("compact fallback uses the submitted situation without inventing intake answers", () => {
+  const normalized = normalizePrecheckPayload(compactPayload).value;
+  const card = buildFallbackCard(normalized, new Date("2026-08-24T06:00:00.000Z"));
+
+  assert.match(card.summary, /проект договора поставки/iu);
+  assert.equal(card.urgency.level, "medium");
+  assert.doesNotMatch(JSON.stringify(card), /applicantType|stage|contractTask/);
 });
 
 test("provider result is strict, bounded, and plain text", () => {

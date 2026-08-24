@@ -25,14 +25,6 @@ const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 const PRECHECK_MESSAGE_MARKER = "Предварительный разбор:\n";
 
-function confirmedPrecheckFromMessage(message, attachment) {
-  if (!attachment || typeof message !== "string") return null;
-  const markerIndex = message.indexOf(PRECHECK_MESSAGE_MARKER);
-  if (markerIndex === -1) return null;
-  const excerpt = message.slice(markerIndex + PRECHECK_MESSAGE_MARKER.length).trim().slice(0, 1_200);
-  return excerpt ? { ...attachment, excerpt } : null;
-}
-
 function getFocusableElements(container) {
   if (!container) return [];
 
@@ -146,7 +138,6 @@ export default function HomePage() {
   const [precheckOpened, setPrecheckOpened] = useState(false);
   const [precheckInitialPractice, setPrecheckInitialPractice] = useState("");
   const [precheckSession, setPrecheckSession] = useState(0);
-  const [precheckAttachment, setPrecheckAttachment] = useState(null);
   const [form, setForm] = useState({ name: "", phone: "", service: "", message: "", website: "", agree: false });
   const [errors, setErrors] = useState({});
   const [submitState, setSubmitState] = useState("idle");
@@ -292,7 +283,7 @@ export default function HomePage() {
     window.requestAnimationFrame(() => quickFormHeadingRef.current?.focus());
   };
 
-  const openPrecheck = (practiceId = practiceIdFromService(form.service)) => {
+  const openPrecheck = (practiceId = form.service ? practiceIdFromService(form.service) : "") => {
     setPrecheckInitialPractice(practiceId);
     setPrecheckOpened(true);
     setRequestMode("precheck");
@@ -319,33 +310,60 @@ export default function HomePage() {
     });
   };
 
-  const usePrecheckSummary = (attachment) => {
-    const practice = PRECHECK_PRACTICES.find(({ id }) => id === attachment.practiceId);
-    if (!practice) return;
-    const block = `${PRECHECK_MESSAGE_MARKER}${attachment.excerpt}`;
-    setPrecheckAttachment(attachment);
-    setForm((current) => {
-      const availableForExisting = Math.max(0, 2_000 - block.length - 2);
-      const existing = current.message.trim().slice(0, availableForExisting);
+
+  const deliverLead = async (lead) => {
+    const body = `Имя: ${lead.name}\nТелефон: ${lead.phone}\nНаправление: ${lead.service}\nЗадача: ${lead.message || "Не указана"}\n\nСогласие на обработку персональных данных: предоставлено\nДокумент: ${LEGAL.siteUrl}/personal-data-consent\nВерсия: ${LEGAL.policyVersion} от ${LEGAL.effectiveDate}`;
+    const fallbackMailHref = `mailto:${CONFIG.email}?subject=${encodeURIComponent("Заявка с сайта ДоговорОфф")}&body=${encodeURIComponent(body)}`;
+
+    try {
+      const response = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify(lead),
+      });
+      const result = await response.json().catch(() => ({}));
+
+      if (!response.ok || result.success !== true) {
+        const message = response.status === 429
+          ? "Слишком много попыток. Подождите несколько минут или отправьте письмо напрямую."
+          : "Автоматическая отправка пока недоступна. Отправьте подготовленное письмо — данные уже заполнены.";
+        return { success: false, error: message, mailHref: fallbackMailHref };
+      }
+
+      return { success: true, error: "", mailHref: fallbackMailHref };
+    } catch {
       return {
-        ...current,
-        service: practice.service,
-        message: existing ? `${existing}\n\n${block}` : block,
+        success: false,
+        error: "Не удалось отправить обращение. Отправьте подготовленное письмо или попробуйте ещё раз.",
+        mailHref: fallbackMailHref,
       };
-    });
-    setErrors((current) => ({ ...current, service: false }));
-    focusQuickForm();
+    }
   };
 
-  const removePrecheckSummary = () => {
-    setForm((current) => {
-      const markerIndex = current.message.indexOf(PRECHECK_MESSAGE_MARKER);
-      return {
-        ...current,
-        message: markerIndex === -1 ? current.message : current.message.slice(0, markerIndex).trim(),
-      };
+  const submitPrecheckLead = async ({ name, phone, website, agree, description, attachment }) => {
+    const practice = PRECHECK_PRACTICES.find(({ id }) => id === attachment?.practiceId);
+    if (!practice) {
+      return { success: false, error: "Не удалось определить направление обращения.", mailHref: "" };
+    }
+
+    const precheckBlock = `${PRECHECK_MESSAGE_MARKER}${attachment.excerpt}`;
+    const availableForDescription = Math.max(0, 2_000 - precheckBlock.length - 2);
+    const situation = String(description || "").trim().slice(0, availableForDescription);
+    const lead = normalizeContactPayload({
+      name,
+      phone,
+      service: practice.service,
+      message: situation ? `${situation}\n\n${precheckBlock}` : precheckBlock,
+      website,
+      agree,
+      precheck: attachment,
     });
-    setPrecheckAttachment(null);
+    const delivery = await deliverLead(lead);
+    if (delivery.success) {
+      try { track("precheck_submitted"); } catch {}
+    }
+    return delivery;
   };
 
   const submitLead = async (event) => {
@@ -364,43 +382,21 @@ export default function HomePage() {
       return;
     }
 
-    const confirmedPrecheck = confirmedPrecheckFromMessage(form.message, precheckAttachment);
-    const lead = normalizeContactPayload({ ...form, precheck: confirmedPrecheck });
-    const body = `Имя: ${lead.name}\nТелефон: ${lead.phone}\nНаправление: ${lead.service}\nЗадача: ${lead.message || "Не указана"}\n\nСогласие на обработку персональных данных: предоставлено\nДокумент: ${LEGAL.siteUrl}/personal-data-consent\nВерсия: ${LEGAL.policyVersion} от ${LEGAL.effectiveDate}`;
-    setMailHref(`mailto:${CONFIG.email}?subject=${encodeURIComponent("Заявка с сайта ДоговорОфф")}&body=${encodeURIComponent(body)}`);
+    const lead = normalizeContactPayload({ ...form, precheck: null });
     setSubmitState("sending");
     setSubmitError("");
-
-    try {
-      const response = await fetch("/api/contact", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "same-origin",
-        body: JSON.stringify(lead),
-      });
-      const result = await response.json().catch(() => ({}));
-
-      if (!response.ok || result.success !== true) {
-        if (response.status === 429) {
-          throw new Error("Слишком много попыток. Подождите несколько минут или отправьте письмо напрямую.");
-        }
-        throw new Error("Автоматическая отправка пока недоступна. Отправьте подготовленное письмо — данные уже заполнены.");
-      }
-
+    const delivery = await deliverLead(lead);
+    setMailHref(delivery.mailHref);
+    if (delivery.success) {
       setSubmitState("success");
-      if (lead.precheck) {
-        try { track("precheck_submitted"); } catch {}
-      }
-      setPrecheckAttachment(null);
-    } catch (error) {
+    } else {
       setSubmitState("error");
-      setSubmitError(error instanceof Error ? error.message : "Не удалось отправить обращение. Попробуйте ещё раз.");
+      setSubmitError(delivery.error);
     }
   };
 
   const resetForm = () => {
     setForm({ name: "", phone: "", service: "", message: "", website: "", agree: false });
-    setPrecheckAttachment(null);
     setErrors({});
     setSubmitError("");
     setMailHref("");
@@ -720,7 +716,6 @@ export default function HomePage() {
               {submitState !== "success" ? (
                 <motion.form key="form" className="lead-form" onSubmit={submitLead} noValidate initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -12 }}>
                   <div ref={quickFormHeadingRef} className="lead-form__heading" tabIndex={-1}><span>Первичная консультация</span><strong>Бесплатно</strong></div>
-                  {precheckAttachment ? <div className="precheck-attachment"><span>Карта ситуации добавлена к заявке</span><button type="button" onClick={removePrecheckSummary}>Удалить</button></div> : null}
                   <div className="lead-form__honeypot" aria-hidden="true"><label htmlFor="lead-website">Ваш сайт</label><input id="lead-website" value={form.website} onChange={(event) => updateForm("website", event.target.value)} autoComplete="off" tabIndex={-1} maxLength={200} /></div>
                   <div className="field"><label htmlFor="lead-name">Ваше имя</label><input ref={nameFieldRef} id="lead-name" value={form.name} onChange={(event) => updateForm("name", event.target.value)} aria-invalid={Boolean(errors.name)} aria-describedby={errors.name ? "lead-name-error" : undefined} aria-required="true" required autoComplete="name" placeholder="Как к вам обращаться" maxLength={80} />{errors.name && <span id="lead-name-error" className="field__error" role="alert">Укажите имя</span>}</div>
                   <div className="field"><label htmlFor="lead-phone">Телефон</label><input ref={phoneFieldRef} id="lead-phone" value={form.phone} onChange={(event) => updateForm("phone", event.target.value ? maskPhone(event.target.value) : "")} aria-invalid={Boolean(errors.phone)} aria-describedby={errors.phone ? "lead-phone-error" : undefined} aria-required="true" required autoComplete="tel" inputMode="tel" placeholder="+7 (___) ___-__-__" maxLength={32} />{errors.phone && <span id="lead-phone-error" className="field__error" role="alert">Введите номер полностью</span>}</div>
@@ -749,7 +744,7 @@ export default function HomePage() {
                 <PrecheckSection
                   key={`${precheckSession}-${precheckInitialPractice}`}
                   initialPracticeId={precheckInitialPractice}
-                  onUseSummary={usePrecheckSummary}
+                  onSubmitLead={submitPrecheckLead}
                   onChooseQuickForm={focusQuickForm}
                 />
               </div>
