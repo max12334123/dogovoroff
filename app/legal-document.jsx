@@ -2,7 +2,14 @@ import Image from "next/image";
 import Link from "next/link";
 import { LEGAL } from "./legal";
 
-export default function LegalDocument({ eyebrow, title, summary, sections, children }) {
+export default function LegalDocument({
+  eyebrow,
+  title,
+  summary,
+  sections,
+  documentVersion = LEGAL.policyVersion,
+  children,
+}) {
   return (
     <div className="legal-page">
       <a className="skip-link" href="#legal-content">Перейти к документу</a>
@@ -21,7 +28,7 @@ export default function LegalDocument({ eyebrow, title, summary, sections, child
           <h1 id="legal-title">{title}</h1>
           <p className="legal-hero__summary">{summary}</p>
           <dl className="legal-meta">
-            <div><dt>Редакция</dt><dd>{LEGAL.policyVersion}</dd></div>
+            <div><dt>Редакция</dt><dd>{documentVersion}</dd></div>
             <div><dt>Действует с</dt><dd>{LEGAL.effectiveDate}</dd></div>
             <div><dt>Контакт</dt><dd><a href={`mailto:${LEGAL.email}`}>{LEGAL.email}</a></dd></div>
           </dl>
@@ -52,7 +59,7 @@ export default function LegalDocument({ eyebrow, title, summary, sections, child
 
       <footer className="legal-footer">
         <p>© {new Date().getFullYear()} «ДоговорОфф»</p>
-        <div><Link href="/privacy">Политика обработки данных</Link><Link href="/personal-data-consent">Согласие на обработку данных</Link></div>
+        <div><Link href="/privacy">Политика обработки данных</Link><Link href="/personal-data-consent">Согласие на обработку данных</Link><Link href="/ai-processing-consent">Согласие на AI-обработку</Link></div>
       </footer>
     </div>
   );

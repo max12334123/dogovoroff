@@ -100,7 +100,7 @@ test("contact endpoint normalizes and forwards a bounded lead with server-observ
   assert.equal(delivered.body.service, VALID_PAYLOAD.service);
   assert.match(delivered.body.submission_id, /^[0-9a-f-]{36}$/);
   assert.match(delivered.body.consent_timestamp, /^\d{4}-\d{2}-\d{2}T/);
-  assert.match(delivered.body.consent_version, /^1\.5 от 24 августа 2026 года$/);
+  assert.match(delivered.body.consent_version, /^1\.6 от 24 августа 2026 года$/);
   assert.equal(delivered.body.precheck_mode, "fallback");
   assert.equal(delivered.body.precheck_practice, "litigation");
   assert.equal(delivered.body.precheck_excerpt, "Направление: Арбитраж и суды\nСледующий шаг: проверить документы.");

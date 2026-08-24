@@ -2097,7 +2097,7 @@ img {
 
 .site-footer__bottom {
   display: grid;
-  grid-template-columns: 1fr auto auto auto;
+  grid-template-columns: 1fr auto auto auto auto;
   gap: 34px;
   width: var(--shell);
   margin-inline: auto;
@@ -2428,6 +2428,7 @@ img {
 
 .legal-footer div {
   display: flex;
+  flex-wrap: wrap;
   gap: 24px;
 }
 

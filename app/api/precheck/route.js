@@ -11,6 +11,7 @@ import {
   normalizePrecheckPayload,
 } from "../../../features/precheck/domain.mjs";
 import { requestCloudflarePrecheck } from "../../../features/precheck/provider.mjs";
+import { LEGAL } from "../../legal.js";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -25,7 +26,7 @@ globalThis.__dogovoroffPrecheckRateLimit = rateLimitStore;
 function createMeta() {
   return {
     processedAt: new Date().toISOString(),
-    consentVersion: "1.0",
+    consentVersion: LEGAL.aiConsentVersion,
   };
 }
 

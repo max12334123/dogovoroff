@@ -10,13 +10,19 @@ export default function sitemap() {
     },
     {
       url: `${SITE_URL}/privacy`,
-      lastModified: new Date("2026-08-15"),
+      lastModified: new Date("2026-08-24"),
       changeFrequency: "yearly",
       priority: 0.3,
     },
     {
       url: `${SITE_URL}/personal-data-consent`,
-      lastModified: new Date("2026-08-15"),
+      lastModified: new Date("2026-08-24"),
+      changeFrequency: "yearly",
+      priority: 0.2,
+    },
+    {
+      url: `${SITE_URL}/ai-processing-consent`,
+      lastModified: new Date("2026-08-24"),
       changeFrequency: "yearly",
       priority: 0.2,
     },
