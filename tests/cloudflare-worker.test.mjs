@@ -132,6 +132,37 @@ test("worker forces exactly one build_precheck_card function call", async () => 
   });
 });
 
+test("worker accepts the tagged function arguments returned by Workers AI", async () => {
+  const taggedArguments = [
+    "<tool_call>build_precheck_card",
+    "<arg_key>summary</arg_key><arg_value>Требуется проверить условия договора до подписания.</arg_value>",
+    "<arg_key>missingInformation</arg_key><arg_value>[\"Срок поставки\"]</arg_value>",
+    "<arg_key>suggestedDocuments</arg_key><arg_value>[\"Проект договора\"]</arg_value>",
+    "<arg_key>lawyerQuestions</arg_key><arg_value>[\"Согласованы ли существенные условия?\"]</arg_value>",
+    "<arg_key>nextStep</arg_key><arg_value>Передать актуальный проект юристу.</arg_value>",
+    "</tool_call>",
+  ].join("");
+  const worker = createWorker({ verifyOidc: async () => ({ environment: "preview" }) });
+  const response = await worker.fetch(makeRequest(), {
+    ...TEST_ENV,
+    AI: {
+      run: async () => ({
+        choices: [{
+          message: {
+            tool_calls: [{
+              type: "function",
+              function: { name: "build_precheck_card", arguments: taggedArguments },
+            }],
+          },
+        }],
+      }),
+    },
+  });
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { success: true, result: PROVIDER_CARD });
+});
+
 test("worker returns a generic upstream error for malformed model output", async () => {
   const worker = createWorker({ verifyOidc: async () => ({ environment: "production" }) });
   const response = await worker.fetch(makeRequest(), {

@@ -22,6 +22,11 @@ const RESULT_KEYS = [
   "lawyerQuestions",
   "nextStep",
 ];
+const LIST_RESULT_KEYS = new Set([
+  "missingInformation",
+  "suggestedDocuments",
+  "lawyerQuestions",
+]);
 
 const TOOLS = [{
   type: "function",
@@ -179,21 +184,60 @@ function getToolCalls(output) {
     || null;
 }
 
+function parseTaggedToolArguments(raw) {
+  if (typeof raw !== "string" || raw.length > 8_192) return null;
+  const value = raw.trim();
+  const prefix = "<tool_call>build_precheck_card";
+  const suffix = "</tool_call>";
+  if (!value.startsWith(prefix) || !value.endsWith(suffix)) return null;
+
+  const content = value.slice(prefix.length, -suffix.length);
+  const argumentPattern = /<arg_key>([^<]{1,64})<\/arg_key><arg_value>([\s\S]*?)<\/arg_value>/gu;
+  const parsed = Object.create(null);
+  let cursor = 0;
+  let match;
+
+  while ((match = argumentPattern.exec(content)) !== null) {
+    if (content.slice(cursor, match.index).trim()) return null;
+    const key = match[1].trim();
+    if (!RESULT_KEYS.includes(key) || Object.hasOwn(parsed, key)) return null;
+
+    const rawField = match[2].trim();
+    if (LIST_RESULT_KEYS.has(key)) {
+      try {
+        parsed[key] = JSON.parse(rawField);
+      } catch {
+        return null;
+      }
+    } else {
+      parsed[key] = rawField;
+    }
+    cursor = argumentPattern.lastIndex;
+  }
+
+  if (content.slice(cursor).trim()) return null;
+  return parsed;
+}
+
+function parseToolArguments(value) {
+  if (isRecord(value)) return value;
+  if (typeof value !== "string") return null;
+  try {
+    const parsed = JSON.parse(value);
+    if (isRecord(parsed)) return parsed;
+  } catch {
+    // Some Workers AI models serialize function arguments as bounded tagged fields.
+  }
+  return parseTaggedToolArguments(value);
+}
+
 function parseProviderResult(output) {
   const calls = getToolCalls(output);
   if (!Array.isArray(calls) || calls.length !== 1) return null;
   const toolFunction = calls[0]?.function || calls[0];
   if (toolFunction?.name !== "build_precheck_card") return null;
 
-  let value = toolFunction.arguments;
-  if (typeof value === "string") {
-    try {
-      value = JSON.parse(value);
-    } catch {
-      return null;
-    }
-  }
-  return validateResult(value);
+  return validateResult(parseToolArguments(toolFunction.arguments));
 }
 
 function buildMessages(input) {
