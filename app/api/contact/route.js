@@ -9,6 +9,10 @@ import {
   readJsonBody,
 } from "../../../lib/api-security.mjs";
 import { validateContactPayload } from "../../../lib/contact-form.mjs";
+import {
+  createContactRecord,
+  deliverContactIntegrations,
+} from "../../../lib/contact-integrations.mjs";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -121,6 +125,26 @@ export async function POST(request) {
         { success: false, error: status === 429 ? "Слишком много попыток. Повторите позже." : "Сервис доставки временно недоступен." },
         status,
       );
+    }
+
+    const record = createContactRecord({
+      submissionId,
+      submittedAt,
+      lead,
+      consentDocument: `${LEGAL.siteUrl}/personal-data-consent`,
+      consentVersion: `${LEGAL.policyVersion} от ${LEGAL.effectiveDate}`,
+    });
+
+    try {
+      const integrationResult = await deliverContactIntegrations(record);
+      const failedChannels = Object.entries(integrationResult)
+        .filter(([, result]) => result.attempted && !result.ok)
+        .map(([channel]) => channel);
+      if (failedChannels.length > 0) {
+        console.warn("Contact integrations failed.", { submissionId, channels: failedChannels });
+      }
+    } catch {
+      console.warn("Contact integrations failed.", { submissionId, channels: ["unexpected"] });
     }
 
     return jsonResponse({ success: true }, 200);

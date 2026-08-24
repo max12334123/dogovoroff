@@ -46,6 +46,24 @@ function withProviderKey(callback) {
     });
 }
 
+function withEnvironment(values, callback) {
+  const previous = Object.fromEntries(
+    Object.keys(values).map((key) => [key, process.env[key]]),
+  );
+  for (const [key, value] of Object.entries(values)) {
+    process.env[key] = value;
+  }
+
+  return Promise.resolve()
+    .then(callback)
+    .finally(() => {
+      for (const [key, value] of Object.entries(previous)) {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
+    });
+}
+
 test("contact endpoint rejects cross-origin and malformed requests before delivery", async (context) => {
   const provider = context.mock.method(globalThis, "fetch", async () => {
     throw new Error("provider must not be called");
@@ -127,6 +145,66 @@ test("contact endpoint rejects a forged precheck before delivery", async (contex
 
   assert.equal(response.status, 400);
   assert.equal(provider.mock.callCount(), 0);
+});
+
+test("contact endpoint forwards the validated record to optional integrations", async (context) => {
+  const calls = [];
+  context.mock.method(globalThis, "fetch", async (url, options) => {
+    const call = { url: String(url), body: JSON.parse(options.body) };
+    calls.push(call);
+    if (call.url === "https://api.web3forms.com/submit") {
+      return Response.json({ success: true });
+    }
+    return Response.json({ ok: true });
+  });
+
+  await withProviderKey(() => withEnvironment({
+    GOOGLE_SHEETS_WEBHOOK_URL: "https://script.google.com/macros/s/example/exec",
+    GOOGLE_SHEETS_WEBHOOK_SECRET: "g".repeat(48),
+    GOOGLE_SHEETS_URL: "https://docs.google.com/spreadsheets/d/example/edit",
+    TELEGRAM_BOT_TOKEN: "123456789:ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijk",
+    TELEGRAM_CHAT_ID: "-1001234567890",
+  }, async () => {
+    const response = await POST(makeRequest(VALID_PAYLOAD, { ip: "203.0.113.22" }));
+    assert.equal(response.status, 200);
+  }));
+
+  const emailCall = calls.find(({ url }) => url === "https://api.web3forms.com/submit");
+  const sheetCall = calls.find(({ url }) => url.includes("script.google.com/macros/s/"));
+  const telegramCall = calls.find(({ url }) => url.includes("api.telegram.org/bot"));
+  assert.equal(sheetCall.body.record.submissionId, emailCall.body.submission_id);
+  assert.equal(sheetCall.body.record.name, "Анна");
+  assert.equal(sheetCall.body.record.phone, VALID_PAYLOAD.phone);
+  assert.match(telegramCall.body.text, /Имя: Анна/);
+  assert.match(telegramCall.body.text, /Телефон: \+7 \(912\) 345-67-89/);
+  assert.equal("parse_mode" in telegramCall.body, false);
+});
+
+test("optional integration failures do not turn a delivered application into a client error", async (context) => {
+  context.mock.method(console, "warn", () => {});
+  context.mock.method(globalThis, "fetch", async (url) => {
+    if (String(url) === "https://api.web3forms.com/submit") {
+      return Response.json({ success: true });
+    }
+    return Response.json({ ok: false }, { status: 503 });
+  });
+
+  await withProviderKey(() => withEnvironment({
+    GOOGLE_SHEETS_WEBHOOK_URL: "https://script.google.com/macros/s/example/exec",
+    GOOGLE_SHEETS_WEBHOOK_SECRET: "g".repeat(48),
+    TELEGRAM_BOT_TOKEN: "123456789:ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijk",
+    TELEGRAM_CHAT_ID: "-1001234567890",
+  }, async () => {
+    const response = await POST(makeRequest(VALID_PAYLOAD, { ip: "203.0.113.23" }));
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { success: true });
+  }));
+
+  assert.equal(console.warn.mock.callCount(), 1);
+  const warning = console.warn.mock.calls[0].arguments;
+  assert.equal(warning[0], "Contact integrations failed.");
+  assert.deepEqual(warning[1].channels.sort(), ["googleSheets", "telegram"]);
+  assert.deepEqual(Object.keys(warning[1]).sort(), ["channels", "submissionId"]);
 });
 
 test("contact endpoint enforces a request-size limit and a per-client burst limit", async (context) => {
