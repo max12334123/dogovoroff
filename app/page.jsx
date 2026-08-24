@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { track } from "@vercel/analytics";
 import {
   AnimatePresence,
   motion,
@@ -22,6 +23,15 @@ import NorthernMotion from "./northern-motion";
 const EASE = [0.22, 1, 0.36, 1];
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+const PRECHECK_MESSAGE_MARKER = "Предварительный разбор:\n";
+
+function confirmedPrecheckFromMessage(message, attachment) {
+  if (!attachment || typeof message !== "string") return null;
+  const markerIndex = message.indexOf(PRECHECK_MESSAGE_MARKER);
+  if (markerIndex === -1) return null;
+  const excerpt = message.slice(markerIndex + PRECHECK_MESSAGE_MARKER.length).trim().slice(0, 1_200);
+  return excerpt ? { ...attachment, excerpt } : null;
+}
 
 function getFocusableElements(container) {
   if (!container) return [];
@@ -299,7 +309,7 @@ export default function HomePage() {
   const usePrecheckSummary = (attachment) => {
     const practice = PRECHECK_PRACTICES.find(({ id }) => id === attachment.practiceId);
     if (!practice) return;
-    const block = `Предварительный разбор:\n${attachment.excerpt}`;
+    const block = `${PRECHECK_MESSAGE_MARKER}${attachment.excerpt}`;
     setPrecheckAttachment(attachment);
     setForm((current) => {
       const availableForExisting = Math.max(0, 2_000 - block.length - 2);
@@ -315,9 +325,8 @@ export default function HomePage() {
   };
 
   const removePrecheckSummary = () => {
-    const marker = "Предварительный разбор:\n";
     setForm((current) => {
-      const markerIndex = current.message.indexOf(marker);
+      const markerIndex = current.message.indexOf(PRECHECK_MESSAGE_MARKER);
       return {
         ...current,
         message: markerIndex === -1 ? current.message : current.message.slice(0, markerIndex).trim(),
@@ -342,7 +351,8 @@ export default function HomePage() {
       return;
     }
 
-    const lead = normalizeContactPayload(form);
+    const confirmedPrecheck = confirmedPrecheckFromMessage(form.message, precheckAttachment);
+    const lead = normalizeContactPayload({ ...form, precheck: confirmedPrecheck });
     const body = `Имя: ${lead.name}\nТелефон: ${lead.phone}\nНаправление: ${lead.service}\nЗадача: ${lead.message || "Не указана"}\n\nСогласие на обработку персональных данных: предоставлено\nДокумент: ${LEGAL.siteUrl}/personal-data-consent\nВерсия: ${LEGAL.policyVersion} от ${LEGAL.effectiveDate}`;
     setMailHref(`mailto:${CONFIG.email}?subject=${encodeURIComponent("Заявка с сайта ДоговорОфф")}&body=${encodeURIComponent(body)}`);
     setSubmitState("sending");
@@ -365,6 +375,10 @@ export default function HomePage() {
       }
 
       setSubmitState("success");
+      if (lead.precheck) {
+        try { track("precheck_submitted"); } catch {}
+      }
+      setPrecheckAttachment(null);
     } catch (error) {
       setSubmitState("error");
       setSubmitError(error instanceof Error ? error.message : "Не удалось отправить обращение. Попробуйте ещё раз.");

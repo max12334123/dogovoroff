@@ -81,7 +81,15 @@ test("contact endpoint normalizes and forwards a bounded lead with server-observ
   });
 
   await withProviderKey(async () => {
-    const response = await POST(makeRequest(VALID_PAYLOAD, { ip: "203.0.113.20" }));
+    const response = await POST(makeRequest({
+      ...VALID_PAYLOAD,
+      precheck: {
+        version: "1",
+        mode: "fallback",
+        practiceId: "litigation",
+        excerpt: "Направление: Арбитраж и суды\nСледующий шаг: проверить документы.",
+      },
+    }, { ip: "203.0.113.20" }));
     assert.equal(response.status, 200);
     assert.deepEqual(await response.json(), { success: true });
   });
@@ -93,7 +101,32 @@ test("contact endpoint normalizes and forwards a bounded lead with server-observ
   assert.match(delivered.body.submission_id, /^[0-9a-f-]{36}$/);
   assert.match(delivered.body.consent_timestamp, /^\d{4}-\d{2}-\d{2}T/);
   assert.match(delivered.body.consent_version, /^1\.5 от 24 августа 2026 года$/);
+  assert.equal(delivered.body.precheck_mode, "fallback");
+  assert.equal(delivered.body.precheck_practice, "litigation");
+  assert.equal(delivered.body.precheck_excerpt, "Направление: Арбитраж и суды\nСледующий шаг: проверить документы.");
   assert.equal("agree" in delivered.body, false);
+  for (const forbidden of ["answers", "description", "aiConsent", "providerResult", "oidcToken"]) {
+    assert.equal(forbidden in delivered.body, false);
+  }
+});
+
+test("contact endpoint rejects a forged precheck before delivery", async (context) => {
+  const provider = context.mock.method(globalThis, "fetch", async () => {
+    throw new Error("provider must not be called");
+  });
+  const response = await POST(makeRequest({
+    ...VALID_PAYLOAD,
+    precheck: {
+      version: "1",
+      mode: "ai",
+      practiceId: "contracts",
+      excerpt: "x",
+      description: "hidden raw intake",
+    },
+  }, { ip: "203.0.113.21" }));
+
+  assert.equal(response.status, 400);
+  assert.equal(provider.mock.callCount(), 0);
 });
 
 test("contact endpoint enforces a request-size limit and a per-client burst limit", async (context) => {

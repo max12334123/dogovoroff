@@ -2,12 +2,13 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-const [layoutSource, packageSource, privacySource, legalSource, precheckSource] = await Promise.all([
+const [layoutSource, packageSource, privacySource, legalSource, precheckSource, pageSource] = await Promise.all([
   readFile(new URL("../app/layout.js", import.meta.url), "utf8"),
   readFile(new URL("../package.json", import.meta.url), "utf8"),
   readFile(new URL("../app/privacy/page.jsx", import.meta.url), "utf8"),
   readFile(new URL("../app/legal.js", import.meta.url), "utf8"),
   readFile(new URL("../features/precheck/precheck-section.jsx", import.meta.url), "utf8"),
+  readFile(new URL("../app/page.jsx", import.meta.url), "utf8"),
 ]);
 
 test("Vercel Web Analytics is installed once at the application root", () => {
@@ -50,4 +51,6 @@ test("precheck analytics contain only anonymous funnel event names", () => {
     assert.match(precheckSource, new RegExp(`track\\("${event}"\\)`));
   }
   assert.doesNotMatch(precheckSource, /track\([^\n]+,\s*\{/);
+  assert.match(pageSource, /track\("precheck_submitted"\)/);
+  assert.doesNotMatch(pageSource, /track\("precheck_submitted",\s*\{/);
 });

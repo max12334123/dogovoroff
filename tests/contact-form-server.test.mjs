@@ -40,3 +40,42 @@ test("contact validation safely rejects non-object JSON payloads", () => {
     assert.equal(result.errors.name, true);
   }
 });
+
+test("contact validation accepts a bounded confirmed precheck excerpt", () => {
+  const precheck = {
+    version: "1",
+    mode: "ai",
+    practiceId: "contracts",
+    excerpt: "  Проверка договора поставки до подписания.\r\nСледующий шаг: передать проект.  ",
+  };
+  const result = validateContactPayload({ ...validPayload, precheck });
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.lead.precheck, {
+    ...precheck,
+    excerpt: "Проверка договора поставки до подписания.\nСледующий шаг: передать проект.",
+  });
+});
+
+test("contact validation rejects forged or oversized precheck objects", () => {
+  const invalidAttachments = [
+    { version: "2", mode: "ai", practiceId: "contracts", excerpt: "x" },
+    { version: "1", mode: "model", practiceId: "contracts", excerpt: "x" },
+    { version: "1", mode: "ai", practiceId: "fas", excerpt: "x" },
+    { version: "1", mode: "ai", practiceId: "contracts", excerpt: "x".repeat(1_201) },
+    { version: "1", mode: "ai", practiceId: "contracts", excerpt: "x", answers: {} },
+    { version: "1", mode: "ai", practiceId: "contracts", excerpt: "" },
+  ];
+
+  for (const precheck of invalidAttachments) {
+    const result = validateContactPayload({ ...validPayload, precheck });
+    assert.equal(result.ok, false);
+    assert.equal(result.errors.precheck, true);
+  }
+});
+
+test("contact validation keeps a missing or explicit null attachment optional", () => {
+  assert.equal(validateContactPayload(validPayload).ok, true);
+  assert.equal(validateContactPayload({ ...validPayload, precheck: null }).ok, true);
+  assert.equal(validateContactPayload(validPayload).lead.precheck, null);
+});

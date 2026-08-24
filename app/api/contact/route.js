@@ -80,6 +80,13 @@ export async function POST(request) {
 
   const submittedAt = new Date().toISOString();
   const { lead } = validation;
+  const precheckFields = lead.precheck
+    ? {
+      precheck_mode: lead.precheck.mode,
+      precheck_practice: lead.precheck.practiceId,
+      precheck_excerpt: lead.precheck.excerpt,
+    }
+    : {};
 
   try {
     const providerResponse = await fetch(WEB3FORMS_ENDPOINT, {
@@ -102,6 +109,7 @@ export async function POST(request) {
         consent_timestamp: submittedAt,
         consent_document: `${LEGAL.siteUrl}/personal-data-consent`,
         consent_version: `${LEGAL.policyVersion} от ${LEGAL.effectiveDate}`,
+        ...precheckFields,
       }),
       signal: AbortSignal.timeout(10_000),
     });
