@@ -27,13 +27,22 @@ test("AI consent is optional, unselected, and links to both transparency documen
   assert.doesNotMatch(componentSource, /localStorage|sessionStorage|dangerouslySetInnerHTML/);
 });
 
-test("quick form remains default and only estimator starts the precheck flow", () => {
+test("quick form remains default while estimator and header can start the precheck flow", () => {
   assert.match(pageSource, /useState\("quick"\)/);
   assert.match(pageSource, /Быстрая заявка/);
   assert.match(pageSource, /Предварительный разбор/);
   assert.match(pageSource, /Получить точную оценку[\s\S]{0,200}startPrecheck|startPrecheck[\s\S]{0,200}Получить точную оценку/);
+  assert.match(pageSource, /site-header__ai[\s\S]{0,500}onClick=\{startAiPrecheck\}[\s\S]{0,300}AI-разбор/);
+  assert.match(pageSource, /mobile-nav__ai[\s\S]{0,300}onClick=\{startAiPrecheck\}[\s\S]{0,300}AI-разбор/);
   assert.match(pageSource, /Обсудить задачу[\s\S]{0,250}chooseService|chooseService[\s\S]{0,250}Обсудить задачу/);
   assert.match(pageSource, /Обсудить формат[\s\S]{0,250}chooseService|chooseService[\s\S]{0,250}Обсудить формат/);
+});
+
+test("header AI action has dedicated responsive premium styling", () => {
+  assert.match(cssSource, /\.site-header__ai\s*\{[\s\S]{0,800}min-height:\s*40px/);
+  assert.match(cssSource, /\.site-header__ai::before[\s\S]{0,500}transform:\s*scaleX\(0\)/);
+  assert.match(cssSource, /@media \(max-width:\s*740px\)[\s\S]*?\.site-header__ai[\s\S]{0,500}min-height:\s*36px/);
+  assert.match(cssSource, /@media \(max-width:\s*560px\)[\s\S]*?\.site-header__ai-full[\s\S]{0,200}display:\s*none/);
 });
 
 test("precheck styles are scoped and include mobile overflow protection", () => {

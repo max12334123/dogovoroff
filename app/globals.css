@@ -226,6 +226,63 @@ img {
   transform-origin: left center;
 }
 
+.site-header__ai {
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  overflow: hidden;
+  padding: 10px 18px;
+  border: 1px solid var(--white);
+  color: var(--black);
+  background: var(--white);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+  transition: border-color 0.45s var(--ease), opacity 0.3s var(--ease), transform 0.45s var(--ease);
+}
+
+.site-header__ai::before {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background: var(--ice);
+  content: "";
+  transform: scaleX(0);
+  transform-origin: right center;
+  transition: transform 0.5s var(--ease);
+}
+
+.site-header__ai > span {
+  position: relative;
+  z-index: 1;
+}
+
+.site-header__ai:hover {
+  border-color: var(--ice);
+  transform: translateY(-1px);
+}
+
+.site-header__ai:hover::before {
+  transform: scaleX(1);
+  transform-origin: left center;
+}
+
+.site-header__ai.is-menu-open {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-4px);
+}
+
+.site-header__ai-short {
+  display: none;
+}
+
 .menu-trigger {
   display: none;
   min-width: 64px;
@@ -262,6 +319,10 @@ img {
   font-weight: 500;
   letter-spacing: -0.055em;
   line-height: 1;
+}
+
+.mobile-nav__links a.mobile-nav__ai {
+  color: var(--ice);
 }
 
 .mobile-nav__footer {
@@ -2834,7 +2895,21 @@ img {
   }
 
   .site-header__inner {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 12px;
     padding-inline: 16px;
+  }
+
+  .site-header__ai {
+    justify-self: end;
+    min-height: 36px;
+    padding: 8px 12px;
+    font-size: 9.5px;
+    letter-spacing: 0.12em;
+  }
+
+  .menu-trigger {
+    min-width: 54px;
   }
 
   .brand {
@@ -3201,6 +3276,25 @@ img {
     text-transform: uppercase;
   }
 
+}
+
+@media (max-width: 560px) {
+  .site-header__ai {
+    min-width: 42px;
+    padding-inline: 10px;
+  }
+
+  .site-header__ai-full {
+    display: none;
+  }
+
+  .site-header__ai-short {
+    display: inline;
+  }
+
+  .brand__name {
+    font-size: 14px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

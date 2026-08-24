@@ -306,6 +306,19 @@ export default function HomePage() {
     document.querySelector("#lead-form")?.scrollIntoView({ behavior: "smooth" });
   };
 
+  const startAiPrecheck = (event) => {
+    event.preventDefault();
+    menuRestoreFocusRef.current = false;
+    setMenuOpen(false);
+    setPrecheckInitialPractice("");
+    setPrecheckSession((current) => current + 1);
+    setPrecheckOpened(true);
+    setRequestMode("precheck");
+    window.requestAnimationFrame(() => {
+      document.querySelector("#lead-form")?.scrollIntoView({ behavior: "smooth" });
+    });
+  };
+
   const usePrecheckSummary = (attachment) => {
     const practice = PRECHECK_PRACTICES.find(({ id }) => id === attachment.practiceId);
     if (!practice) return;
@@ -411,6 +424,17 @@ export default function HomePage() {
             <a href="#team">Команда</a>
             <a href="#request">Контакты</a>
           </nav>
+          <a
+            className={`site-header__ai${menuOpen ? " is-menu-open" : ""}`}
+            href="#lead-form"
+            aria-label="Начать AI-разбор ситуации"
+            aria-hidden={menuOpen ? true : undefined}
+            tabIndex={menuOpen ? -1 : undefined}
+            onClick={startAiPrecheck}
+          >
+            <span className="site-header__ai-full">AI-разбор</span>
+            <span className="site-header__ai-short" aria-hidden="true">AI</span>
+          </a>
           <button
             ref={menuTriggerRef}
             className="menu-trigger"
@@ -441,6 +465,7 @@ export default function HomePage() {
             transition={{ duration: 0.35, ease: EASE }}
           >
             <nav className="mobile-nav__links" aria-label="Мобильная навигация">
+              <a className="mobile-nav__ai" href="#lead-form" onClick={startAiPrecheck}>AI-разбор</a>
               <a href="#practices" onClick={closeMenuAfterNavigation}>Практики</a>
               <a href="#approach" onClick={closeMenuAfterNavigation}>Подход</a>
               <a href="#formats" onClick={closeMenuAfterNavigation}>Форматы работы</a>
