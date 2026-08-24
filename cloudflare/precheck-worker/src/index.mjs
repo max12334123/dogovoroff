@@ -173,7 +173,7 @@ function getToolCalls(output) {
 function parseProviderResult(output) {
   const calls = getToolCalls(output);
   if (!Array.isArray(calls) || calls.length !== 1) return null;
-  const toolFunction = calls[0]?.function;
+  const toolFunction = calls[0]?.function || calls[0];
   if (toolFunction?.name !== "build_precheck_card") return null;
 
   let value = toolFunction.arguments;

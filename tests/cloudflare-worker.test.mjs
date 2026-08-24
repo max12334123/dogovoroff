@@ -95,15 +95,9 @@ test("worker forces exactly one build_precheck_card function call", async () => 
         aiCalls += 1;
         captured = { model, input };
         return {
-          choices: [{
-            message: {
-              tool_calls: [{
-                function: {
-                  name: "build_precheck_card",
-                  arguments: JSON.stringify(PROVIDER_CARD),
-                },
-              }],
-            },
+          tool_calls: [{
+            name: "build_precheck_card",
+            arguments: PROVIDER_CARD,
           }],
         };
       },
@@ -116,6 +110,9 @@ test("worker forces exactly one build_precheck_card function call", async () => 
   assert.equal(aiCalls, 1);
   assert.equal(captured.model, "@cf/zai-org/glm-4.7-flash");
   assert.equal(captured.input.tool_choice.function.name, "build_precheck_card");
+  assert.equal(captured.input.tools.length, 1);
+  assert.equal(captured.input.tools[0].function.name, "build_precheck_card");
+  assert.equal(captured.input.tools[0].type, "function");
   assert.equal(captured.input.temperature, 0);
   assert.equal(captured.input.max_completion_tokens, 700);
   assert.equal(captured.input.store, false);
