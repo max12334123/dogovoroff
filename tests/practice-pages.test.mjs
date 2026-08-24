@@ -28,14 +28,15 @@ test("the original practice navigation and accordion are preserved", () => {
   assert.doesNotMatch(homeSource, /practice-row__(?:actions|detail-link)|practice-directory-link|openPracticeFromHash/);
 });
 
-test("all original practice information remains unchanged", () => {
+test("approved practice catalog remains on the home page", () => {
   assert.equal(PRACTICES.length, 5);
   assert.deepEqual(PRACTICES.map(({ number }) => number), ["01", "02", "03", "04", "05"]);
-  assert.ok(PRACTICES.every((practice) => practice.details.length === 4));
+  assert.deepEqual(PRACTICES.map(({ details }) => details.length), [4, 3, 4, 4, 4]);
   assert.ok(PRACTICES.every((practice) => !("slug" in practice)));
 
   const publishedCopy = JSON.stringify(PRACTICES);
   assert.doesNotMatch(publishedCopy, /\bФАС\b/i);
   assert.doesNotMatch(publishedCopy, /жалоб[^.]{0,80}закуп/i);
   assert.doesNotMatch(publishedCopy, /спор[^.]{0,80}закуп/i);
+  assert.doesNotMatch(publishedCopy, /кадров/iu);
 });

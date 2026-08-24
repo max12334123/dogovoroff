@@ -8,6 +8,7 @@ const [contentSource, siteSource, layoutSource, openGraphSource] = await Promise
   readFile(new URL("../app/layout.js", import.meta.url), "utf8"),
   readFile(new URL("../app/opengraph-image.jsx", import.meta.url), "utf8"),
 ]);
+const precheckSource = await readFile(new URL("../features/precheck/config.mjs", import.meta.url), "utf8");
 
 const publishedServiceSource = [contentSource, siteSource, layoutSource, openGraphSource].join("\n");
 
@@ -15,6 +16,14 @@ test("published service copy contains no FAS or procurement-dispute offering", (
   assert.doesNotMatch(publishedServiceSource, /ФАС|\bFAS\b/iu);
   assert.doesNotMatch(publishedServiceSource, /спор\S*\s+(?:в|по)\s+закуп/iu);
   assert.doesNotMatch(publishedServiceSource, /жалоб\S*\s+.*закуп|жалоб\S*\s+.*заказчик/iu);
+});
+
+test("published service copy and guided intake contain no staffing support offering", () => {
+  const serviceAndIntakeSource = `${publishedServiceSource}\n${precheckSource}`;
+
+  assert.doesNotMatch(serviceAndIntakeSource, /кадров/iu);
+  assert.doesNotMatch(serviceAndIntakeSource, /трудов(?:ой|ые|ая|ое|ого|ому|ым|ом)/iu);
+  assert.doesNotMatch(serviceAndIntakeSource, /\["employees",\s*"Сотрудники"\]/u);
 });
 
 test("tender support and every unrelated practice remain published", () => {

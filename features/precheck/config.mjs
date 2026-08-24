@@ -102,7 +102,6 @@ const PRACTICE_DEFINITIONS = [
         label: "Основная тема",
         options: [
           ["contracts", "Договоры"],
-          ["employees", "Сотрудники"],
           ["inspections", "Проверки"],
           ["debt", "Задолженность"],
           ["operations", "Текущая деятельность"],
@@ -285,7 +284,6 @@ const PRACTICE_DEFINITIONS = [
         options: [
           ["consumer", "Защита прав потребителя"],
           ["property", "Имущество или недвижимость"],
-          ["employment", "Трудовой вопрос"],
           ["family", "Семейный вопрос"],
           ["inheritance", "Наследство"],
           ["other", "Другое"],
