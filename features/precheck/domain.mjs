@@ -13,6 +13,13 @@ const MAX_SUMMARY_LENGTH = 600;
 const MAX_ITEM_LENGTH = 300;
 const MAX_LIST_ITEMS = 5;
 const DISCLAIMER = "Предварительная автоматизированная систематизация, не юридическое заключение.";
+const PROVIDER_SAFETY_PATTERNS = Object.freeze([
+  /шанс(?:ы|ов)?\s+(?:на\s+)?(?:побед|выигрыш)|вероятност\w*\s+(?:побед|успех|выигрыш)|гарантир(?:уем|ую|ует|ованн)|точно\s+(?:побед|выигра)/iu,
+  /(?:стоимость|цена)\s+(?:юридическ\w+\s+)?услуг|\d[\d\s]*(?:₽|руб(?:\.|ля|лей)?)/iu,
+  /(?:статья|ст\.)\s*\d|(?:ГК|АПК|ГПК|КоАП|ЖК|ТК)\s*РФ|дело\s*№/iu,
+  /(?:^|[^\p{L}])ФАС(?:[^\p{L}]|$)|антимонопольн|жалоб\w*[^.]{0,40}закуп|обжалован\w*[^.]{0,40}закуп/iu,
+  /\d/u,
+]);
 
 function isPlainRecord(value) {
   return Boolean(
@@ -237,6 +244,20 @@ export function validateProviderResult(value) {
   const nextStep = validatePlainString(value.nextStep, MAX_ITEM_LENGTH);
 
   if (!summary || !missingInformation || !suggestedDocuments || !lawyerQuestions || !nextStep) {
+    return fail("Ответ провайдера не прошёл проверку.");
+  }
+
+  const generatedText = [
+    summary,
+    ...missingInformation,
+    ...suggestedDocuments,
+    ...lawyerQuestions,
+    nextStep,
+  ].join("\n");
+  if (PROVIDER_SAFETY_PATTERNS.some((pattern) => pattern.test(generatedText))) {
+    return fail("Ответ провайдера не прошёл проверку.");
+  }
+  if (!/юрист\p{L}*/iu.test(nextStep)) {
     return fail("Ответ провайдера не прошёл проверку.");
   }
 

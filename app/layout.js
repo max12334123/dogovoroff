@@ -98,7 +98,7 @@ const structuredData = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="ru" className={`${manrope.variable} ${cormorant.variable}`}>
+    <html lang="ru" data-scroll-behavior="smooth" className={`${manrope.variable} ${cormorant.variable}`}>
       <body>
         <script
           type="application/ld+json"

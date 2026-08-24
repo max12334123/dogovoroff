@@ -2,12 +2,13 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-const [pageSource, cssSource, effectsSource, legalDocumentSource, precheckSource] = await Promise.all([
+const [pageSource, cssSource, effectsSource, legalDocumentSource, precheckSource, layoutSource] = await Promise.all([
   readFile(new URL("../app/page.jsx", import.meta.url), "utf8"),
   readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
   readFile(new URL("../app/effects.jsx", import.meta.url), "utf8"),
   readFile(new URL("../app/legal-document.jsx", import.meta.url), "utf8"),
   readFile(new URL("../features/precheck/precheck-section.jsx", import.meta.url), "utf8"),
+  readFile(new URL("../app/layout.js", import.meta.url), "utf8"),
 ]);
 
 test("required lead fields expose their requirement before validation", () => {
@@ -31,6 +32,7 @@ test("skip links preserve native focus movement while animated anchors update hi
   assert.match(effectsSource, /link\.matches\("\.skip-link"\)/);
   assert.match(effectsSource, /target\.focus\(\{ preventScroll: true \}\)/);
   assert.match(effectsSource, /window\.history\.pushState\(null, "", id\)/);
+  assert.match(layoutSource, /<html lang="ru" data-scroll-behavior="smooth"/);
 });
 
 test("lead form is inert before hydration and announces successful delivery", () => {

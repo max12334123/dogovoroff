@@ -2519,7 +2519,9 @@ img {
   }
 
   .legal-hero h1 {
-    font-size: clamp(42px, 15vw, 66px);
+    font-size: clamp(40px, 12vw, 54px);
+    overflow-wrap: anywhere;
+    hyphens: auto;
   }
 
   .legal-toc nav,

@@ -41,3 +41,12 @@ test("precheck controls remain single-column and wrappable at narrow phone width
   assert.match(optionStyles, /min-width:\s*0/);
   assert.match(actionStyles, /flex-wrap:\s*wrap/);
 });
+
+test("long legal headings stay within narrow iOS viewports", () => {
+  const phoneStyles = extractCssBlock(stylesSource, "@media (max-width: 560px)");
+  const headingStyles = extractCssBlock(phoneStyles, ".legal-hero h1");
+
+  assert.match(headingStyles, /font-size:\s*clamp\(40px,\s*12vw,\s*54px\)/);
+  assert.match(headingStyles, /overflow-wrap:\s*anywhere/);
+  assert.match(headingStyles, /hyphens:\s*auto/);
+});
