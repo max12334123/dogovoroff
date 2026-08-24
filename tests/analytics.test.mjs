@@ -2,11 +2,12 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-const [layoutSource, packageSource, privacySource, legalSource] = await Promise.all([
+const [layoutSource, packageSource, privacySource, legalSource, precheckSource] = await Promise.all([
   readFile(new URL("../app/layout.js", import.meta.url), "utf8"),
   readFile(new URL("../package.json", import.meta.url), "utf8"),
   readFile(new URL("../app/privacy/page.jsx", import.meta.url), "utf8"),
   readFile(new URL("../app/legal.js", import.meta.url), "utf8"),
+  readFile(new URL("../features/precheck/precheck-section.jsx", import.meta.url), "utf8"),
 ]);
 
 test("Vercel Web Analytics is installed once at the application root", () => {
@@ -36,4 +37,17 @@ test("privacy policy transparently describes analytics without marketing trackin
   assert.doesNotMatch(privacySource, /сайт не использует[^.]*аналитик/i);
   assert.match(legalSource, /policyVersion: "1\.5"/);
   assert.match(legalSource, /effectiveDate: "24 августа 2026 года"/);
+});
+
+test("precheck analytics contain only anonymous funnel event names", () => {
+  assert.match(precheckSource, /import \{ track \} from "@vercel\/analytics"/);
+  for (const event of [
+    "precheck_started",
+    "precheck_practice_selected",
+    "precheck_completed",
+    "precheck_fallback",
+  ]) {
+    assert.match(precheckSource, new RegExp(`track\\("${event}"\\)`));
+  }
+  assert.doesNotMatch(precheckSource, /track\([^\n]+,\s*\{/);
 });

@@ -13,6 +13,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { getNextTabIndex } from "../lib/a11y-utils.mjs";
 import { normalizeContactPayload } from "../lib/contact-form.mjs";
 import { maskPhone, validateLead } from "../lib/form-utils.mjs";
+import PrecheckSection from "../features/precheck/precheck-section";
+import { PRECHECK_PRACTICES, practiceIdFromService } from "../features/precheck/config.mjs";
 import { APPROACH, CLIENTS, CONFIG, FAQ, PLANS, PRACTICES, STATS, STEPS, TEAM } from "./content";
 import { LEGAL } from "./legal";
 import NorthernMotion from "./northern-motion";
@@ -130,6 +132,11 @@ export default function HomePage() {
   const [openFaq, setOpenFaq] = useState(0);
   const [formVisible, setFormVisible] = useState(false);
   const [heroActionVisible, setHeroActionVisible] = useState(true);
+  const [requestMode, setRequestMode] = useState("quick");
+  const [precheckOpened, setPrecheckOpened] = useState(false);
+  const [precheckInitialPractice, setPrecheckInitialPractice] = useState("");
+  const [precheckSession, setPrecheckSession] = useState(0);
+  const [precheckAttachment, setPrecheckAttachment] = useState(null);
   const [form, setForm] = useState({ name: "", phone: "", service: "", message: "", website: "", agree: false });
   const [errors, setErrors] = useState({});
   const [submitState, setSubmitState] = useState("idle");
@@ -145,6 +152,7 @@ export default function HomePage() {
   const serviceFieldRef = useRef(null);
   const consentFieldRef = useRef(null);
   const successRef = useRef(null);
+  const quickFormHeadingRef = useRef(null);
   const requestRef = useRef(null);
   const heroActionRef = useRef(null);
   const { scrollYProgress } = useScroll();
@@ -264,8 +272,58 @@ export default function HomePage() {
   };
 
   const chooseService = (service) => {
+    setRequestMode("quick");
     updateForm("service", service);
     document.querySelector("#lead-form")?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const focusQuickForm = () => {
+    setRequestMode("quick");
+    window.requestAnimationFrame(() => quickFormHeadingRef.current?.focus());
+  };
+
+  const openPrecheck = (practiceId = practiceIdFromService(form.service)) => {
+    setPrecheckInitialPractice(practiceId);
+    setPrecheckOpened(true);
+    setRequestMode("precheck");
+  };
+
+  const startPrecheck = (service) => {
+    setPrecheckInitialPractice(practiceIdFromService(service));
+    setPrecheckSession((current) => current + 1);
+    setPrecheckOpened(true);
+    setRequestMode("precheck");
+    document.querySelector("#lead-form")?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const usePrecheckSummary = (attachment) => {
+    const practice = PRECHECK_PRACTICES.find(({ id }) => id === attachment.practiceId);
+    if (!practice) return;
+    const block = `Предварительный разбор:\n${attachment.excerpt}`;
+    setPrecheckAttachment(attachment);
+    setForm((current) => {
+      const availableForExisting = Math.max(0, 2_000 - block.length - 2);
+      const existing = current.message.trim().slice(0, availableForExisting);
+      return {
+        ...current,
+        service: practice.service,
+        message: existing ? `${existing}\n\n${block}` : block,
+      };
+    });
+    setErrors((current) => ({ ...current, service: false }));
+    focusQuickForm();
+  };
+
+  const removePrecheckSummary = () => {
+    const marker = "Предварительный разбор:\n";
+    setForm((current) => {
+      const markerIndex = current.message.indexOf(marker);
+      return {
+        ...current,
+        message: markerIndex === -1 ? current.message : current.message.slice(0, markerIndex).trim(),
+      };
+    });
+    setPrecheckAttachment(null);
   };
 
   const submitLead = async (event) => {
@@ -315,6 +373,7 @@ export default function HomePage() {
 
   const resetForm = () => {
     setForm({ name: "", phone: "", service: "", message: "", website: "", agree: false });
+    setPrecheckAttachment(null);
     setErrors({});
     setSubmitError("");
     setMailHref("");
@@ -522,7 +581,7 @@ export default function HomePage() {
                   <h3>{selectedPractice.title}</h3>
                   <p>{selectedPractice.description}</p>
                   <div className="estimator__price"><span>Ориентир</span><strong>{selectedPractice.price}</strong></div>
-                  <MagneticAction onClick={() => chooseService(selectedPractice.service)} className="action--light" type="button">Получить точную оценку</MagneticAction>
+                  <MagneticAction onClick={() => startPrecheck(selectedPractice.service)} className="action--light" type="button">Получить точную оценку</MagneticAction>
                 </motion.div>
               </AnimatePresence>
             </div>
@@ -613,10 +672,16 @@ export default function HomePage() {
           </div>
 
           <div className="request__form-wrap" id="lead-form">
-            <AnimatePresence mode="wait" initial={false}>
+            <div className="request-mode" role="tablist" aria-label="Способ обращения">
+              <button id="request-mode-quick" type="button" role="tab" aria-selected={requestMode === "quick"} aria-controls="request-panel-quick" className={requestMode === "quick" ? "is-active" : ""} onClick={focusQuickForm}>Быстрая заявка</button>
+              <button id="request-mode-precheck" type="button" role="tab" aria-selected={requestMode === "precheck"} aria-controls="request-panel-precheck" className={requestMode === "precheck" ? "is-active" : ""} onClick={() => openPrecheck()}>Предварительный разбор</button>
+            </div>
+            <div id="request-panel-quick" role="tabpanel" aria-labelledby="request-mode-quick" hidden={requestMode !== "quick"}>
+              <AnimatePresence mode="wait" initial={false}>
               {submitState !== "success" ? (
                 <motion.form key="form" className="lead-form" onSubmit={submitLead} noValidate initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -12 }}>
-                  <div className="lead-form__heading"><span>Первичная консультация</span><strong>Бесплатно</strong></div>
+                  <div ref={quickFormHeadingRef} className="lead-form__heading" tabIndex={-1}><span>Первичная консультация</span><strong>Бесплатно</strong></div>
+                  {precheckAttachment ? <div className="precheck-attachment"><span>Карта ситуации добавлена к заявке</span><button type="button" onClick={removePrecheckSummary}>Удалить</button></div> : null}
                   <div className="lead-form__honeypot" aria-hidden="true"><label htmlFor="lead-website">Ваш сайт</label><input id="lead-website" value={form.website} onChange={(event) => updateForm("website", event.target.value)} autoComplete="off" tabIndex={-1} maxLength={200} /></div>
                   <div className="field"><label htmlFor="lead-name">Ваше имя</label><input ref={nameFieldRef} id="lead-name" value={form.name} onChange={(event) => updateForm("name", event.target.value)} aria-invalid={Boolean(errors.name)} aria-describedby={errors.name ? "lead-name-error" : undefined} aria-required="true" required autoComplete="name" placeholder="Как к вам обращаться" maxLength={80} />{errors.name && <span id="lead-name-error" className="field__error" role="alert">Укажите имя</span>}</div>
                   <div className="field"><label htmlFor="lead-phone">Телефон</label><input ref={phoneFieldRef} id="lead-phone" value={form.phone} onChange={(event) => updateForm("phone", event.target.value ? maskPhone(event.target.value) : "")} aria-invalid={Boolean(errors.phone)} aria-describedby={errors.phone ? "lead-phone-error" : undefined} aria-required="true" required autoComplete="tel" inputMode="tel" placeholder="+7 (___) ___-__-__" maxLength={32} />{errors.phone && <span id="lead-phone-error" className="field__error" role="alert">Введите номер полностью</span>}</div>
@@ -638,7 +703,18 @@ export default function HomePage() {
                   <button className="text-link lead-success__action" type="button" onClick={resetForm}>Отправить ещё одно обращение</button>
                 </motion.div>
               )}
-            </AnimatePresence>
+              </AnimatePresence>
+            </div>
+            {precheckOpened ? (
+              <div id="request-panel-precheck" role="tabpanel" aria-labelledby="request-mode-precheck" hidden={requestMode !== "precheck"}>
+                <PrecheckSection
+                  key={`${precheckSession}-${precheckInitialPractice}`}
+                  initialPracticeId={precheckInitialPractice}
+                  onUseSummary={usePrecheckSummary}
+                  onChooseQuickForm={focusQuickForm}
+                />
+              </div>
+            ) : <div id="request-panel-precheck" role="tabpanel" aria-labelledby="request-mode-precheck" hidden />}
           </div>
         </section>
           </main>

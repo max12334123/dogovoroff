@@ -31,3 +31,13 @@ test("mobile single-column grids can shrink inside the page shell", () => {
     "Single-column mobile grids need a zero minimum track to avoid horizontal overflow",
   );
 });
+
+test("precheck controls remain single-column and wrappable at narrow phone widths", () => {
+  const phoneStyles = extractCssBlock(stylesSource, "@media (max-width: 560px)");
+  const optionStyles = extractCssBlock(phoneStyles, ".precheck__options");
+  const actionStyles = extractCssBlock(phoneStyles, ".precheck__actions");
+
+  assert.match(optionStyles, /grid-template-columns:\s*minmax\(0,\s*1fr\)/);
+  assert.match(optionStyles, /min-width:\s*0/);
+  assert.match(actionStyles, /flex-wrap:\s*wrap/);
+});
