@@ -1,8 +1,8 @@
 # Dogovoroff preliminary-intake Worker
 
-Cloudflare account: `68d68e7951768d781652b953ae0b9345`  
-Worker name: `dogovoroff-precheck-ai`  
-Health endpoint: `GET /health`  
+Cloudflare account: `68d68e7951768d781652b953ae0b9345`
+Worker name: `dogovoroff-precheck-ai`
+Health endpoint: `GET /health`
 Protected endpoint: `POST /v1/precheck`
 
 The Worker uses the native Workers AI binding and does not require a permanent API key in Vercel. Its expected public address is `https://dogovoroff-precheck-ai.<account-subdomain>.workers.dev`; the account subdomain is intentionally not created by source changes.

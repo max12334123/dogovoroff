@@ -777,4 +777,3 @@ After approval, the controlled deployment sequence is:
 6. Add `AI_PRECHECK_WORKER_URL` and `AI_PRECHECK_ENABLED=true` to a Vercel preview environment and deploy a preview.
 7. Verify desktop, 390 × 844, 375 × 812, keyboard, reduced motion, AI, consent-declined fallback, provider-error fallback, and contact delivery.
 8. Ask again before promoting the verified commit and enabled flag to production.
-
