@@ -19,6 +19,8 @@ The request is authenticated before its content type, size, or body is read. The
 
 The Worker requests one structured `build_precheck_card` function call with no external tools. The same-origin Next.js route then treats the entire model response as untrusted: it rejects unknown fields, HTML, digits, automated prices, outcome probabilities or guarantees, legal citations, FAS scenarios, and any next step that does not explicitly require a lawyer's review. Rejection always produces the deterministic fallback card.
 
+The minimized intake protocol accepts version `1` for the legacy questionnaire and version `2` for the compact two-screen flow. Version `2` intentionally sends an empty answer map plus the masked situation description; dates and contact details are not forwarded to the model.
+
 The repository contains 12 anonymized quality scenarios, two for every supported practice. They exercise the deterministic fallback, provider validation, trusted-field merge, unknown-fact checks, and human-review wording without calling an external model.
 
 ## Deployment boundary

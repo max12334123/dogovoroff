@@ -17,6 +17,13 @@ const NORMALIZED_INPUT = {
   description: "Паспорт 4510 123456 не должен уйти модели.",
   aiConsent: true,
 };
+const COMPACT_NORMALIZED_INPUT = {
+  version: "2",
+  practiceId: "contracts",
+  answers: { deadline: "" },
+  description: "Нужно проверить проект договора перед подписанием.",
+  aiConsent: true,
+};
 const PROVIDER_CARD = {
   summary: "Требуется проверить условия договора до подписания.",
   missingInformation: ["Срок поставки"],
@@ -55,6 +62,24 @@ test("provider adapter forwards only minimized masked data and validates the res
   assert.doesNotMatch(JSON.stringify(call.body), /test@example\.com|912 345|4510 123456/);
   assert.match(call.body.answers.goal, /\[email скрыт\].*\[телефон скрыт\]/);
   assert.match(call.body.description, /\[номер скрыт\]/);
+  assert.deepEqual(result, PROVIDER_CARD);
+});
+
+test("provider adapter preserves compact protocol version with an empty minimized answer set", async () => {
+  let body;
+  const result = await requestCloudflarePrecheck({
+    workerUrl: "https://dogovoroff-precheck-ai.example.workers.dev",
+    oidcToken: "test-oidc",
+    input: COMPACT_NORMALIZED_INPUT,
+    fetchImpl: async (_url, options) => {
+      body = JSON.parse(options.body);
+      return Response.json({ success: true, result: PROVIDER_CARD });
+    },
+  });
+
+  assert.equal(body.version, "2");
+  assert.deepEqual(body.answers, {});
+  assert.equal(body.description, COMPACT_NORMALIZED_INPUT.description);
   assert.deepEqual(result, PROVIDER_CARD);
 });
 

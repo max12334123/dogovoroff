@@ -26,7 +26,7 @@ function buildMinimizedInput(input) {
   if (!practice) return null;
 
   return {
-    version: "1",
+    version: normalized.value.version,
     practiceId: practice.id,
     practiceLabel: practice.label,
     answers: Object.fromEntries(

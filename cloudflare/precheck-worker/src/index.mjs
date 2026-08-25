@@ -4,6 +4,7 @@ const MAX_BODY_BYTES = 6_144;
 const MAX_ANSWER_COUNT = 12;
 const MAX_ANSWER_LENGTH = 300;
 const MAX_DESCRIPTION_LENGTH = 1_200;
+const MIN_COMPACT_DESCRIPTION_LENGTH = 10;
 const MAX_SUMMARY_LENGTH = 600;
 const MAX_LIST_LENGTH = 5;
 const ALLOWED_PRACTICES = new Set([
@@ -116,7 +117,9 @@ async function readBody(request) {
 
 function normalizeInput(value) {
   if (!isRecord(value) || Object.keys(value).some((key) => !INPUT_KEYS.has(key))) return null;
-  if (value.version !== "1" || !ALLOWED_PRACTICES.has(value.practiceId)) return null;
+  if ((value.version !== "1" && value.version !== "2") || !ALLOWED_PRACTICES.has(value.practiceId)) {
+    return null;
+  }
   if (typeof value.practiceLabel !== "string" || !value.practiceLabel.trim() || value.practiceLabel.length > 120) {
     return null;
   }
@@ -124,19 +127,25 @@ function normalizeInput(value) {
   if (!isRecord(value.answers)) return null;
 
   const entries = Object.entries(value.answers);
-  if (!entries.length || entries.length > MAX_ANSWER_COUNT) return null;
+  const isCompact = value.version === "2";
+  if (entries.length > MAX_ANSWER_COUNT || (!isCompact && !entries.length) || (isCompact && entries.length)) {
+    return null;
+  }
   if (entries.some(([key, answer]) => (
     !/^[a-z][A-Za-z0-9]{0,39}$/u.test(key)
     || typeof answer !== "string"
     || answer.length > MAX_ANSWER_LENGTH
   ))) return null;
 
+  const description = value.description.trim();
+  if (isCompact && description.length < MIN_COMPACT_DESCRIPTION_LENGTH) return null;
+
   return {
-    version: "1",
+    version: value.version,
     practiceId: value.practiceId,
     practiceLabel: value.practiceLabel.trim(),
     answers: Object.fromEntries(entries.map(([key, answer]) => [key, answer.trim()])),
-    description: value.description.trim(),
+    description,
   };
 }
 

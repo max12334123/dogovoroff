@@ -33,6 +33,13 @@ const MINIMIZED_INPUT = {
   },
   description: "Проверить проект без персональных данных.",
 };
+const COMPACT_MINIMIZED_INPUT = {
+  version: "2",
+  practiceId: "contracts",
+  practiceLabel: "Договоры, претензии и переговоры",
+  answers: {},
+  description: "Нужно проверить проект договора перед подписанием.",
+};
 
 function makeRequest(body = MINIMIZED_INPUT, headers = {}) {
   return new Request("https://worker.test/v1/precheck", {
@@ -130,6 +137,30 @@ test("worker forces exactly one build_precheck_card function call", async () => 
       nextStep: "Передать актуальный проект для проверки. Материалы должен проверить юрист.",
     },
   });
+});
+
+test("worker accepts compact input without legacy questionnaire answers", async () => {
+  let capturedInput;
+  const worker = createWorker({ verifyOidc: async () => ({ environment: "production" }) });
+  const response = await worker.fetch(makeRequest(COMPACT_MINIMIZED_INPUT), {
+    ...TEST_ENV,
+    AI: {
+      run: async (_model, input) => {
+        capturedInput = input;
+        return {
+          tool_calls: [{
+            name: "build_precheck_card",
+            arguments: PROVIDER_CARD,
+          }],
+        };
+      },
+    },
+  });
+
+  assert.equal(response.status, 200);
+  assert.match(capturedInput.messages[1].content, /\"version\":\"2\"/);
+  assert.match(capturedInput.messages[1].content, /\"answers\":\{\}/);
+  assert.deepEqual(await response.json(), { success: true, result: PROVIDER_CARD });
 });
 
 test("worker accepts the tagged function arguments returned by Workers AI", async () => {
