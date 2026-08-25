@@ -109,7 +109,11 @@ function isValidRecord_(record) {
 
 function isValidSignature_(record, signature, secret) {
   if (!/^[a-f0-9]{64}$/.test(String(signature || ""))) return false;
-  var bytes = Utilities.computeHmacSha256Signature(JSON.stringify(record), secret);
+  var bytes = Utilities.computeHmacSha256Signature(
+    JSON.stringify(record),
+    secret,
+    Utilities.Charset.UTF_8
+  );
   var expected = bytes.map(function (value) {
     return (value & 255).toString(16).padStart(2, "0");
   }).join("");

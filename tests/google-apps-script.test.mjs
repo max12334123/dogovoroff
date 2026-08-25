@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHmac } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import vm from "node:vm";
@@ -16,6 +17,13 @@ const context = vm.createContext({
   RegExp,
   isFinite,
   Utilities: {
+    Charset: { UTF_8: "UTF-8" },
+    computeHmacSha256Signature: (value, key, charset) => {
+      const encoding = charset === "UTF-8" ? "utf8" : "latin1";
+      return [...createHmac("sha256", Buffer.from(key, encoding))
+        .update(value, encoding)
+        .digest()];
+    },
     formatDate: () => "24.08.2026 15:15:00",
   },
 });
@@ -54,6 +62,20 @@ test("Apps Script accepts only the expected bounded record shape", () => {
   assert.equal(context.isValidRecord_({ ...record, message: "x".repeat(2_001) }), false);
   assert.equal(context.isValidRecord_({ ...record, unexpected: "value" }), false);
   assert.equal(context.isValidRecord_({ ...record, status: "Подменена" }), false);
+});
+
+test("Apps Script verifies server signatures for Cyrillic records with UTF-8", () => {
+  const record = {
+    name: "Анна",
+    service: "Арбитраж и суды",
+    message: "Нужна консультация",
+  };
+  const secret = "g".repeat(48);
+  const signature = createHmac("sha256", secret)
+    .update(JSON.stringify(record), "utf8")
+    .digest("hex");
+
+  assert.equal(context.isValidSignature_(record, signature, secret), true);
 });
 
 test("Apps Script writes all 17 spreadsheet columns in the configured order", () => {
