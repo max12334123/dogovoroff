@@ -207,6 +207,61 @@ test("optional integration failures do not turn a delivered application into a c
   assert.deepEqual(Object.keys(warning[1]).sort(), ["channels", "submissionId"]);
 });
 
+test("a successful direct integration delivers the application when Web3Forms fails", async (context) => {
+  context.mock.method(console, "warn", () => {});
+  const calls = [];
+  context.mock.method(globalThis, "fetch", async (url) => {
+    const requestUrl = String(url);
+    calls.push(requestUrl);
+    if (requestUrl === "https://api.web3forms.com/submit") {
+      return Response.json({ success: false }, { status: 502 });
+    }
+    if (requestUrl.includes("script.google.com/macros/s/")) {
+      return Response.json({ ok: true });
+    }
+    return Response.json({ ok: false }, { status: 503 });
+  });
+
+  await withProviderKey(() => withEnvironment({
+    GOOGLE_SHEETS_WEBHOOK_URL: "https://script.google.com/macros/s/example/exec",
+    GOOGLE_SHEETS_WEBHOOK_SECRET: "g".repeat(48),
+    TELEGRAM_BOT_TOKEN: "123456789:ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijk",
+    TELEGRAM_CHAT_ID: "-1001234567890",
+  }, async () => {
+    const response = await POST(makeRequest(VALID_PAYLOAD, { ip: "203.0.113.24" }));
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { success: true });
+  }));
+
+  assert.equal(calls.some((url) => url.includes("script.google.com/macros/s/")), true);
+  assert.equal(calls.some((url) => url.includes("api.telegram.org/bot")), true);
+});
+
+test("configured direct integrations work without a Web3Forms key", async (context) => {
+  const calls = [];
+  context.mock.method(globalThis, "fetch", async (url) => {
+    calls.push(String(url));
+    return Response.json({ ok: true });
+  });
+
+  await withEnvironment({
+    WEB3FORMS_ACCESS_KEY: "",
+    NEXT_PUBLIC_WEB3FORMS_ACCESS_KEY: "",
+    GOOGLE_SHEETS_WEBHOOK_URL: "https://script.google.com/macros/s/example/exec",
+    GOOGLE_SHEETS_WEBHOOK_SECRET: "g".repeat(48),
+    TELEGRAM_BOT_TOKEN: "123456789:ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijk",
+    TELEGRAM_CHAT_ID: "-1001234567890",
+  }, async () => {
+    const response = await POST(makeRequest(VALID_PAYLOAD, { ip: "203.0.113.25" }));
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { success: true });
+  });
+
+  assert.equal(calls.some((url) => url === "https://api.web3forms.com/submit"), false);
+  assert.equal(calls.some((url) => url.includes("script.google.com/macros/s/")), true);
+  assert.equal(calls.some((url) => url.includes("api.telegram.org/bot")), true);
+});
+
 test("contact endpoint enforces a request-size limit and a per-client burst limit", async (context) => {
   context.mock.method(globalThis, "fetch", async () => Response.json({ success: true }));
 

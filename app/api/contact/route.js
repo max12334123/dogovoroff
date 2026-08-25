@@ -78,9 +78,6 @@ export async function POST(request) {
     process.env.NEXT_PUBLIC_WEB3FORMS_ACCESS_KEY ||
     ""
   ).trim();
-  if (!accessKey) {
-    return jsonResponse({ success: false, error: "Автоматическая отправка временно недоступна." }, 503);
-  }
 
   const submittedAt = new Date().toISOString();
   const { lead } = validation;
@@ -92,8 +89,16 @@ export async function POST(request) {
     }
     : {};
 
-  try {
-    const providerResponse = await fetch(WEB3FORMS_ENDPOINT, {
+  const record = createContactRecord({
+    submissionId,
+    submittedAt,
+    lead,
+    consentDocument: `${LEGAL.siteUrl}/personal-data-consent`,
+    consentVersion: `${LEGAL.policyVersion} от ${LEGAL.effectiveDate}`,
+  });
+
+  const web3FormsDelivery = accessKey
+    ? fetch(WEB3FORMS_ENDPOINT, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -116,39 +121,60 @@ export async function POST(request) {
         ...precheckFields,
       }),
       signal: AbortSignal.timeout(10_000),
-    });
-    const providerResult = await providerResponse.json().catch(() => ({}));
+    })
+      .then(async (response) => {
+        const result = await response.json().catch(() => ({}));
+        return {
+          attempted: true,
+          ok: response.ok && result.success === true,
+          status: response.status,
+        };
+      })
+      .catch(() => ({ attempted: true, ok: false, status: null }))
+    : Promise.resolve({ attempted: false, ok: false, status: null });
 
-    if (!providerResponse.ok || providerResult.success !== true) {
-      const status = providerResponse.status === 429 ? 429 : 502;
-      return jsonResponse(
-        { success: false, error: status === 429 ? "Слишком много попыток. Повторите позже." : "Сервис доставки временно недоступен." },
-        status,
-      );
-    }
+  const directIntegrationsDelivery = deliverContactIntegrations(record)
+    .then((result) => ({ result, unexpectedFailure: false }))
+    .catch(() => ({
+      result: {
+        googleSheets: { attempted: false, ok: false },
+        telegram: { attempted: false, ok: false },
+      },
+      unexpectedFailure: true,
+    }));
 
-    const record = createContactRecord({
-      submissionId,
-      submittedAt,
-      lead,
-      consentDocument: `${LEGAL.siteUrl}/personal-data-consent`,
-      consentVersion: `${LEGAL.policyVersion} от ${LEGAL.effectiveDate}`,
-    });
+  const [web3Forms, directIntegrations] = await Promise.all([
+    web3FormsDelivery,
+    directIntegrationsDelivery,
+  ]);
+  const deliveryResults = {
+    web3forms: web3Forms,
+    ...directIntegrations.result,
+    ...(directIntegrations.unexpectedFailure
+      ? { unexpected: { attempted: true, ok: false } }
+      : {}),
+  };
+  const attemptedDeliveries = Object.entries(deliveryResults)
+    .filter(([, result]) => result.attempted);
+  const failedChannels = attemptedDeliveries
+    .filter(([, result]) => !result.ok)
+    .map(([channel]) => channel);
 
-    try {
-      const integrationResult = await deliverContactIntegrations(record);
-      const failedChannels = Object.entries(integrationResult)
-        .filter(([, result]) => result.attempted && !result.ok)
-        .map(([channel]) => channel);
-      if (failedChannels.length > 0) {
-        console.warn("Contact integrations failed.", { submissionId, channels: failedChannels });
-      }
-    } catch {
-      console.warn("Contact integrations failed.", { submissionId, channels: ["unexpected"] });
-    }
-
-    return jsonResponse({ success: true }, 200);
-  } catch {
-    return jsonResponse({ success: false, error: "Сервис доставки временно недоступен." }, 502);
+  if (failedChannels.length > 0) {
+    console.warn("Contact integrations failed.", { submissionId, channels: failedChannels });
   }
+
+  if (attemptedDeliveries.some(([, result]) => result.ok)) {
+    return jsonResponse({ success: true }, 200);
+  }
+
+  if (attemptedDeliveries.length === 0) {
+    return jsonResponse({ success: false, error: "Автоматическая отправка временно недоступна." }, 503);
+  }
+
+  const status = web3Forms.status === 429 ? 429 : 502;
+  return jsonResponse(
+    { success: false, error: status === 429 ? "Слишком много попыток. Повторите позже." : "Сервис доставки временно недоступен." },
+    status,
+  );
 }
