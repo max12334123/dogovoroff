@@ -149,16 +149,17 @@ test("precheck endpoint merges one valid provider result with trusted fields", a
 
     assert.equal(response.status, 200);
     assert.equal(body.mode, "ai");
-    assert.equal(body.result.summary, PROVIDER_CARD.summary);
     assert.equal(body.result.practice, "Договоры, претензии и переговоры");
-    assert.equal(body.result.urgency.level, "medium");
-    assert.match(body.result.disclaimer, /не юридическое заключение/i);
+    for (const hiddenField of ["summary", "urgency", "missingInformation", "suggestedDocuments", "lawyerQuestions", "nextStep", "disclaimer"]) {
+      assert.equal(hiddenField in body.result, false);
+    }
     assert.equal(call.url, "https://worker.example/v1/precheck");
     assert.equal(call.options.headers.Authorization, "Bearer runtime-oidc-token");
   });
 });
 
 test("precheck endpoint returns an indistinguishable fallback for every provider failure", async (context) => {
+  context.mock.method(console, "warn", () => {});
   const responses = [
     new Response("", { status: 401 }),
     new Response("", { status: 402 }),
@@ -185,4 +186,9 @@ test("precheck endpoint returns an indistinguishable fallback for every provider
     }
   });
   assert.equal(index, responses.length);
+  assert.equal(console.warn.mock.callCount(), responses.length);
+  for (const call of console.warn.mock.calls) {
+    assert.equal(call.arguments[0], "AI precheck provider fallback.");
+    assert.deepEqual(Object.keys(call.arguments[1]).sort(), ["reason", "status"]);
+  }
 });

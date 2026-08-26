@@ -4,9 +4,9 @@ import { track } from "@vercel/analytics";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { maskPhone, validateLead } from "../../lib/form-utils.mjs";
+import { createSubmissionId } from "../../lib/submission-id.mjs";
 import { PRECHECK_PRACTICES, PRECHECK_PRACTICE_IDS } from "./config.mjs";
-import { buildConfirmedExcerpt, normalizePrecheckPayload } from "./domain.mjs";
-import { buildClientFallback } from "./client-state.mjs";
+import { normalizePrecheckPayload } from "./domain.mjs";
 
 const TOTAL_STEPS = 2;
 const MIN_DESCRIPTION_LENGTH = 10;
@@ -15,33 +15,6 @@ const STEP_COPY = [
   "Выберите направление и опишите задачу своими словами. Этого достаточно для предварительной карты.",
   "Оставьте только имя и телефон — разбор сформируется и сразу уйдёт юристу вместе с заявкой.",
 ];
-
-function isUsableCard(value) {
-  return Boolean(
-    value
-    && typeof value === "object"
-    && typeof value.version === "string"
-    && typeof value.practice === "string"
-    && typeof value.summary === "string"
-    && value.urgency
-    && typeof value.urgency.label === "string"
-    && Array.isArray(value.missingInformation)
-    && Array.isArray(value.suggestedDocuments)
-    && Array.isArray(value.lawyerQuestions)
-    && typeof value.nextStep === "string"
-    && typeof value.disclaimer === "string"
-  );
-}
-
-function ResultList({ title, items }) {
-  if (!items.length) return null;
-  return (
-    <div className="precheck-card__list">
-      <h4>{title}</h4>
-      <ul>{items.map((item) => <li key={item}>{item}</li>)}</ul>
-    </div>
-  );
-}
 
 export default function PrecheckSection({
   initialPracticeId = "",
@@ -62,7 +35,6 @@ export default function PrecheckSection({
   const [aiConsent, setAiConsent] = useState(false);
   const [errors, setErrors] = useState({});
   const [status, setStatus] = useState("editing");
-  const [mode, setMode] = useState(null);
   const [result, setResult] = useState(null);
   const [leadSent, setLeadSent] = useState(false);
   const [error, setError] = useState("");
@@ -77,6 +49,7 @@ export default function PrecheckSection({
   const agreeRef = useRef(null);
   const startedRef = useRef(false);
   const submittingRef = useRef(false);
+  const submissionIdRef = useRef("");
   const reduceMotion = useReducedMotion();
   const practice = useMemo(
     () => PRECHECK_PRACTICES.find(({ id }) => id === practiceId) || null,
@@ -95,6 +68,7 @@ export default function PrecheckSection({
   }, [step, status]);
 
   const clearError = (field) => {
+    submissionIdRef.current = "";
     setErrors((current) => ({ ...current, [field]: false }));
     setError("");
     setAnnouncement("");
@@ -161,68 +135,37 @@ export default function PrecheckSection({
     submittingRef.current = true;
     setStatus("submitting");
     setError("");
-    setAnnouncement("Формируем карту и отправляем обращение…");
-    let nextMode = "fallback";
-    let nextResult = null;
-
-    try {
-      const response = await fetch("/api/precheck", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "same-origin",
-        body: JSON.stringify(payload),
-      });
-      const body = await response.json().catch(() => null);
-      if (response.ok && body?.success === true && isUsableCard(body.result)) {
-        nextMode = body.mode === "ai" ? "ai" : "fallback";
-        nextResult = body.result;
-      }
-    } catch {}
-
-    if (!nextResult) nextResult = buildClientFallback(payload);
-    if (!nextResult) {
-      submittingRef.current = false;
-      setStatus("editing");
-      setAnnouncement("");
-      setError("Не удалось сформировать карту. Проверьте данные и попробуйте снова.");
-      return;
-    }
-
-    const excerpt = buildConfirmedExcerpt(nextResult);
+    setAnnouncement("Отправляем обращение юристу…");
     let delivery = {
       success: false,
       error: "Автоматическая отправка пока недоступна. Отправьте подготовленное письмо.",
       mailHref: "",
     };
 
-    if (excerpt && typeof onSubmitLead === "function") {
+    if (typeof onSubmitLead === "function") {
       try {
+        submissionIdRef.current ||= createSubmissionId();
         delivery = await onSubmitLead({
           name,
           phone,
           website,
           agree,
           description,
-          attachment: {
-            version: "1",
-            mode: nextMode,
-            practiceId,
-            excerpt,
-          },
+          submissionId: submissionIdRef.current,
+          precheckInput: payload,
         });
       } catch {}
     }
 
-    setMode(nextMode);
-    setResult(nextResult);
+    setResult({ practice: practice.label });
     setLeadSent(delivery?.success === true);
     setMailHref(typeof delivery?.mailHref === "string" ? delivery.mailHref : "");
     setError(delivery?.success === true ? "" : (delivery?.error || "Не удалось отправить обращение."));
-    setAnnouncement(delivery?.success === true ? "Карта готова. Обращение отправлено." : "Карта готова.");
+    setAnnouncement(delivery?.success === true ? "Обращение отправлено." : "Обращение подготовлено.");
     setStatus("result");
     submittingRef.current = false;
     try { track("precheck_completed"); } catch {}
-    if (nextMode === "fallback") {
+    if (delivery?.mode !== "ai") {
       try { track("precheck_fallback"); } catch {}
     }
   };
@@ -240,13 +183,13 @@ export default function PrecheckSection({
     setAiConsent(false);
     setErrors({});
     setStatus("editing");
-    setMode(null);
     setResult(null);
     setLeadSent(false);
     setError("");
     setAnnouncement("");
     setMailHref("");
     submittingRef.current = false;
+    submissionIdRef.current = "";
   };
 
   const renderSituation = () => (
@@ -439,30 +382,24 @@ export default function PrecheckSection({
   const renderResult = () => (
     <article className="precheck-card">
       <div className="precheck-card__topline">
-        <span>{leadSent ? "Заявка отправлена" : "Карта ситуации"}</span>
-        <strong>{mode === "ai" ? "AI + правила" : "Базовый режим"}</strong>
+        <span>{leadSent ? "Заявка отправлена" : "Отправка не завершена"}</span>
+        <strong>Предварительный разбор</strong>
       </div>
       <div className={`precheck-card__delivery${leadSent ? " is-success" : " is-error"}`}>
         <strong>{leadSent ? "Обращение уже у юриста" : "Автоматическая отправка не завершена"}</strong>
         <p>{leadSent
-          ? "Мы свяжемся с вами по указанному номеру в рабочее время."
+          ? "Описание ситуации и рабочая сводка переданы юристу. Мы свяжемся с вами по указанному номеру в рабочее время."
           : error}</p>
         {!leadSent && mailHref ? <a href={mailHref}>Отправить подготовленное письмо</a> : null}
       </div>
-      {mode === "fallback" ? <p className="precheck-card__mode-note">Карта сформирована без AI по понятным правилам</p> : null}
-      <p className="precheck-card__practice">{result.practice}</p>
-      <h3>{result.summary}</h3>
-      <div className={`precheck-card__urgency precheck-card__urgency--${result.urgency.level}`}>
-        <span>{result.urgency.label}</span>
-        <p>{result.urgency.reason}</p>
+      <div className="precheck-card__client-summary">
+        <span>Направление обращения</span>
+        <h3>{result.practice}</h3>
+        <p>{leadSent
+          ? "Дополнительных действий сейчас не требуется. Юрист проверит вводные и при необходимости уточнит детали лично."
+          : "Предварительная систематизация завершена. Проверьте контакты или отправьте подготовленное письмо."}</p>
       </div>
-      <div className="precheck-card__grid">
-        <ResultList title="Что уточнить" items={result.missingInformation} />
-        <ResultList title="Что подготовить" items={result.suggestedDocuments} />
-        <ResultList title="Вопросы юриста" items={result.lawyerQuestions} />
-      </div>
-      <div className="precheck-card__next"><span>Следующий шаг</span><p>{result.nextStep}</p></div>
-      <p className="precheck-card__disclaimer">{result.disclaimer}</p>
+      <p className="precheck-card__disclaimer">Предварительная систематизация помогает юристу быстрее ознакомиться с задачей и не является юридическим заключением.</p>
       <div className="precheck__actions precheck__actions--result">
         {!leadSent ? <button type="button" className="action action--light" onClick={() => { setStatus("editing"); setStep(1); }}><span>Проверить контакты</span></button> : null}
         <button type="button" className="text-link" onClick={reset}>Отправить ещё одно обращение</button>
@@ -470,9 +407,9 @@ export default function PrecheckSection({
     </article>
   );
 
-  const title = status === "result" ? "Разбор готов" : STEP_TITLES[step];
+  const title = status === "result" ? (leadSent ? "Заявка отправлена" : "Заявка подготовлена") : STEP_TITLES[step];
   const copy = status === "result"
-    ? (leadSent ? "Карта ситуации сформирована, а заявка отправлена одним действием." : "Карта готова. Вы можете проверить контакты или отправить подготовленное письмо.")
+    ? (leadSent ? "Вам больше ничего делать не нужно — юрист свяжется с вами в рабочее время." : "Проверьте контакты или отправьте подготовленное письмо.")
     : STEP_COPY[step];
 
   return (

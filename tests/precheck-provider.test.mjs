@@ -14,7 +14,7 @@ const NORMALIZED_INPUT = {
     signed: "no",
     mainRisk: "liability",
   },
-  description: "Паспорт 4510 123456 не должен уйти модели.",
+  description: "Иван Петров, адрес: г. Москва, ул. Тверская, д. 7. Паспорт 4510 123456.",
   aiConsent: true,
 };
 const COMPACT_NORMALIZED_INPUT = {
@@ -32,7 +32,7 @@ const PROVIDER_CARD = {
   nextStep: "Передать актуальный проект юристу.",
 };
 
-test("provider adapter forwards only minimized masked data and validates the response", async () => {
+test("provider adapter forwards only allowlisted signals and validates the response", async () => {
   let call;
   let calls = 0;
   const result = await requestCloudflarePrecheck({
@@ -59,9 +59,19 @@ test("provider adapter forwards only minimized masked data and validates the res
   ]);
   assert.equal("aiConsent" in call.body, false);
   assert.equal("deadline" in call.body.answers, false);
-  assert.doesNotMatch(JSON.stringify(call.body), /test@example\.com|912 345|4510 123456/);
-  assert.match(call.body.answers.goal, /\[email скрыт\].*\[телефон скрыт\]/);
-  assert.match(call.body.description, /\[номер скрыт\]/);
+  assert.deepEqual(call.body.answers, {
+    applicantType: "organization",
+    stage: "documents",
+    contractTask: "review",
+    signed: "no",
+    mainRisk: "liability",
+  });
+  assert.doesNotMatch(
+    JSON.stringify(call.body),
+    /test@example\.com|912 345|4510 123456|Иван Петров|Тверская|Москва/iu,
+  );
+  assert.match(call.body.description, /Свободный текст обращения не передан модели/);
+  assert.match(call.body.description, /Клиент указал наличие срока/);
   assert.deepEqual(result, PROVIDER_CARD);
 });
 
@@ -79,8 +89,24 @@ test("provider adapter preserves compact protocol version with an empty minimize
 
   assert.equal(body.version, "2");
   assert.deepEqual(body.answers, {});
-  assert.equal(body.description, COMPACT_NORMALIZED_INPUT.description);
+  assert.doesNotMatch(body.description, /проверить проект договора/iu);
+  assert.match(body.description, /Свободный текст обращения не передан модели/);
   assert.deepEqual(result, PROVIDER_CARD);
+});
+
+test("provider diagnostics expose only bounded operational metadata", async () => {
+  const diagnostics = [];
+  const result = await requestCloudflarePrecheck({
+    workerUrl: "https://worker.example",
+    oidcToken: "token",
+    input: NORMALIZED_INPUT,
+    onDiagnostic: (diagnostic) => diagnostics.push(diagnostic),
+    fetchImpl: async () => new Response("", { status: 429 }),
+  });
+
+  assert.equal(result, null);
+  assert.deepEqual(diagnostics, [{ ok: false, reason: "http_error", status: 429 }]);
+  assert.doesNotMatch(JSON.stringify(diagnostics), /Иван|Тверская|договор/iu);
 });
 
 test("provider adapter does not retry unavailable or invalid responses", async () => {

@@ -2123,21 +2123,6 @@ img {
   font-weight: inherit;
 }
 
-.precheck-card__practice {
-  margin-top: 28px;
-  color: var(--ice);
-  font-size: 10px;
-  font-weight: 650;
-  letter-spacing: 0.13em;
-  text-transform: uppercase;
-}
-
-.precheck-card__mode-note {
-  margin-top: 18px;
-  color: #aeb2b3;
-  font-size: 11px;
-}
-
 .precheck-card__delivery {
   margin-top: 24px;
   padding: 16px 18px;
@@ -2173,6 +2158,29 @@ img {
   font-size: 11px;
 }
 
+.precheck-card__client-summary {
+  margin-top: 30px;
+  padding: 26px 0 4px;
+  border-top: 1px solid var(--line-dark);
+  border-bottom: 1px solid var(--line-dark);
+}
+
+.precheck-card__client-summary > span {
+  color: var(--ice);
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.precheck-card__client-summary > p {
+  max-width: 620px;
+  margin: 18px 0 24px;
+  color: #d3d4d2;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
 .precheck-card h3 {
   margin-top: 14px;
   font-family: var(--font-cormorant), Georgia, serif;
@@ -2182,70 +2190,20 @@ img {
   line-height: 1.02;
 }
 
-.precheck-card__urgency {
-  margin-top: 28px;
-  padding: 16px 0;
-  border-top: 1px solid var(--line-dark);
-  border-bottom: 1px solid var(--line-dark);
-}
-
-.precheck-card__urgency span,
-.precheck-card__next span {
-  color: var(--ice);
-  font-size: 9px;
-  font-weight: 650;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-
-.precheck-card__urgency p,
-.precheck-card__next p {
-  margin-top: 6px;
-  color: #d3d4d2;
-  font-size: 12px;
-  line-height: 1.6;
-}
-
-.precheck-card__grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 28px 22px;
-  margin-top: 28px;
-}
-
-.precheck-card__list {
-  min-width: 0;
-}
-
-.precheck-card__list h4 {
-  color: var(--silver);
-  font-size: 9px;
-  font-weight: 650;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-
-.precheck-card__list ul {
-  display: grid;
-  gap: 8px;
-  margin-top: 12px;
-  padding-left: 16px;
-  color: #e4e4e0;
-  font-size: 12px;
-  line-height: 1.55;
-}
-
-.precheck-card__next {
-  margin-top: 30px;
-  padding-top: 20px;
-  border-top: 1px solid var(--line-dark);
-}
-
 .precheck-card__disclaimer {
   margin-top: 22px;
   color: #8d9091;
   font-size: 10px;
   line-height: 1.55;
+}
+
+.precheck__loading {
+  min-height: 220px;
+  padding: 40px 0;
+  color: var(--graphite);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .precheck__actions--result {
@@ -2683,8 +2641,7 @@ img {
   }
 
   .precheck__review dl,
-  .precheck__contact-grid,
-  .precheck-card__grid {
+  .precheck__contact-grid {
     grid-template-columns: minmax(0, 1fr);
   }
 

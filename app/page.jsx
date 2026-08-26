@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import dynamic from "next/dynamic";
 import { track } from "@vercel/analytics";
 import {
   AnimatePresence,
@@ -14,7 +15,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { getNextTabIndex } from "../lib/a11y-utils.mjs";
 import { normalizeContactPayload } from "../lib/contact-form.mjs";
 import { maskPhone, validateLead } from "../lib/form-utils.mjs";
-import PrecheckSection from "../features/precheck/precheck-section";
+import { createSubmissionId } from "../lib/submission-id.mjs";
 import { PRECHECK_PRACTICES, practiceIdFromService } from "../features/precheck/config.mjs";
 import { APPROACH, CLIENTS, CONFIG, FAQ, PLANS, PRACTICES, STATS, STEPS, TEAM } from "./content";
 import { LEGAL } from "./legal";
@@ -23,7 +24,13 @@ import NorthernMotion from "./northern-motion";
 const EASE = [0.22, 1, 0.36, 1];
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
-const PRECHECK_MESSAGE_MARKER = "Предварительный разбор:\n";
+const PrecheckSection = dynamic(
+  () => import("../features/precheck/precheck-section"),
+  {
+    ssr: false,
+    loading: () => <p className="precheck__loading" role="status">Открываем предварительный разбор…</p>,
+  },
+);
 
 function getFocusableElements(container) {
   if (!container) return [];
@@ -156,6 +163,7 @@ export default function HomePage() {
   const quickFormHeadingRef = useRef(null);
   const requestRef = useRef(null);
   const heroActionRef = useRef(null);
+  const quickSubmissionIdRef = useRef("");
   const { scrollYProgress } = useScroll();
   const progress = useSpring(scrollYProgress, { stiffness: 120, damping: 28, mass: 0.35 });
   const selectedPractice = useMemo(() => PRACTICES[activePrice], [activePrice]);
@@ -250,6 +258,7 @@ export default function HomePage() {
   }, []);
 
   const updateForm = (field, value) => {
+    quickSubmissionIdRef.current = "";
     setForm((current) => ({ ...current, [field]: value }));
     setErrors((current) => ({ ...current, [field]: false }));
     if (submitState === "error") {
@@ -312,7 +321,7 @@ export default function HomePage() {
 
 
   const deliverLead = async (lead) => {
-    const body = `Имя: ${lead.name}\nТелефон: ${lead.phone}\nНаправление: ${lead.service}\nЗадача: ${lead.message || "Не указана"}\n\nСогласие на обработку персональных данных: предоставлено\nДокумент: ${LEGAL.siteUrl}/personal-data-consent\nВерсия: ${LEGAL.policyVersion} от ${LEGAL.effectiveDate}`;
+    const body = `ID заявки: ${lead.submissionId || "будет присвоен сервером"}\nИмя: ${lead.name}\nТелефон: ${lead.phone}\nНаправление: ${lead.service}\nЗадача: ${lead.message || "Не указана"}\n\nСогласие на обработку персональных данных: предоставлено\nДокумент: ${LEGAL.siteUrl}/personal-data-consent\nВерсия: ${LEGAL.policyVersion} от ${LEGAL.effectiveDate}`;
     const fallbackMailHref = `mailto:${CONFIG.email}?subject=${encodeURIComponent("Заявка с сайта ДоговорОфф")}&body=${encodeURIComponent(body)}`;
 
     try {
@@ -331,7 +340,7 @@ export default function HomePage() {
         return { success: false, error: message, mailHref: fallbackMailHref };
       }
 
-      return { success: true, error: "", mailHref: fallbackMailHref };
+      return { success: true, error: "", mailHref: fallbackMailHref, mode: result.mode || "none" };
     } catch {
       return {
         success: false,
@@ -341,24 +350,25 @@ export default function HomePage() {
     }
   };
 
-  const submitPrecheckLead = async ({ name, phone, website, agree, description, attachment }) => {
-    const practice = PRECHECK_PRACTICES.find(({ id }) => id === attachment?.practiceId);
+  const submitPrecheckLead = async ({ name, phone, website, agree, description, precheckInput, submissionId }) => {
+    const practice = PRECHECK_PRACTICES.find(({ id }) => id === precheckInput?.practiceId);
     if (!practice) {
       return { success: false, error: "Не удалось определить направление обращения.", mailHref: "" };
     }
 
-    const precheckBlock = `${PRECHECK_MESSAGE_MARKER}${attachment.excerpt}`;
-    const availableForDescription = Math.max(0, 2_000 - precheckBlock.length - 2);
-    const situation = String(description || "").trim().slice(0, availableForDescription);
-    const lead = normalizeContactPayload({
+    const situation = String(description || "").trim().slice(0, 2_000);
+    const lead = {
+      ...normalizeContactPayload({
       name,
       phone,
       service: practice.service,
-      message: situation ? `${situation}\n\n${precheckBlock}` : precheckBlock,
+      message: situation,
       website,
+      submissionId,
       agree,
-      precheck: attachment,
-    });
+      }),
+      precheckInput,
+    };
     const delivery = await deliverLead(lead);
     if (delivery.success) {
       try { track("precheck_submitted"); } catch {}
@@ -382,7 +392,12 @@ export default function HomePage() {
       return;
     }
 
-    const lead = normalizeContactPayload({ ...form, precheck: null });
+    quickSubmissionIdRef.current ||= createSubmissionId();
+    const lead = normalizeContactPayload({
+      ...form,
+      submissionId: quickSubmissionIdRef.current,
+      precheck: null,
+    });
     setSubmitState("sending");
     setSubmitError("");
     const delivery = await deliverLead(lead);
@@ -401,6 +416,7 @@ export default function HomePage() {
     setSubmitError("");
     setMailHref("");
     setSubmitState("idle");
+    quickSubmissionIdRef.current = "";
     window.requestAnimationFrame(() => nameFieldRef.current?.focus());
   };
 

@@ -1,6 +1,5 @@
 import { PRECHECK_PRACTICES } from "./config.mjs";
 import {
-  maskSensitiveText,
   normalizePrecheckPayload,
   validateProviderResult,
 } from "./domain.mjs";
@@ -31,23 +30,67 @@ function buildMinimizedInput(input) {
     practiceLabel: practice.label,
     answers: Object.fromEntries(
       Object.entries(normalized.value.answers)
-        .filter(([key]) => practice.questions.some((question) => question.id === key && question.type !== "date"))
-        .map(([key, value]) => [key, maskSensitiveText(value)]),
+        .filter(([key, value]) => practice.questions.some((question) => (
+          question.id === key
+          && (question.type === "radio" || question.type === "select")
+          && question.options.some(([optionId]) => optionId === value)
+        ))),
     ),
-    description: maskSensitiveText(normalized.value.description),
+    description: [
+      "Свободный текст обращения не передан модели.",
+      normalized.value.description.length < 200
+        ? "Объём описания: краткий."
+        : normalized.value.description.length < 700
+          ? "Объём описания: средний."
+          : "Объём описания: подробный.",
+      normalized.value.answers.deadline
+        ? "Клиент указал наличие срока."
+        : "Конкретный срок не указан.",
+    ].join(" "),
   };
 }
 
 async function readProviderJson(response) {
   const declaredLength = Number(response.headers.get("content-length") || 0);
-  if (declaredLength > MAX_RESPONSE_BYTES) return null;
-  const raw = await response.text();
-  if (new TextEncoder().encode(raw).byteLength > MAX_RESPONSE_BYTES) return null;
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return null;
+  if (declaredLength > MAX_RESPONSE_BYTES) {
+    return { ok: false, reason: "response_too_large" };
   }
+
+  const reader = response.body?.getReader();
+  const chunks = [];
+  let receivedBytes = 0;
+  if (reader) {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      receivedBytes += value.byteLength;
+      if (receivedBytes > MAX_RESPONSE_BYTES) {
+        await reader.cancel("Provider response limit exceeded").catch(() => {});
+        return { ok: false, reason: "response_too_large" };
+      }
+      chunks.push(value);
+    }
+  }
+
+  const bytes = new Uint8Array(receivedBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  try {
+    return {
+      ok: true,
+      value: JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes)),
+    };
+  } catch {
+    return { ok: false, reason: "invalid_json" };
+  }
+}
+
+function reportDiagnostic(callback, diagnostic) {
+  if (typeof callback !== "function") return;
+  try { callback(diagnostic); } catch {}
 }
 
 export async function requestCloudflarePrecheck({
@@ -56,6 +99,7 @@ export async function requestCloudflarePrecheck({
   input,
   fetchImpl = globalThis.fetch,
   timeoutMs = DEFAULT_TIMEOUT_MS,
+  onDiagnostic,
 }) {
   const endpoint = workerEndpoint(workerUrl);
   const minimized = buildMinimizedInput(input);
@@ -65,6 +109,7 @@ export async function requestCloudflarePrecheck({
     || oidcToken.length > 16_384
     || typeof fetchImpl !== "function"
     || !minimized) {
+    reportDiagnostic(onDiagnostic, { ok: false, reason: "invalid_configuration", status: null });
     return null;
   }
 
@@ -88,13 +133,37 @@ export async function requestCloudflarePrecheck({
       redirect: "error",
       signal: controller.signal,
     });
-    if (!response?.ok) return null;
+    if (!response?.ok) {
+      reportDiagnostic(onDiagnostic, {
+        ok: false,
+        reason: "http_error",
+        status: Number.isInteger(response?.status) ? response.status : null,
+      });
+      return null;
+    }
 
-    const body = await readProviderJson(response);
-    if (!body || body.success !== true) return null;
-    const validated = validateProviderResult(body.result);
-    return validated.ok ? validated.value : null;
+    const parsed = await readProviderJson(response);
+    if (!parsed.ok) {
+      reportDiagnostic(onDiagnostic, { ok: false, reason: parsed.reason, status: response.status });
+      return null;
+    }
+    if (parsed.value?.success !== true) {
+      reportDiagnostic(onDiagnostic, { ok: false, reason: "invalid_payload", status: response.status });
+      return null;
+    }
+    const validated = validateProviderResult(parsed.value.result);
+    if (!validated.ok) {
+      reportDiagnostic(onDiagnostic, { ok: false, reason: "invalid_result", status: response.status });
+      return null;
+    }
+    reportDiagnostic(onDiagnostic, { ok: true, reason: "success", status: response.status });
+    return validated.value;
   } catch {
+    reportDiagnostic(onDiagnostic, {
+      ok: false,
+      reason: controller.signal.aborted ? "timeout" : "network_error",
+      status: null,
+    });
     return null;
   } finally {
     clearTimeout(timer);

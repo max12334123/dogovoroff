@@ -32,7 +32,12 @@ function createMeta() {
 }
 
 function success(mode, result) {
-  return jsonResponse({ success: true, mode, result, meta: createMeta() }, 200);
+  return jsonResponse({
+    success: true,
+    mode,
+    result: { practice: result.practice },
+    meta: createMeta(),
+  }, 200);
 }
 
 function runtimeOidcToken(request) {
@@ -85,12 +90,22 @@ export async function POST(request) {
 
   if (!canUseAi) return success("fallback", fallback);
 
+  let providerDiagnostic = null;
   const providerResult = await requestCloudflarePrecheck({
     workerUrl,
     oidcToken,
     input: normalized.value,
+    onDiagnostic: (diagnostic) => {
+      providerDiagnostic = diagnostic;
+    },
   });
-  if (!providerResult) return success("fallback", fallback);
+  if (!providerResult) {
+    console.warn("AI precheck provider fallback.", {
+      reason: providerDiagnostic?.reason || "unknown",
+      status: providerDiagnostic?.status ?? null,
+    });
+    return success("fallback", fallback);
+  }
 
   return success("ai", mergeTrustedCard(fallback, providerResult));
 }

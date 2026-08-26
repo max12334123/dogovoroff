@@ -130,11 +130,17 @@ test("configured integrations send one signed Sheet payload and structured Teleg
     GOOGLE_SHEETS_URL: "https://docs.google.com/spreadsheets/d/example/edit",
     TELEGRAM_BOT_TOKEN: "123456789:ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijk",
     TELEGRAM_CHAT_ID: "-1001234567890",
+    RESEND_API_KEY: "re_ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
+    CONTACT_EMAIL_FROM: "ДоговорОфф <leads@example.com>",
+    CONTACT_EMAIL_TO: "lawyer@example.com",
   };
   const fetchImpl = async (url, options) => {
     calls.push({ url, options, body: JSON.parse(options.body) });
     if (String(url).startsWith("https://api.telegram.org/")) {
       return Response.json({ ok: true });
+    }
+    if (String(url) === "https://api.resend.com/emails") {
+      return Response.json({ id: "email-id" });
     }
     return Response.json({ ok: true });
   };
@@ -142,8 +148,15 @@ test("configured integrations send one signed Sheet payload and structured Teleg
   const result = await deliverContactIntegrations(record, { env, fetchImpl });
 
   assert.deepEqual(result, {
-    googleSheets: { attempted: true, ok: true },
-    telegram: { attempted: true, ok: true },
+    googleSheets: {
+      attempted: true,
+      ok: true,
+      status: 200,
+      reason: "delivered",
+      duplicate: false,
+    },
+    telegram: { attempted: true, ok: true, status: 200, reason: "delivered" },
+    email: { attempted: true, ok: true, status: 200, reason: "delivered" },
   });
   const sheetCall = calls.find(({ url }) => url === env.GOOGLE_SHEETS_WEBHOOK_URL);
   assert.deepEqual(sheetCall.body.record, record);
@@ -156,6 +169,71 @@ test("configured integrations send one signed Sheet payload and structured Teleg
   assert.deepEqual(telegramCalls.at(-1).body.reply_markup, {
     inline_keyboard: [[{ text: "Открыть таблицу", url: env.GOOGLE_SHEETS_URL }]],
   });
+  const emailCall = calls.find(({ url }) => String(url) === "https://api.resend.com/emails");
+  assert.equal(emailCall.options.headers["Idempotency-Key"], `contact/${record.submissionId}`);
+  assert.deepEqual(emailCall.body.to, [env.CONTACT_EMAIL_TO]);
+  assert.match(emailCall.body.text, /Имя: Анна/);
+});
+
+test("a duplicate Sheet record still retries downstream channels", async () => {
+  const record = {
+    ...createContactRecord(BASE_RECORD_INPUT),
+    submissionId: "sheet-duplicate-retry-1",
+  };
+  const calls = [];
+  const result = await deliverContactIntegrations(record, {
+    env: {
+      GOOGLE_SHEETS_WEBHOOK_URL: "https://script.google.com/macros/s/example/exec",
+      GOOGLE_SHEETS_WEBHOOK_SECRET: "g".repeat(48),
+      TELEGRAM_BOT_TOKEN: "123456789:ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijk",
+      TELEGRAM_CHAT_ID: "-1001234567890",
+      RESEND_API_KEY: "re_ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
+      CONTACT_EMAIL_FROM: "ДоговорОфф <leads@example.com>",
+      CONTACT_EMAIL_TO: "lawyer@example.com",
+    },
+    fetchImpl: async (url) => {
+      calls.push(String(url));
+      if (String(url).includes("api.telegram.org/")) return Response.json({ ok: true });
+      if (String(url) === "https://api.resend.com/emails") return Response.json({ id: "email-id" });
+      return Response.json({ ok: true, duplicate: true });
+    },
+  });
+
+  assert.equal(calls[0], "https://script.google.com/macros/s/example/exec");
+  assert.ok(calls.some((url) => url.startsWith("https://api.telegram.org/")));
+  assert.ok(calls.includes("https://api.resend.com/emails"));
+  assert.equal(result.googleSheets.duplicate, true);
+  assert.equal(result.telegram.ok, true);
+  assert.equal(result.email.ok, true);
+});
+
+test("Telegram retries are deduplicated in-process when Sheets is unavailable", async () => {
+  let telegramCalls = 0;
+  const fetchImpl = async (url) => {
+    if (String(url).includes("api.telegram.org/")) telegramCalls += 1;
+    return Response.json({ ok: true, result: { message_id: telegramCalls } });
+  };
+  const env = {
+    GOOGLE_SHEETS_WEBHOOK_URL: "",
+    GOOGLE_SHEETS_WEBHOOK_SECRET: "",
+    TELEGRAM_BOT_TOKEN: "123456789:ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijk",
+    TELEGRAM_CHAT_ID: "-1001234567890",
+    GOOGLE_SHEETS_URL: "",
+    RESEND_API_KEY: "",
+    CONTACT_EMAIL_FROM: "",
+    CONTACT_EMAIL_TO: "",
+  };
+  const record = {
+    ...createContactRecord(BASE_RECORD_INPUT),
+    submissionId: "local-dedup-telegram-1",
+  };
+
+  const first = await deliverContactIntegrations(record, { env, fetchImpl });
+  const second = await deliverContactIntegrations(record, { env, fetchImpl });
+
+  assert.equal(first.telegram.ok, true);
+  assert.equal(second.telegram.reason, "duplicate_skipped");
+  assert.equal(telegramCalls, 1);
 });
 
 test("missing or unsafe integration configuration never triggers an outbound request", async () => {
@@ -178,8 +256,9 @@ test("missing or unsafe integration configuration never triggers an outbound req
 
   assert.equal(calls, 0);
   assert.deepEqual(result, {
-    googleSheets: { attempted: false, ok: false },
-    telegram: { attempted: false, ok: false },
+    googleSheets: { attempted: false, ok: false, status: null, reason: "not_configured" },
+    telegram: { attempted: false, ok: false, status: null, reason: "not_configured" },
+    email: { attempted: false, ok: false, status: null, reason: "not_configured" },
   });
 });
 
@@ -191,6 +270,9 @@ test("integration secrets are documented as blank server-only variables", async 
     "GOOGLE_SHEETS_URL",
     "TELEGRAM_BOT_TOKEN",
     "TELEGRAM_CHAT_ID",
+    "RESEND_API_KEY",
+    "CONTACT_EMAIL_FROM",
+    "CONTACT_EMAIL_TO",
   ]) {
     assert.match(envSource, new RegExp(`^${name}=$`, "m"));
     assert.doesNotMatch(envSource, new RegExp(`NEXT_PUBLIC_${name}`));

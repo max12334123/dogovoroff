@@ -66,6 +66,62 @@ test("JSON body reader parses valid input and rejects malformed or oversized inp
   });
 });
 
+test("JSON body reader stops an undeclared oversized stream before buffering the rest", async () => {
+  const encoder = new TextEncoder();
+  const chunks = [
+    encoder.encode('{"text":"'),
+    encoder.encode("я".repeat(20)),
+    encoder.encode('"}'),
+  ];
+  let pulls = 0;
+  let cancelled = false;
+  const body = new ReadableStream({
+    pull(controller) {
+      pulls += 1;
+      const chunk = chunks.shift();
+      if (chunk) controller.enqueue(chunk);
+      else controller.close();
+    },
+    cancel() {
+      cancelled = true;
+    },
+  });
+  const request = new Request("https://example.test/api", {
+    method: "POST",
+    body,
+    duplex: "half",
+  });
+
+  assert.deepEqual(await readJsonBody(request, 16), {
+    ok: false,
+    status: 413,
+    error: "Запрос превышает допустимый размер.",
+  });
+  assert.equal(cancelled, true);
+  assert.ok(pulls < 4);
+});
+
+test("JSON body reader preserves multibyte JSON split between stream chunks", async () => {
+  const bytes = new TextEncoder().encode('{"answer":"юрист"}');
+  const body = new ReadableStream({
+    start(controller) {
+      controller.enqueue(bytes.slice(0, 12));
+      controller.enqueue(bytes.slice(12));
+      controller.close();
+    },
+  });
+  const request = new Request("https://example.test/api", {
+    method: "POST",
+    body,
+    duplex: "half",
+  });
+
+  assert.deepEqual(await readJsonBody(request, 1_000), {
+    ok: true,
+    value: { answer: "юрист" },
+  });
+});
+
 test("rate limiter returns deterministic retry timing and caps stored clients", () => {
   const store = new Map();
   const options = { windowMs: 60_000, maxRequests: 2, maxClients: 2 };

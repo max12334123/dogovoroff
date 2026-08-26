@@ -27,6 +27,18 @@ test("contact validation rejects invalid fields and detects the honeypot", () =>
   assert.equal(result.errors.agree, true);
 });
 
+test("contact validation accepts only RFC 4122 version 4 submission IDs", () => {
+  assert.equal(validateContactPayload(validPayload).errors.submissionId, false);
+  for (const submissionId of [
+    "short-id",
+    "39e87a18-1314-15e8-a719-4ee42c380013",
+    "39e87a18-1314-45e8-2719-4ee42c380013",
+    "../../unexpected",
+  ]) {
+    assert.equal(validateContactPayload({ ...validPayload, submissionId }).errors.submissionId, true);
+  }
+});
+
 test("contact normalization removes control characters and caps field lengths", () => {
   const normalized = normalizeContactPayload({ ...validPayload, name: "  Ан\u0000на  ", message: "строка 1\r\nстрока 2" });
   assert.equal(normalized.name, "Анна");

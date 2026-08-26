@@ -30,13 +30,23 @@ test("AI consent is optional, unselected, and links to both transparency documen
   assert.doesNotMatch(componentSource, /localStorage|sessionStorage|dangerouslySetInnerHTML/);
 });
 
-test("precheck submits the generated card and contacts through one application boundary", () => {
+test("precheck sends the compact intake to one server application boundary", () => {
   assert.match(componentSource, /onSubmitLead/);
   assert.match(componentSource, /await onSubmitLead\(/);
+  assert.match(componentSource, /precheckInput: payload/);
   assert.match(pageSource, /onSubmitLead=\{submitPrecheckLead\}/);
   assert.match(pageSource, /submitPrecheckLead[\s\S]{0,1800}deliverLead\(lead\)/);
   assert.doesNotMatch(componentSource, /onUseSummary/);
   assert.doesNotMatch(pageSource, /precheckAttachment|onUseSummary/);
+  assert.doesNotMatch(componentSource, /fetch\("\/api\/precheck"/);
+});
+
+test("client result hides the lawyer work card and shows only the next client step", () => {
+  assert.match(componentSource, /Описание ситуации и рабочая сводка переданы юристу/);
+  assert.match(componentSource, /Дополнительных действий сейчас не требуется/);
+  assert.match(componentSource, /setResult\(\{ practice: practice\.label \}\)/);
+  assert.doesNotMatch(componentSource, /<ResultList|result\.summary|result\.missingInformation|result\.suggestedDocuments|result\.lawyerQuestions|result\.nextStep/);
+  assert.doesNotMatch(componentSource, /Что уточнить|Что подготовить|Вопросы юриста|Следующий шаг/);
 });
 
 test("quick form remains default while estimator and header can start the precheck flow", () => {
@@ -49,6 +59,19 @@ test("quick form remains default while estimator and header can start the preche
   assert.match(pageSource, /Обсудить задачу[\s\S]{0,250}chooseService|chooseService[\s\S]{0,250}Обсудить задачу/);
   assert.match(pageSource, /Обсудить формат[\s\S]{0,250}chooseService|chooseService[\s\S]{0,250}Обсудить формат/);
   assert.match(pageSource, /form\.service \? practiceIdFromService\(form\.service\) : ""/);
+});
+
+test("the precheck bundle loads only after the client opens it", () => {
+  assert.match(pageSource, /import dynamic from "next\/dynamic"/);
+  assert.match(pageSource, /dynamic\([\s\S]{0,300}import\("\.\.\/features\/precheck\/precheck-section"\)/);
+  assert.doesNotMatch(pageSource, /import PrecheckSection from/);
+});
+
+test("both application paths reuse a client UUID across ambiguous retries", () => {
+  assert.match(componentSource, /submissionIdRef\.current \|\|= createSubmissionId\(\)/);
+  assert.match(componentSource, /submissionId: submissionIdRef\.current/);
+  assert.match(pageSource, /quickSubmissionIdRef\.current \|\|= createSubmissionId\(\)/);
+  assert.match(pageSource, /submissionId: quickSubmissionIdRef\.current/);
 });
 
 test("header AI action follows the navigation style responsively", () => {
@@ -68,7 +91,7 @@ test("precheck styles are scoped and include mobile overflow protection", () => 
     ".precheck__progress",
     ".precheck__options",
     ".precheck-card",
-    ".precheck-card__list",
+    ".precheck-card__client-summary",
   ]) assert.match(cssSource, new RegExp(selector.replace(".", "\\.")));
 
   assert.match(cssSource, /@media \(max-width: 560px\)[\s\S]*?\.precheck__options[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\)/);

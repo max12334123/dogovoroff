@@ -30,15 +30,15 @@ test("production responses include the security header baseline", () => {
   assert.doesNotMatch(configSource, /script-src 'self' 'unsafe-inline' 'unsafe-eval'/);
 });
 
-test("contact integration keeps the provider identifier outside the client bundle", () => {
-  assert.doesNotMatch(pageSource, /WEB3FORMS_ACCESS_KEY|api\.web3forms\.com/);
-  assert.match(contactRouteSource, /WEB3FORMS_ACCESS_KEY/);
-  assert.match(contactRouteSource, /api\.web3forms\.com/);
+test("contact integration keeps all provider secrets outside the client bundle", () => {
+  assert.doesNotMatch(pageSource, /WEB3FORMS_ACCESS_KEY|api\.web3forms\.com|RESEND_API_KEY|api\.resend\.com/);
+  assert.match(contactRouteSource, /deliverContactIntegrations/);
+  assert.doesNotMatch(contactRouteSource, /WEB3FORMS_ACCESS_KEY|api\.web3forms\.com/);
   assert.doesNotMatch(pageSource, /RESEND_API_KEY|CONTACT_FROM_EMAIL|CONTACT_TO_EMAIL/);
-  assert.equal(
-    envExampleSource.split(/\r?\n/).find((line) => line.startsWith("WEB3FORMS_ACCESS_KEY=")),
-    "WEB3FORMS_ACCESS_KEY=",
-  );
+  assert.match(envExampleSource, /^RESEND_API_KEY=$/m);
+  assert.match(envExampleSource, /^CONTACT_EMAIL_FROM=$/m);
+  assert.match(envExampleSource, /^CONTACT_EMAIL_TO=$/m);
+  assert.doesNotMatch(envExampleSource, /NEXT_PUBLIC_(?:RESEND|CONTACT_EMAIL)/);
 });
 
 test("brand fonts are self-hosted through next/font without an external CDN", () => {
