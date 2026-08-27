@@ -1,9 +1,18 @@
 "use client";
 
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState } from "react";
 import { AI_PRECHECK_HREF, LEAD_FORM_HREF } from "../../lib/public-navigation.mjs";
-import { CABINET_VIEWS, getMatterById, validateClientUpload } from "./cabinet-data.mjs";
+import { createUuidV4 } from "../../lib/submission-id.mjs";
+import { registerMatterDocument, sendMatterMessage } from "./cabinet-actions";
+import { CABINET_VIEWS, getMatterById } from "./cabinet-data.mjs";
+import {
+  buildDocumentStoragePath,
+  DOCUMENT_BUCKET,
+  validateDocumentUpload,
+  validateMatterMessage,
+} from "./cabinet-write-domain.mjs";
 import styles from "./cabinet.module.css";
 
 const TOP_NAVIGATION = CABINET_VIEWS.filter((item) => item.id !== "overview");
@@ -81,7 +90,7 @@ function Timeline({ matter, condensed = false }) {
   );
 }
 
-function UploadControl({ matter, feedback, onFileChange, onOpenDocuments }) {
+function UploadControl({ matter, feedback, isUploading, onFileChange, onOpenDocuments }) {
   if (!matter.nextAction && matter.state === "archived") {
     return (
       <section className={`${styles.actionPanel} ${styles.actionPanelComplete}`} aria-labelledby="completed-action-title">
@@ -109,17 +118,18 @@ function UploadControl({ matter, feedback, onFileChange, onOpenDocuments }) {
       <h2 id="next-action-title">{matter.nextAction.title}</h2>
       <p className={styles.actionDeadline}>{matter.nextAction.deadline}</p>
       <p className={styles.actionDescription}>{matter.nextAction.description}</p>
-      <label className={styles.actionButton}>
-        <span>Загрузить документ</span>
+      <label className={styles.actionButton} aria-disabled={isUploading}>
+        <span>{isUploading ? "Загрузка…" : "Загрузить документ"}</span>
         <input
           className={styles.visuallyHidden}
           type="file"
           accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
           aria-describedby="upload-note upload-feedback"
+          disabled={isUploading}
           onChange={onFileChange}
         />
       </label>
-      <p id="upload-note" className={styles.privacyNote}>В прототипе файл не покидает устройство.</p>
+      <p id="upload-note" className={styles.privacyNote}>Файл будет сохранён в приватном хранилище и доступен только участникам дела.</p>
       <p
         id="upload-feedback"
         className={`${styles.uploadFeedback} ${feedback.tone === "error" ? styles.uploadFeedbackError : ""}`}
@@ -132,7 +142,7 @@ function UploadControl({ matter, feedback, onFileChange, onOpenDocuments }) {
   );
 }
 
-function DocumentRegister({ documents, compact = false }) {
+function DocumentRegister({ documents, compact = false, feedback, downloadingId, onDownload }) {
   if (!documents.length) {
     return <p className={styles.emptyList}>Документы по этому делу пока не добавлены.</p>;
   }
@@ -146,16 +156,44 @@ function DocumentRegister({ documents, compact = false }) {
       </div>
       {documents.map((document) => (
         <div className={styles.documentRow} key={document.id}>
-          <strong>{document.name}</strong>
+          <button
+            className={styles.documentDownload}
+            type="button"
+            disabled={downloadingId === document.id}
+            aria-label={`Скачать ${document.name}`}
+            onClick={() => onDownload(document)}
+          >
+            <strong>{document.name}</strong>
+            <small>{downloadingId === document.id ? "Загрузка…" : "Скачать"}</small>
+          </button>
           <span>{document.status}</span>
           <time dateTime={document.updated.split(".").reverse().join("-")}>{document.updated}</time>
         </div>
       ))}
+      {feedback?.text && (
+        <p
+          className={`${styles.documentFeedback}${feedback.tone === "error" ? ` ${styles.uploadFeedbackError}` : ""}`}
+          role="status"
+          aria-live="polite"
+        >
+          {feedback.text}
+        </p>
+      )}
     </div>
   );
 }
 
-function OverviewView({ matters, matter, uploadFeedback, onFileChange, onNavigate }) {
+function OverviewView({
+  matters,
+  matter,
+  uploadFeedback,
+  documentFeedback,
+  downloadingId,
+  isUploading,
+  onDownload,
+  onFileChange,
+  onNavigate,
+}) {
   return (
     <>
       <div className={styles.pageIntro}>
@@ -185,6 +223,7 @@ function OverviewView({ matters, matter, uploadFeedback, onFileChange, onNavigat
           <UploadControl
             matter={matter}
             feedback={uploadFeedback}
+            isUploading={isUploading}
             onFileChange={onFileChange}
             onOpenDocuments={() => onNavigate("documents", matter.id)}
           />
@@ -211,7 +250,13 @@ function OverviewView({ matters, matter, uploadFeedback, onFileChange, onNavigat
               <button type="button" onClick={() => onNavigate("documents", matter.id)}>Все документы</button>
             </div>
             <h2 className={styles.visuallyHidden} id="last-documents-title">Последние документы по делу</h2>
-            <DocumentRegister documents={matter.documents.slice(0, 3)} compact />
+            <DocumentRegister
+              documents={matter.documents.slice(0, 3)}
+              compact
+              feedback={documentFeedback}
+              downloadingId={downloadingId}
+              onDownload={onDownload}
+            />
           </section>
         </div>
       </div>
@@ -255,7 +300,17 @@ function MattersView({ matters, matter, onMatterSelect }) {
   );
 }
 
-function DocumentsView({ matters, matter, onMatterSelect, uploadFeedback, onFileChange }) {
+function DocumentsView({
+  matters,
+  matter,
+  onMatterSelect,
+  uploadFeedback,
+  documentFeedback,
+  downloadingId,
+  isUploading,
+  onDownload,
+  onFileChange,
+}) {
   return (
     <>
       <div className={styles.viewHeading}>
@@ -270,10 +325,20 @@ function DocumentsView({ matters, matter, onMatterSelect, uploadFeedback, onFile
         <section className={styles.documentsMain} aria-labelledby="document-register-title">
           <p className={styles.eyebrow}>{matter.reference}</p>
           <h2 id="document-register-title">Реестр документов</h2>
-          <DocumentRegister documents={matter.documents} />
+          <DocumentRegister
+            documents={matter.documents}
+            feedback={documentFeedback}
+            downloadingId={downloadingId}
+            onDownload={onDownload}
+          />
         </section>
         {matter.nextAction ? (
-          <UploadControl matter={matter} feedback={uploadFeedback} onFileChange={onFileChange} />
+          <UploadControl
+            matter={matter}
+            feedback={uploadFeedback}
+            isUploading={isUploading}
+            onFileChange={onFileChange}
+          />
         ) : (
           <section className={styles.quietPanel}>
             <p className={styles.eyebrow}>Статус</p>
@@ -286,7 +351,16 @@ function DocumentsView({ matters, matter, onMatterSelect, uploadFeedback, onFile
   );
 }
 
-function MessagesView({ matters, matter, onMatterSelect, draft, onDraftChange, draftStatus, onSaveDraft }) {
+function MessagesView({
+  matters,
+  matter,
+  onMatterSelect,
+  draft,
+  onDraftChange,
+  feedback,
+  isSending,
+  onSendMessage,
+}) {
   return (
     <>
       <div className={styles.viewHeading}>
@@ -310,7 +384,7 @@ function MessagesView({ matters, matter, onMatterSelect, draft, onDraftChange, d
             ))}
           </ol> : <p className={styles.emptyList}>Сообщений по этому делу пока нет.</p>}
         </section>
-        <form className={styles.messageComposer} onSubmit={onSaveDraft}>
+        <form className={styles.messageComposer} onSubmit={onSendMessage}>
           <p className={styles.eyebrow}>Новое сообщение</p>
           <h2>Задать вопрос по делу</h2>
           <label htmlFor="cabinet-message">Сообщение</label>
@@ -320,11 +394,20 @@ function MessagesView({ matters, matter, onMatterSelect, draft, onDraftChange, d
             rows={7}
             maxLength={2000}
             placeholder="Кратко сформулируйте вопрос"
+            disabled={isSending}
             onChange={(event) => onDraftChange(event.target.value)}
           />
-          <button className={styles.darkButton} type="submit">Сохранить черновик</button>
-          <p className={styles.privacyNote}>Черновик хранится только до закрытия этой страницы и не отправляется.</p>
-          <p className={styles.uploadFeedback} role="status" aria-live="polite">{draftStatus}</p>
+          <button className={styles.darkButton} type="submit" disabled={isSending}>
+            {isSending ? "Отправка…" : "Отправить сообщение"}
+          </button>
+          <p className={styles.privacyNote}>Сообщение сохранится в деле и будет доступно только его участникам.</p>
+          <p
+            className={`${styles.uploadFeedback}${feedback.tone === "error" ? ` ${styles.uploadFeedbackError}` : ""}`}
+            role="status"
+            aria-live="polite"
+          >
+            {feedback.text}
+          </p>
         </form>
       </div>
     </>
@@ -351,50 +434,194 @@ function EmptyCabinet() {
   );
 }
 
-export default function CabinetClient({ initialMatters = [], displayName = "Клиент" }) {
+export default function CabinetClient({ initialMatters = [], displayName = "Клиент", staffHref = null }) {
+  const router = useRouter();
   const matters = initialMatters;
   const hasMatters = matters.length > 0;
   const [activeView, setActiveView] = useState("overview");
   const [activeMatterId, setActiveMatterId] = useState(matters[0]?.id ?? null);
   const [uploadFeedback, setUploadFeedback] = useState({ tone: "neutral", text: "PDF, DOC, DOCX, JPG или PNG — до 10 МБ." });
+  const [documentFeedback, setDocumentFeedback] = useState({ tone: "neutral", text: "" });
+  const [downloadingId, setDownloadingId] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
   const [draft, setDraft] = useState("");
-  const [draftStatus, setDraftStatus] = useState("");
+  const [messageFeedback, setMessageFeedback] = useState({ tone: "neutral", text: "" });
+  const [isSending, setIsSending] = useState(false);
   const mainRef = useRef(null);
+  const messageIdRef = useRef(null);
   const matter = useMemo(() => getMatterById(activeMatterId, matters), [activeMatterId, matters]);
 
   const selectView = (view, matterId = activeMatterId) => {
+    if (matterId !== activeMatterId) {
+      setDraft("");
+      messageIdRef.current = null;
+      setMessageFeedback({ tone: "neutral", text: "" });
+      setDocumentFeedback({ tone: "neutral", text: "" });
+    }
     setActiveMatterId(matterId);
     setActiveView(view);
     window.requestAnimationFrame(() => mainRef.current?.focus());
   };
 
-  const handleFileChange = (event) => {
-    const [file] = Array.from(event.target.files ?? []);
-    const validation = validateClientUpload(file);
+  const selectMatter = (matterId) => {
+    selectView(activeView, matterId);
+  };
+
+  const handleFileChange = async (event) => {
+    const input = event.currentTarget;
+    const [file] = Array.from(input.files ?? []);
+    const validation = validateDocumentUpload(file);
 
     if (!validation.valid) {
       setUploadFeedback({ tone: "error", text: validation.error });
-      event.target.value = "";
+      input.value = "";
       return;
     }
 
-    setUploadFeedback({
-      tone: "success",
-      text: `«${file.name}» проверен. Отправка станет доступна после подключения защищённого хранилища.`,
-    });
-    event.target.value = "";
+    if (!matter) {
+      setUploadFeedback({ tone: "error", text: "Не удалось определить дело для документа." });
+      input.value = "";
+      return;
+    }
+
+    setIsUploading(true);
+    setUploadFeedback({ tone: "neutral", text: "Загружаем документ в защищённое хранилище…" });
+
+    try {
+      const documentId = createUuidV4(window.crypto);
+      if (!documentId) {
+        throw new Error("Secure document identifier is unavailable");
+      }
+      const storagePath = buildDocumentStoragePath({
+        matterId: matter.id,
+        documentId,
+        extension: validation.extension,
+      });
+      const { createClient } = await import("../../lib/supabase/browser");
+      const supabase = createClient();
+      const { error: uploadError } = await supabase.storage
+        .from(DOCUMENT_BUCKET)
+        .upload(storagePath, file, {
+          cacheControl: "3600",
+          contentType: validation.mimeType,
+          upsert: false,
+        });
+
+      if (uploadError) {
+        console.error("Cabinet document upload failed", {
+          statusCode: uploadError.statusCode,
+        });
+        setUploadFeedback({ tone: "error", text: "Не удалось загрузить документ. Попробуйте ещё раз." });
+        return;
+      }
+
+      const registration = await registerMatterDocument({
+        id: documentId,
+        matterId: matter.id,
+        storagePath,
+        originalName: validation.originalName,
+        mimeType: validation.mimeType,
+        sizeBytes: validation.sizeBytes,
+      });
+
+      if (!registration.ok) {
+        setUploadFeedback({ tone: "error", text: registration.message });
+        return;
+      }
+
+      setUploadFeedback({ tone: "success", text: registration.message });
+      router.refresh();
+    } catch {
+      setUploadFeedback({ tone: "error", text: "Не удалось загрузить документ. Попробуйте ещё раз." });
+    } finally {
+      setIsUploading(false);
+      input.value = "";
+    }
   };
 
-  const saveDraft = (event) => {
-    event.preventDefault();
-    const normalizedDraft = draft.trim();
-    if (!normalizedDraft) {
-      setDraftStatus("Введите текст сообщения.");
+  const handleDocumentDownload = async (document) => {
+    if (!document.storagePath || downloadingId) {
       return;
     }
 
-    setDraft(normalizedDraft);
-    setDraftStatus("Черновик сохранён в текущем окне. Он не был отправлен.");
+    setDownloadingId(document.id);
+    setDocumentFeedback({ tone: "neutral", text: "Подготавливаем документ…" });
+
+    try {
+      const { createClient } = await import("../../lib/supabase/browser");
+      const supabase = createClient();
+      const { data, error } = await supabase.storage.from(DOCUMENT_BUCKET).download(document.storagePath);
+
+      if (error || !data) {
+        console.error("Cabinet document download failed", {
+          statusCode: error?.statusCode,
+        });
+        setDocumentFeedback({ tone: "error", text: "Не удалось скачать документ. Попробуйте ещё раз." });
+        return;
+      }
+
+      const objectUrl = URL.createObjectURL(data);
+      const anchor = window.document.createElement("a");
+      anchor.href = objectUrl;
+      anchor.download = document.name;
+      anchor.style.display = "none";
+      window.document.body.append(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+      setDocumentFeedback({ tone: "success", text: "Скачивание началось." });
+    } catch {
+      setDocumentFeedback({ tone: "error", text: "Не удалось скачать документ. Попробуйте ещё раз." });
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
+  const handleSendMessage = async (event) => {
+    event.preventDefault();
+    if (!matter || isSending) {
+      return;
+    }
+
+    const validation = validateMatterMessage({ matterId: matter.id, body: draft });
+    if (!validation.valid) {
+      setMessageFeedback({ tone: "error", text: validation.error });
+      return;
+    }
+
+    const messageId = messageIdRef.current ?? createUuidV4(window.crypto);
+    if (!messageId) {
+      setMessageFeedback({ tone: "error", text: "Не удалось подготовить сообщение. Обновите страницу и попробуйте ещё раз." });
+      return;
+    }
+    messageIdRef.current = messageId;
+
+    setIsSending(true);
+    setMessageFeedback({ tone: "neutral", text: "Отправляем сообщение…" });
+
+    try {
+      const result = await sendMatterMessage({ ...validation.value, id: messageId });
+      if (!result.ok) {
+        setMessageFeedback({ tone: "error", text: result.message });
+        return;
+      }
+
+      setDraft("");
+      messageIdRef.current = null;
+      setMessageFeedback({ tone: "success", text: result.message });
+      router.refresh();
+    } catch {
+      setMessageFeedback({ tone: "error", text: "Не удалось отправить сообщение. Попробуйте ещё раз." });
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const handleDraftChange = (value) => {
+    if (messageIdRef.current && value !== draft) {
+      messageIdRef.current = null;
+    }
+    setDraft(value);
   };
 
   return (
@@ -412,6 +639,7 @@ export default function CabinetClient({ initialMatters = [], displayName = "Кл
           <summary>{displayName}</summary>
           <div>
             <span>Подтверждённый аккаунт</span>
+            {staffHref && <a href={staffHref}>Рабочая панель</a>}
             <a href="/">Вернуться на сайт</a>
             <form action="/auth/signout" method="post">
               <button type="submit">Выйти</button>
@@ -447,17 +675,25 @@ export default function CabinetClient({ initialMatters = [], displayName = "Кл
               matters={matters}
               matter={matter}
               uploadFeedback={uploadFeedback}
+              documentFeedback={documentFeedback}
+              downloadingId={downloadingId}
+              isUploading={isUploading}
+              onDownload={handleDocumentDownload}
               onFileChange={handleFileChange}
               onNavigate={selectView}
             />
           )}
-          {matter && activeView === "matters" && <MattersView matters={matters} matter={matter} onMatterSelect={setActiveMatterId} />}
+          {matter && activeView === "matters" && <MattersView matters={matters} matter={matter} onMatterSelect={selectMatter} />}
           {matter && activeView === "documents" && (
             <DocumentsView
               matters={matters}
               matter={matter}
-              onMatterSelect={setActiveMatterId}
+              onMatterSelect={selectMatter}
               uploadFeedback={uploadFeedback}
+              documentFeedback={documentFeedback}
+              downloadingId={downloadingId}
+              isUploading={isUploading}
+              onDownload={handleDocumentDownload}
               onFileChange={handleFileChange}
             />
           )}
@@ -465,11 +701,12 @@ export default function CabinetClient({ initialMatters = [], displayName = "Кл
             <MessagesView
               matters={matters}
               matter={matter}
-              onMatterSelect={setActiveMatterId}
+              onMatterSelect={selectMatter}
               draft={draft}
-              onDraftChange={setDraft}
-              draftStatus={draftStatus}
-              onSaveDraft={saveDraft}
+              onDraftChange={handleDraftChange}
+              feedback={messageFeedback}
+              isSending={isSending}
+              onSendMessage={handleSendMessage}
             />
           )}
         </main>

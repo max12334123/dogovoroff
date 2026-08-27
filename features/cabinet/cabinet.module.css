@@ -718,6 +718,13 @@
   transform: translateY(-2px);
 }
 
+.actionButton[aria-disabled="true"],
+.darkButton:disabled {
+  cursor: wait;
+  opacity: 0.62;
+  transform: none;
+}
+
 .privacyNote,
 .uploadFeedback {
   margin-top: 16px;
@@ -820,6 +827,52 @@
   font-weight: 450;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.documentDownload {
+  display: flex;
+  min-width: 0;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.documentDownload strong {
+  flex: 1 1 auto;
+}
+
+.documentDownload small {
+  flex: 0 0 auto;
+  color: var(--cabinet-ice);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  opacity: 0;
+  transition: opacity 220ms ease;
+}
+
+.documentDownload:hover small,
+.documentDownload:focus-visible small,
+.documentDownload:disabled small {
+  opacity: 1;
+}
+
+.documentDownload:disabled {
+  cursor: wait;
+}
+
+.documentFeedback {
+  min-height: 24px;
+  margin-top: 14px;
+  color: var(--cabinet-ice);
+  font-size: 10.5px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
 .documentRegisterCompact {
@@ -991,6 +1044,11 @@
 
 .messageComposer textarea:focus {
   border-color: var(--cabinet-ice);
+}
+
+.messageComposer textarea:disabled {
+  cursor: wait;
+  opacity: 0.7;
 }
 
 .messageComposer .darkButton {

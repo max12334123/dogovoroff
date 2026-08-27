@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test": "node --test"
+    "test": "node --test",
+    "supabase:smoke": "node scripts/supabase-rls-smoke.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.5",

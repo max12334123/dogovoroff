@@ -2,6 +2,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSafeNextPath } from "../../features/auth/auth-domain.mjs";
+import { getCaptchaConfig } from "../../features/auth/captcha-domain.mjs";
+import CaptchaWidget from "../../features/auth/captcha-widget";
 import { createClient } from "../../lib/supabase/server";
 import { requestLoginLink } from "./actions";
 import styles from "./login.module.css";
@@ -19,7 +21,10 @@ export const metadata = {
 const ERROR_MESSAGES = {
   "invalid-email": "Проверьте адрес электронной почты.",
   "send-failed": "Не удалось отправить письмо. Попробуйте ещё раз немного позже.",
+  "send-rate-limit": "Письмо уже запрашивали недавно. Подождите несколько минут и попробуйте снова.",
+  "captcha-required": "Подтвердите проверку и попробуйте ещё раз.",
   "confirm-failed": "Ссылка недействительна или уже истекла. Запросите новую.",
+  "confirm-browser-mismatch": "Откройте ссылку на том же устройстве и в том же браузере, где запрашивали письмо. Если это невозможно, запросите новую ссылку.",
 };
 
 export default async function LoginPage({ searchParams }) {
@@ -34,6 +39,7 @@ export default async function LoginPage({ searchParams }) {
 
   const sent = params?.sent === "1";
   const errorMessage = ERROR_MESSAGES[params?.error] ?? "";
+  const captchaConfig = getCaptchaConfig();
 
   return (
     <main className={styles.page}>
@@ -75,6 +81,7 @@ export default async function LoginPage({ searchParams }) {
               aria-describedby={errorMessage ? "login-error login-note" : "login-note"}
             />
             {errorMessage && <p className={styles.error} id="login-error" role="alert">{errorMessage}</p>}
+            <CaptchaWidget config={captchaConfig} />
             <button type="submit">Получить ссылку</button>
             <p className={styles.note} id="login-note">
               Если аккаунта ещё нет, он будет создан после подтверждения email. Доступ к делам назначается отдельно.

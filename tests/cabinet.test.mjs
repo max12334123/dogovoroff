@@ -4,9 +4,7 @@ import test from "node:test";
 import {
   CABINET_CASES,
   CABINET_VIEWS,
-  MAX_CLIENT_FILE_SIZE,
   getMatterById,
-  validateClientUpload,
 } from "../features/cabinet/cabinet-data.mjs";
 import {
   AI_PRECHECK_HREF,
@@ -14,11 +12,14 @@ import {
   getRequestModeFromSearch,
 } from "../lib/public-navigation.mjs";
 
-const [componentSource, pageSource, cssSource, homeSource] = await Promise.all([
+const [componentSource, pageSource, cssSource, homeSource, actionsSource, serverSource, nextConfigSource] = await Promise.all([
   readFile(new URL("../features/cabinet/cabinet-client.jsx", import.meta.url), "utf8"),
   readFile(new URL("../app/cabinet/page.jsx", import.meta.url), "utf8"),
   readFile(new URL("../features/cabinet/cabinet.module.css", import.meta.url), "utf8"),
   readFile(new URL("../app/page.jsx", import.meta.url), "utf8"),
+  readFile(new URL("../features/cabinet/cabinet-actions.js", import.meta.url), "utf8"),
+  readFile(new URL("../features/cabinet/cabinet-server.js", import.meta.url), "utf8"),
+  readFile(new URL("../next.config.mjs", import.meta.url), "utf8"),
 ]);
 
 test("cabinet data keeps the client journey explicit and stable", () => {
@@ -31,22 +32,27 @@ test("cabinet data keeps the client journey explicit and stable", () => {
   assert.equal(CABINET_CASES[1].nextAction, null);
 });
 
-test("prototype upload validation rejects unsafe or oversized files", () => {
-  assert.deepEqual(validateClientUpload(), { valid: false, error: "Выберите файл." });
-  assert.equal(validateClientUpload({ name: "archive.exe", size: 100 }).valid, false);
-  assert.equal(validateClientUpload({ name: "empty.pdf", size: 0 }).valid, false);
-  assert.equal(validateClientUpload({ name: "large.pdf", size: MAX_CLIENT_FILE_SIZE + 1 }).valid, false);
-  assert.equal(validateClientUpload({ name: "contract.PDF", size: 1024 }).valid, true);
-  assert.equal(validateClientUpload({ name: "scan.jpeg", size: 2048 }).valid, true);
-});
-
-test("cabinet UI is client-facing, accessible, and local-only in the prototype", () => {
+test("cabinet UI is client-facing, accessible, and connected to private matter operations", () => {
   assert.match(componentSource, /aria-label="Навигация личного кабинета"/);
   assert.match(componentSource, /aria-live="polite"/);
   assert.match(componentSource, /type="file"/);
-  assert.match(componentSource, /В прототипе файл не покидает устройство/);
-  assert.match(componentSource, /Черновик хранится только до закрытия этой страницы и не отправляется/);
+  assert.match(componentSource, /Приватном хранилище|приватном хранилище/);
+  assert.match(componentSource, /Отправить сообщение/);
+  assert.match(componentSource, /messageIdRef/);
+  assert.match(componentSource, /createUuidV4/);
+  assert.match(componentSource, /\.upload\(storagePath, file/);
+  assert.match(componentSource, /\.download\(document\.storagePath\)/);
+  assert.match(actionsSource, /getClaims\(\)/);
+  assert.match(actionsSource, /from\("documents"\)\.insert/);
+  assert.match(actionsSource, /from\("messages"\)\.insert/);
+  assert.match(actionsSource, /23505/);
+  assert.match(actionsSource, /message\.id/);
+  assert.match(actionsSource, /\.list\(location\.folder/);
+  assert.match(actionsSource, /validateStoredDocumentObject/);
+  assert.match(serverSource, /storage_path/);
+  assert.match(nextConfigSource, /NEXT_PUBLIC_SUPABASE_URL/);
   assert.doesNotMatch(componentSource, /localStorage|sessionStorage|fetch\(|dangerouslySetInnerHTML/);
+  assert.doesNotMatch(actionsSource, /service_role|SUPABASE_SERVICE/);
   assert.doesNotMatch(componentSource, /Вопросы юриста|рабочая сводка|внутренняя инструкция/i);
 });
 

@@ -46,7 +46,8 @@ function formatDeadline(value, prefix = "до") {
   return value ? `${prefix} ${DEADLINE_FORMATTER.format(new Date(value))}` : "";
 }
 
-export async function loadCabinetData(supabase, userId) {
+export async function loadCabinetData(supabase, userId, options = {}) {
+  const messageParticipantLabel = options.messageParticipantLabel ?? "Команда ДоговорОфф";
   const { data: matters, error: mattersError } = await supabase
     .from("matters")
     .select([
@@ -85,7 +86,7 @@ export async function loadCabinetData(supabase, userId) {
       .order("created_at", { ascending: false }),
     supabase
       .from("documents")
-      .select("id,matter_id,original_name,status,updated_at")
+      .select("id,matter_id,storage_path,original_name,mime_type,size_bytes,status,updated_at")
       .in("matter_id", matterIds)
       .order("updated_at", { ascending: false }),
     supabase
@@ -148,12 +149,15 @@ export async function loadCabinetData(supabase, userId) {
       documents: (documentsByMatter.get(matter.id) ?? []).map((document) => ({
         id: document.id,
         name: document.original_name,
+        storagePath: document.storage_path,
+        mimeType: document.mime_type,
+        sizeBytes: document.size_bytes,
         status: DOCUMENT_STATUS_LABELS[document.status] ?? "Получен",
         updated: DATE_FORMATTER.format(new Date(document.updated_at)),
       })),
       messages: (messagesByMatter.get(matter.id) ?? []).map((message) => ({
         id: message.id,
-        sender: message.author_id === userId ? "Вы" : "Команда ДоговорОфф",
+        sender: message.author_id === userId ? "Вы" : messageParticipantLabel,
         date: DATE_TIME_FORMATTER.format(new Date(message.created_at)),
         text: message.body,
       })),

@@ -1,0 +1,16 @@
+.wrapper {
+  margin-top: 24px;
+}
+
+.container {
+  min-height: 65px;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.status {
+  margin-top: 8px;
+  color: #777d7f;
+  font-size: 11px;
+  line-height: 1.45;
+}

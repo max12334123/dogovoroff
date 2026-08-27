@@ -92,31 +92,6 @@ export const CABINET_CASES = [
   },
 ];
 
-export const MAX_CLIENT_FILE_SIZE = 10 * 1024 * 1024;
-
-const ACCEPTED_EXTENSIONS = new Set(["pdf", "doc", "docx", "jpg", "jpeg", "png"]);
-
-export function validateClientUpload(file) {
-  if (!file || typeof file.name !== "string") {
-    return { valid: false, error: "Выберите файл." };
-  }
-
-  const extension = file.name.split(".").pop()?.toLowerCase();
-  if (!extension || !ACCEPTED_EXTENSIONS.has(extension)) {
-    return { valid: false, error: "Поддерживаются PDF, DOC, DOCX, JPG и PNG." };
-  }
-
-  if (!Number.isFinite(file.size) || file.size <= 0) {
-    return { valid: false, error: "Файл пуст или повреждён." };
-  }
-
-  if (file.size > MAX_CLIENT_FILE_SIZE) {
-    return { valid: false, error: "Размер файла не должен превышать 10 МБ." };
-  }
-
-  return { valid: true, error: "" };
-}
-
 export function getMatterById(id, matters = CABINET_CASES) {
   return matters.find((matter) => matter.id === id) ?? matters[0] ?? null;
 }

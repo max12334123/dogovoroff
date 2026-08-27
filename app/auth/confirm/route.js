@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
-import { getSafeNextPath } from "../../../features/auth/auth-domain.mjs";
+import {
+  getAuthConfirmationErrorCode,
+  getSafeNextPath,
+} from "../../../features/auth/auth-domain.mjs";
 import { createClient } from "../../../lib/supabase/server";
 
 const EMAIL_OTP_TYPES = new Set(["email", "signup", "invite", "magiclink", "recovery", "email_change"]);
@@ -30,7 +33,7 @@ export async function GET(request) {
       status: authError.status,
     });
     cleanUrl.pathname = "/login";
-    cleanUrl.searchParams.set("error", "confirm-failed");
+    cleanUrl.searchParams.set("error", getAuthConfirmationErrorCode(authError));
     cleanUrl.searchParams.set("next", next);
     return NextResponse.redirect(cleanUrl);
   }

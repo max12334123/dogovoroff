@@ -1,13 +1,33 @@
+import { getCaptchaConfig, getCaptchaCspOrigins } from "./features/auth/captcha-domain.mjs";
+
 /** @type {import('next').NextConfig} */
 const isDevelopment = process.env.NODE_ENV === "development";
 
+function getAllowedConnectOrigins() {
+  const values = [process.env.NEXT_PUBLIC_SUPABASE_URL];
+  return values.flatMap((value) => {
+    if (!value) return [];
+    try {
+      return [new URL(value).origin];
+    } catch {
+      return [];
+    }
+  });
+}
+
+const captchaOrigins = getCaptchaCspOrigins(getCaptchaConfig());
+const connectOrigins = [...new Set([...getAllowedConnectOrigins(), ...captchaOrigins.connect])];
+const scriptOrigins = captchaOrigins.script;
+const frameOrigins = captchaOrigins.frame;
+
 const contentSecurityPolicy = [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline'${isDevelopment ? " 'unsafe-eval'" : ""}`,
+  `script-src 'self' 'unsafe-inline'${isDevelopment ? " 'unsafe-eval'" : ""}${scriptOrigins.length ? ` ${scriptOrigins.join(" ")}` : ""}`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self' data:",
-  "connect-src 'self'",
+  `connect-src 'self'${connectOrigins.length ? ` ${connectOrigins.join(" ")}` : ""}`,
+  `frame-src 'self'${frameOrigins.length ? ` ${frameOrigins.join(" ")}` : ""}`,
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",

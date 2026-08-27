@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
+  getAuthConfirmationErrorCode,
   getAuthConfirmUrl,
+  getAuthRequestErrorCode,
   getSafeNextPath,
   isValidEmail,
   normalizeEmail,
@@ -67,6 +69,22 @@ test("open registration creates users without exposing account existence", () =>
   assert.doesNotMatch(loginActionSource, /console\.(log|error)\([^)]*email/);
   assert.match(confirmRouteSource, /exchangeCodeForSession|verifyOtp/);
   assert.match(confirmRouteSource, /getSafeNextPath/);
+});
+
+test("auth callback explains same-browser PKCE failures without exposing provider details", () => {
+  assert.equal(getAuthConfirmationErrorCode({ code: "bad_code_verifier" }), "confirm-browser-mismatch");
+  assert.equal(getAuthConfirmationErrorCode({ code: "pkce_code_verifier_not_found" }), "confirm-browser-mismatch");
+  assert.equal(getAuthConfirmationErrorCode({ code: "otp_expired" }), "confirm-failed");
+  assert.equal(getAuthConfirmationErrorCode(null), "confirm-failed");
+  assert.match(confirmRouteSource, /getAuthConfirmationErrorCode/);
+});
+
+test("auth request rate limits get a bounded retry message", () => {
+  assert.equal(getAuthRequestErrorCode({ code: "over_email_send_rate_limit" }), "send-rate-limit");
+  assert.equal(getAuthRequestErrorCode({ code: "over_request_rate_limit" }), "send-rate-limit");
+  assert.equal(getAuthRequestErrorCode({ code: "unexpected" }), "send-failed");
+  assert.equal(getAuthRequestErrorCode(null), "send-failed");
+  assert.match(loginActionSource, /getAuthRequestErrorCode/);
 });
 
 test("cabinet authentication uses verified claims and database-backed data", () => {

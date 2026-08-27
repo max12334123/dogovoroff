@@ -22,10 +22,19 @@ export default async function CabinetPage() {
     redirect("/login?next=/cabinet");
   }
 
-  const [{ data: profile }, matters] = await Promise.all([
+  const [{ data: profile }, { data: memberships }, matters] = await Promise.all([
     supabase.from("profiles").select("display_name").eq("id", userId).maybeSingle(),
+    supabase.from("organization_members").select("role").eq("user_id", userId),
     loadCabinetData(supabase, userId),
   ]);
 
-  return <CabinetClient initialMatters={matters} displayName={profile?.display_name || "Клиент"} />;
+  const hasStaffRole = memberships?.some((membership) => membership.role === "admin" || membership.role === "lawyer");
+
+  return (
+    <CabinetClient
+      initialMatters={matters}
+      displayName={profile?.display_name || "Клиент"}
+      staffHref={hasStaffRole ? "/staff" : null}
+    />
+  );
 }

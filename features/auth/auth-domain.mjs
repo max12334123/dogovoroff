@@ -50,3 +50,23 @@ export function getAuthConfirmUrl() {
   url.hash = "";
   return url.toString();
 }
+
+const SAME_BROWSER_AUTH_ERROR_CODES = new Set([
+  "bad_code_verifier",
+  "pkce_code_verifier_not_found",
+]);
+
+const AUTH_REQUEST_RATE_LIMIT_CODES = new Set([
+  "over_email_send_rate_limit",
+  "over_request_rate_limit",
+]);
+
+export function getAuthConfirmationErrorCode(error) {
+  const code = typeof error?.code === "string" ? error.code : "";
+  return SAME_BROWSER_AUTH_ERROR_CODES.has(code) ? "confirm-browser-mismatch" : "confirm-failed";
+}
+
+export function getAuthRequestErrorCode(error) {
+  const code = typeof error?.code === "string" ? error.code : "";
+  return AUTH_REQUEST_RATE_LIMIT_CODES.has(code) ? "send-rate-limit" : "send-failed";
+}
