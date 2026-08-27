@@ -1,0 +1,263 @@
+.page {
+  --ink: #f4f3ef;
+  --muted: rgba(244, 243, 239, 0.62);
+  min-height: 100svh;
+  position: relative;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  overflow: hidden;
+  color: var(--ink);
+  background: #050505;
+  font-family: var(--font-manrope), sans-serif;
+}
+
+.atmosphere {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 76% 18%, rgba(99, 160, 179, 0.16), transparent 30%),
+    linear-gradient(125deg, transparent 42%, rgba(255, 255, 255, 0.045) 49%, transparent 58%),
+    linear-gradient(#050505, #090b0c);
+}
+
+.header,
+.footer {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px clamp(22px, 4vw, 64px);
+}
+
+.header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  color: inherit;
+  text-decoration: none;
+  font-size: 18px;
+}
+
+.brand img {
+  width: 44px;
+  height: 44px;
+}
+
+.backLink,
+.footer a {
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.card {
+  position: relative;
+  z-index: 1;
+  width: min(700px, calc(100% - 40px));
+  margin: clamp(50px, 9vh, 104px) auto;
+  padding: clamp(30px, 5vw, 64px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(8, 9, 10, 0.78);
+  backdrop-filter: blur(24px);
+  box-shadow: 0 32px 90px rgba(0, 0, 0, 0.38);
+}
+
+.eyebrow {
+  margin: 0 0 20px;
+  color: #92c0cf;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.card h1 {
+  max-width: 520px;
+  margin: 0;
+  font-size: clamp(42px, 6.2vw, 64px);
+  font-weight: 400;
+  line-height: 0.94;
+  letter-spacing: -0.055em;
+  overflow-wrap: normal;
+}
+
+.card h1 span {
+  display: block;
+}
+
+.lead {
+  max-width: 500px;
+  margin: 28px 0 0;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1.7;
+}
+
+.form {
+  display: grid;
+  gap: 12px;
+  margin-top: 42px;
+}
+
+.form label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.form input[type="email"] {
+  width: 100%;
+  min-height: 62px;
+  padding: 0 18px;
+  color: var(--ink);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 0;
+  outline: none;
+  background: rgba(255, 255, 255, 0.035);
+  font: inherit;
+  transition: border-color 180ms ease, background 180ms ease, box-shadow 180ms ease;
+}
+
+.form input[type="email"]:focus-visible {
+  border-color: #92c0cf;
+  background: rgba(146, 192, 207, 0.07);
+  box-shadow: 0 0 0 3px rgba(146, 192, 207, 0.14);
+}
+
+.form button {
+  min-height: 60px;
+  margin-top: 8px;
+  color: #050505;
+  border: 1px solid var(--ink);
+  background: var(--ink);
+  cursor: pointer;
+  font: 700 12px/1 var(--font-manrope), sans-serif;
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+  transition: color 200ms ease, background 200ms ease, transform 200ms ease;
+}
+
+.form button:hover {
+  color: var(--ink);
+  background: transparent;
+  transform: translateY(-2px);
+}
+
+.note,
+.error {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.note {
+  color: rgba(244, 243, 239, 0.48);
+}
+
+.error {
+  color: #f0aaa1;
+}
+
+.notice {
+  margin-top: 42px;
+  padding: 24px;
+  color: #0a0b0c;
+  background: #f4f3ef;
+}
+
+.notice strong {
+  font-size: 18px;
+}
+
+.notice p {
+  margin: 10px 0 18px;
+  color: rgba(10, 11, 12, 0.7);
+  line-height: 1.6;
+}
+
+.notice a {
+  color: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.securityNote {
+  display: grid;
+  grid-template-columns: 130px 1fr;
+  gap: 24px;
+  margin-top: 44px;
+  padding-top: 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.securityNote span {
+  color: #92c0cf;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.securityNote p {
+  margin: 0;
+  color: rgba(244, 243, 239, 0.54);
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.footer {
+  color: rgba(244, 243, 239, 0.42);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 620px) {
+  .header,
+  .footer {
+    padding-inline: 20px;
+  }
+
+  .backLink {
+    font-size: 10px;
+  }
+
+  .card {
+    width: calc(100% - 24px);
+    margin-block: 28px;
+    padding: 28px 22px;
+  }
+
+  .card h1 {
+    font-size: clamp(40px, 13vw, 58px);
+    overflow-wrap: anywhere;
+  }
+
+  .securityNote {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .footer span {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .form button,
+  .form input[type="email"] {
+    transition: none;
+  }
+}

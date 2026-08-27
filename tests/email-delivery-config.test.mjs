@@ -36,5 +36,5 @@ test("server email delivery is idempotent and configured with server-only variab
   }
   assert.doesNotMatch(envExampleSource, /WEB3FORMS_ACCESS_KEY/);
   assert.match(configSource, /connect-src 'self'/);
-  assert.match(configSource, /form-action 'none'/);
+  assert.match(configSource, /form-action 'self'/);
 });

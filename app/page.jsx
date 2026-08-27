@@ -15,6 +15,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { getNextTabIndex } from "../lib/a11y-utils.mjs";
 import { normalizeContactPayload } from "../lib/contact-form.mjs";
 import { maskPhone, validateLead } from "../lib/form-utils.mjs";
+import { getRequestModeFromSearch } from "../lib/public-navigation.mjs";
 import { createSubmissionId } from "../lib/submission-id.mjs";
 import { PRECHECK_PRACTICES, practiceIdFromService } from "../features/precheck/config.mjs";
 import { APPROACH, CLIENTS, CONFIG, FAQ, PLANS, PRACTICES, STATS, STEPS, TEAM } from "./content";
@@ -169,6 +170,30 @@ export default function HomePage() {
   const selectedPractice = useMemo(() => PRACTICES[activePrice], [activePrice]);
 
   useEffect(() => setHydrated(true), []);
+
+  useEffect(() => {
+    const requestModeFromUrl = getRequestModeFromSearch(window.location.search);
+    const targetsLeadForm = window.location.hash === "#lead-form";
+
+    if (requestModeFromUrl === "precheck") {
+      setPrecheckInitialPractice("");
+      setPrecheckSession((current) => current + 1);
+      setPrecheckOpened(true);
+      setRequestMode("precheck");
+    }
+
+    if (!targetsLeadForm) return undefined;
+
+    const scrollToLeadForm = () => {
+      document.querySelector("#lead-form")?.scrollIntoView({ behavior: "auto" });
+    };
+    const scrollFrame = window.requestAnimationFrame(scrollToLeadForm);
+    const settleTimer = window.setTimeout(scrollToLeadForm, 1000);
+    return () => {
+      window.cancelAnimationFrame(scrollFrame);
+      window.clearTimeout(settleTimer);
+    };
+  }, []);
 
   useEffect(() => {
     if (submitState !== "success") return undefined;
@@ -435,6 +460,7 @@ export default function HomePage() {
             <a href="#approach">Подход</a>
             <a href="#team">Команда</a>
             <a href="#request">Контакты</a>
+            <a href="/cabinet">Кабинет</a>
           </nav>
           <a
             className={`site-header__ai${menuOpen ? " is-menu-open" : ""}`}
@@ -483,6 +509,7 @@ export default function HomePage() {
               <a href="#formats" onClick={closeMenuAfterNavigation}>Форматы работы</a>
               <a href="#team" onClick={closeMenuAfterNavigation}>Команда</a>
               <a href="#request" onClick={closeMenuAfterNavigation}>Контакты</a>
+              <a href="/cabinet">Личный кабинет</a>
             </nav>
             <div className="mobile-nav__footer">
               <a href={`mailto:${CONFIG.email}`}>{CONFIG.email}</a>

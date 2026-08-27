@@ -10,7 +10,7 @@ const contentSecurityPolicy = [
   "connect-src 'self'",
   "object-src 'none'",
   "base-uri 'self'",
-  "form-action 'none'",
+  "form-action 'self'",
   "frame-ancestors 'none'",
   "upgrade-insecure-requests",
 ].join("; ");
