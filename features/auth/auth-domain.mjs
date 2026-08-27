@@ -29,7 +29,13 @@ export function getAuthConfirmUrl() {
   const vercelOrigin = process.env.VERCEL_URL
     ? `https://${process.env.VERCEL_URL.replace(/^https?:\/\//, "")}`
     : "";
-  const configured = process.env.SUPABASE_AUTH_REDIRECT_URL || vercelOrigin || process.env.NEXT_PUBLIC_SITE_URL;
+  // Authentication emails must return to the stable public origin. VERCEL_URL
+  // identifies one deployment and is only a fallback for environments without
+  // an explicitly configured canonical site URL.
+  const configured =
+    process.env.SUPABASE_AUTH_REDIRECT_URL ||
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    vercelOrigin;
   if (!configured) {
     throw new Error("Не задан URL возврата после авторизации.");
   }

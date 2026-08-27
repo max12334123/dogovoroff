@@ -29,27 +29,37 @@ test("post-auth redirects stay inside the application", () => {
   assert.equal(getSafeNextPath(null), "/cabinet");
 });
 
-test("auth callback URL is controlled by server configuration", () => {
-  const previous = process.env.SUPABASE_AUTH_REDIRECT_URL;
+test("auth callback URL is controlled by stable server configuration", (t) => {
+  const previousRedirectUrl = process.env.SUPABASE_AUTH_REDIRECT_URL;
+  const previousSiteUrl = process.env.NEXT_PUBLIC_SITE_URL;
   const previousVercelUrl = process.env.VERCEL_URL;
+
+  t.after(() => {
+    restoreEnvironmentVariable("SUPABASE_AUTH_REDIRECT_URL", previousRedirectUrl);
+    restoreEnvironmentVariable("NEXT_PUBLIC_SITE_URL", previousSiteUrl);
+    restoreEnvironmentVariable("VERCEL_URL", previousVercelUrl);
+  });
+
   process.env.SUPABASE_AUTH_REDIRECT_URL = "https://preview.example/ignored?token=unsafe";
+  process.env.NEXT_PUBLIC_SITE_URL = "https://dogovoroff.vercel.app";
+  process.env.VERCEL_URL = "dogovoroff-git-main-team.vercel.app";
   assert.equal(getAuthConfirmUrl(), "https://preview.example/auth/confirm");
 
   process.env.SUPABASE_AUTH_REDIRECT_URL = "";
-  process.env.VERCEL_URL = "dogovoroff-git-main-team.vercel.app";
-  assert.equal(getAuthConfirmUrl(), "https://dogovoroff-git-main-team.vercel.app/auth/confirm");
+  assert.equal(getAuthConfirmUrl(), "https://dogovoroff.vercel.app/auth/confirm");
 
-  if (previous === undefined) {
-    delete process.env.SUPABASE_AUTH_REDIRECT_URL;
-  } else {
-    process.env.SUPABASE_AUTH_REDIRECT_URL = previous;
-  }
-  if (previousVercelUrl === undefined) {
-    delete process.env.VERCEL_URL;
-  } else {
-    process.env.VERCEL_URL = previousVercelUrl;
-  }
+  process.env.NEXT_PUBLIC_SITE_URL = "";
+  assert.equal(getAuthConfirmUrl(), "https://dogovoroff-git-main-team.vercel.app/auth/confirm");
 });
+
+function restoreEnvironmentVariable(name, value) {
+  if (value === undefined) {
+    delete process.env[name];
+    return;
+  }
+
+  process.env[name] = value;
+}
 
 test("open registration creates users without exposing account existence", () => {
   assert.match(loginActionSource, /signInWithOtp/);
