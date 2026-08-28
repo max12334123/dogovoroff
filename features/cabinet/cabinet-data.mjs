@@ -5,6 +5,33 @@ export const CABINET_VIEWS = [
   { id: "messages", index: "04", label: "Сообщения" },
 ];
 
+export const EMPTY_CABINET_STEPS = [
+  {
+    id: "account",
+    index: "01",
+    state: "complete",
+    statusLabel: "Готово",
+    title: "Аккаунт подтверждён",
+    description: "Вход защищён одноразовой ссылкой, пароль хранить не нужно.",
+  },
+  {
+    id: "request",
+    index: "02",
+    state: "current",
+    statusLabel: "Сейчас",
+    title: "Передайте ситуацию",
+    description: "Оставьте короткую заявку или пройдите предварительный AI-разбор.",
+  },
+  {
+    id: "matter",
+    index: "03",
+    state: "future",
+    statusLabel: "Далее",
+    title: "Получите доступ к делу",
+    description: "После проверки юрист свяжет принятое дело с вашим аккаунтом.",
+  },
+];
+
 export const CABINET_CASES = [
   {
     id: "supply-agreement",

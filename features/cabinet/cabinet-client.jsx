@@ -6,7 +6,7 @@ import { useMemo, useRef, useState } from "react";
 import { AI_PRECHECK_HREF, LEAD_FORM_HREF } from "../../lib/public-navigation.mjs";
 import { createUuidV4 } from "../../lib/submission-id.mjs";
 import { registerMatterDocument, sendMatterMessage } from "./cabinet-actions";
-import { CABINET_VIEWS, getMatterById } from "./cabinet-data.mjs";
+import { CABINET_VIEWS, EMPTY_CABINET_STEPS, getMatterById } from "./cabinet-data.mjs";
 import {
   buildDocumentStoragePath,
   DOCUMENT_BUCKET,
@@ -418,17 +418,33 @@ function EmptyCabinet() {
   return (
     <section className={styles.emptyCabinet} aria-labelledby="empty-cabinet-title">
       <p className={styles.eyebrow}>Аккаунт подтверждён</p>
-      <h1 id="empty-cabinet-title">Ваш кабинет готов.</h1>
+      <h1 id="empty-cabinet-title">Начнём без лишних шагов.</h1>
       <p className={styles.emptyCabinetLead}>
-        Здесь появятся дела, документы и сообщения после того, как юрист примет обращение в работу.
+        Кабинет уже готов. Теперь передайте ситуацию — остальное организует команда ДоговорОфф.
       </p>
+      <ol className={styles.onboardingSteps} aria-label="Первые шаги в личном кабинете">
+        {EMPTY_CABINET_STEPS.map((step) => (
+          <li
+            key={step.id}
+            className={styles[`onboardingStep_${step.state}`]}
+            aria-current={step.state === "current" ? "step" : undefined}
+          >
+            <span className={styles.onboardingStepIndex}>{step.index}</span>
+            <div>
+              <small>{step.statusLabel}</small>
+              <strong>{step.title}</strong>
+              <p>{step.description}</p>
+            </div>
+          </li>
+        ))}
+      </ol>
       <div className={styles.emptyCabinetActions}>
-        <a className={styles.darkButton} href={AI_PRECHECK_HREF}>Пройти AI-разбор</a>
-        <a className={styles.quietLink} href={LEAD_FORM_HREF}>Оставить заявку</a>
+        <a className={styles.darkButton} href={LEAD_FORM_HREF}>Оставить заявку</a>
+        <a className={styles.quietLink} href={AI_PRECHECK_HREF}>Пройти AI-разбор</a>
       </div>
       <div className={styles.emptyCabinetNote}>
-        <span>Что дальше</span>
-        <p>Отправьте обращение удобным способом. После проверки мы свяжем принятое дело с этим аккаунтом.</p>
+        <span>После заявки</span>
+        <p>После назначения дела здесь откроются документы и сообщения. Повторно регистрироваться не потребуется.</p>
       </div>
     </section>
   );

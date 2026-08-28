@@ -31,3 +31,15 @@ export function getStaffOrganizationIds(memberships) {
       .map((membership) => membership.organization_id),
   )];
 }
+
+export function getAdminOrganizationIds(memberships) {
+  if (!Array.isArray(memberships)) {
+    return [];
+  }
+
+  return [...new Set(
+    memberships
+      .filter((membership) => membership?.role === "admin" && typeof membership.organization_id === "string")
+      .map((membership) => membership.organization_id),
+  )];
+}

@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   CABINET_CASES,
   CABINET_VIEWS,
+  EMPTY_CABINET_STEPS,
   getMatterById,
 } from "../features/cabinet/cabinet-data.mjs";
 import {
@@ -30,6 +31,21 @@ test("cabinet data keeps the client journey explicit and stable", () => {
   assert.ok(CABINET_CASES[0].stages.some((stage) => stage.status === "current"));
   assert.ok(CABINET_CASES[0].nextAction);
   assert.equal(CABINET_CASES[1].nextAction, null);
+});
+
+test("empty cabinet guides a newly registered client without storing onboarding state", () => {
+  assert.deepEqual(
+    EMPTY_CABINET_STEPS.map(({ id, state }) => [id, state]),
+    [
+      ["account", "complete"],
+      ["request", "current"],
+      ["matter", "future"],
+    ],
+  );
+  assert.match(componentSource, /aria-label="Первые шаги в личном кабинете"/);
+  assert.match(componentSource, /EMPTY_CABINET_STEPS\.map/);
+  assert.match(componentSource, /После назначения дела здесь откроются документы и сообщения/);
+  assert.doesNotMatch(componentSource, /localStorage|sessionStorage/);
 });
 
 test("cabinet UI is client-facing, accessible, and connected to private matter operations", () => {

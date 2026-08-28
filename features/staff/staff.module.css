@@ -108,6 +108,146 @@
   font-weight: 500;
 }
 
+.assignmentPanel {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.44fr) minmax(0, 1fr);
+  gap: clamp(32px, 5vw, 72px);
+  padding: 42px 0 48px;
+  border-bottom: 1px solid var(--staff-line);
+}
+
+.assignmentIntro h2 {
+  max-width: 520px;
+  margin-top: 10px;
+  font-size: clamp(30px, 4vw, 58px);
+  font-weight: 420;
+  letter-spacing: -0.055em;
+  line-height: 0.98;
+}
+
+.assignmentIntro > p:last-child {
+  max-width: 520px;
+  margin-top: 22px;
+  color: #c9ccca;
+  font-size: 13px;
+  line-height: 1.75;
+}
+
+.assignmentForm {
+  min-width: 0;
+  padding: clamp(20px, 3vw, 34px);
+  color: var(--staff-black);
+  background: var(--staff-paper);
+}
+
+.assignmentFields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px 18px;
+}
+
+.assignmentFields label {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.assignmentFields label > span {
+  color: #5f6669;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.assignmentFields input,
+.assignmentFields select,
+.assignmentFields textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 48px;
+  padding: 12px 13px;
+  border: 1px solid #c8cece;
+  border-radius: 0;
+  outline: none;
+  color: var(--staff-black);
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.assignmentFields textarea {
+  min-height: 92px;
+  resize: vertical;
+}
+
+.assignmentFields input:focus,
+.assignmentFields select:focus,
+.assignmentFields textarea:focus {
+  border-color: #537f91;
+  box-shadow: 0 0 0 1px #537f91;
+}
+
+.assignmentFields input:disabled,
+.assignmentFields select:disabled,
+.assignmentFields textarea:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.assignmentWideField {
+  grid-column: 1 / -1;
+}
+
+.assignmentFooter {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 0.44fr);
+  gap: 22px;
+  align-items: end;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #d8dcda;
+}
+
+.assignmentFooter button {
+  display: grid;
+  width: 100%;
+  min-height: 54px;
+  padding: 12px 18px;
+  place-items: center;
+  color: var(--staff-paper);
+  background: var(--staff-black);
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  transition: color 220ms ease, background-color 220ms ease, opacity 220ms ease;
+}
+
+.assignmentFooter button:hover,
+.assignmentFooter button:focus-visible {
+  color: var(--staff-black);
+  background: var(--staff-ice);
+}
+
+.assignmentFooter button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.assignmentFeedback {
+  min-height: 22px;
+  color: #537f91;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.assignmentFeedbackError {
+  color: #8b3f3f;
+}
+
 .grid {
   display: grid;
   grid-template-columns: minmax(220px, 0.36fr) minmax(0, 1fr);
@@ -396,6 +536,10 @@
     grid-template-columns: 1fr;
   }
 
+  .assignmentPanel {
+    grid-template-columns: 1fr;
+  }
+
   .sidebar {
     padding: 30px 0;
     border-right: 0;
@@ -438,6 +582,15 @@
     flex: 1 1 0;
   }
 
+  .assignmentFields,
+  .assignmentFooter {
+    grid-template-columns: 1fr;
+  }
+
+  .assignmentWideField {
+    grid-column: auto;
+  }
+
   .stageList,
   .messages {
     grid-template-columns: 1fr;
@@ -453,7 +606,8 @@
   .headerNav a,
   .headerNav button,
   .matterButton,
-  .composer button {
+  .composer button,
+  .assignmentFooter button {
     transition: none;
   }
 }

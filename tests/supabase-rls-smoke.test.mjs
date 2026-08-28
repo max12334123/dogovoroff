@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
@@ -46,4 +47,49 @@ test("RLS smoke assertions compare sets without exposing row contents", () => {
     () => assertVisibleIds("client A", "matters", ["a", "b"], ["a"]),
     /RLS smoke check failed for client A matters/,
   );
+});
+
+test("isolated SQL smoke suite is transactional and covers read and write boundaries", async () => {
+  const source = await readFile(
+    new URL("../supabase/tests/rls-isolation-smoke.sql", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(source, /^begin;/m);
+  assert.match(source, /^rollback;/m);
+  assert.doesNotMatch(source, /^commit;/m);
+  assert.match(source, /set local role authenticated;/i);
+  assert.match(source, /set local role anon;/i);
+  assert.match(source, /request\.jwt\.claim\.sub/);
+  assert.match(source, /client_a:matters/);
+  assert.match(source, /client_b:matters/);
+  assert.match(source, /lawyer:matters/);
+  assert.match(source, /admin:matters/);
+  assert.match(source, /anonymous:matters/);
+  assert.match(source, /try_insert_message/);
+  assert.match(source, /try_insert_document/);
+  assert.match(source, /RLS isolation check failed/);
+  assert.doesNotMatch(source, /service_role|@|email/i);
+});
+
+test("staff assignment SQL smoke suite is transactional and covers every role", async () => {
+  const source = await readFile(
+    new URL("../supabase/tests/staff-assignment-smoke.sql", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(source, /^begin;/m);
+  assert.match(source, /^rollback;/m);
+  assert.doesNotMatch(source, /^commit;/m);
+  assert.match(source, /client:create-denied/);
+  assert.match(source, /lawyer:create-denied/);
+  assert.match(source, /anonymous:create-denied/);
+  assert.match(source, /admin:create-complete/);
+  assert.match(source, /admin:unconfirmed-client-denied/);
+  assert.match(source, /admin:other-org-denied/);
+  assert.match(source, /database:two-participants/);
+  assert.match(source, /assigned-client:matter-visible/);
+  assert.match(source, /assigned-lawyer:matter-visible/);
+  assert.match(source, /persistent_rows', 0/);
+  assert.doesNotMatch(source, /service_role/i);
 });

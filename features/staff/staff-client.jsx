@@ -6,6 +6,7 @@ import { createUuidV4 } from "../../lib/submission-id.mjs";
 import { sendMatterMessage } from "../cabinet/cabinet-actions";
 import { getMatterById } from "../cabinet/cabinet-data.mjs";
 import { validateMatterMessage } from "../cabinet/cabinet-write-domain.mjs";
+import StaffAssignmentForm from "./staff-assignment-form";
 import styles from "./staff.module.css";
 
 function MatterList({ matters, activeMatterId, onSelect }) {
@@ -78,14 +79,22 @@ function MessageHistory({ messages }) {
   );
 }
 
-export default function StaffClient({ initialMatters = [], organizations = [], roleLabel = "" }) {
+export default function StaffClient({
+  initialMatters = [],
+  organizations = [],
+  assignmentOrganizations = [],
+  roleLabel = "",
+}) {
   const router = useRouter();
   const [activeMatterId, setActiveMatterId] = useState(initialMatters[0]?.id ?? null);
   const [draft, setDraft] = useState("");
   const [feedback, setFeedback] = useState({ tone: "neutral", text: "" });
   const [isSending, setIsSending] = useState(false);
   const messageIdRef = useRef(null);
-  const matter = useMemo(() => getMatterById(activeMatterId, initialMatters), [activeMatterId, initialMatters]);
+  const resolvedMatterId = initialMatters.some((item) => item.id === activeMatterId)
+    ? activeMatterId
+    : initialMatters[0]?.id ?? null;
+  const matter = useMemo(() => getMatterById(resolvedMatterId, initialMatters), [resolvedMatterId, initialMatters]);
 
   const selectMatter = (matterId) => {
     setActiveMatterId(matterId);
@@ -151,10 +160,20 @@ export default function StaffClient({ initialMatters = [], organizations = [], r
         </div>
       </div>
 
+      {assignmentOrganizations.length ? (
+        <StaffAssignmentForm
+          organizations={assignmentOrganizations}
+          onCreated={(matterId) => {
+            setActiveMatterId(matterId);
+            router.refresh();
+          }}
+        />
+      ) : null}
+
       <div className={styles.grid}>
         <aside className={styles.sidebar}>
           <p className={styles.eyebrow}>Рабочий список</p>
-          <MatterList matters={initialMatters} activeMatterId={activeMatterId} onSelect={selectMatter} />
+          <MatterList matters={initialMatters} activeMatterId={resolvedMatterId} onSelect={selectMatter} />
         </aside>
 
         {matter ? (

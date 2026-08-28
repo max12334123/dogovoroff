@@ -54,6 +54,7 @@ export default async function StaffPage() {
         <StaffClient
           initialMatters={staffData.matters}
           organizations={staffData.organizations}
+          assignmentOrganizations={staffData.assignmentOrganizations}
           roleLabel={staffData.roleLabel}
         />
       </main>
