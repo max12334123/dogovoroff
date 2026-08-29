@@ -8,7 +8,13 @@ create temporary table intake_results (
   expected bigint not null
 ) on commit drop;
 
+create temporary table intake_fixture_ids (
+  submission_id uuid primary key,
+  request_id uuid not null unique
+) on commit drop;
+
 grant select, insert on table pg_temp.intake_results to authenticated, anon, service_role;
+grant select on table pg_temp.intake_fixture_ids to authenticated, anon, service_role;
 
 create function pg_temp.try_store_intake(
   target_organization_id uuid,
@@ -69,12 +75,12 @@ as $$
 declare
   resolved_request_id uuid;
 begin
-  select intake.id
+  select fixture.request_id
   into resolved_request_id
-  from public.intake_requests as intake
-  where intake.id = target_request_id
-     or intake.submission_id = target_request_id
-  order by (intake.id = target_request_id) desc
+  from pg_temp.intake_fixture_ids as fixture
+  where fixture.request_id = target_request_id
+     or fixture.submission_id = target_request_id
+  order by (fixture.request_id = target_request_id) desc
   limit 1;
 
   if resolved_request_id is null then
@@ -97,12 +103,12 @@ as $$
 declare
   resolved_request_id uuid;
 begin
-  select intake.id
+  select fixture.request_id
   into resolved_request_id
-  from public.intake_requests as intake
-  where intake.id = target_request_id
-     or intake.submission_id = target_request_id
-  order by (intake.id = target_request_id) desc
+  from pg_temp.intake_fixture_ids as fixture
+  where fixture.request_id = target_request_id
+     or fixture.submission_id = target_request_id
+  order by (fixture.request_id = target_request_id) desc
   limit 1;
 
   if resolved_request_id is null then
@@ -178,6 +184,14 @@ insert into pg_temp.intake_results values
     'cccccccc-cccc-4ccc-8ccc-cccccccccccc'
   )::int, 1);
 reset role;
+
+insert into pg_temp.intake_fixture_ids (submission_id, request_id)
+select intake.submission_id, intake.id
+from public.intake_requests as intake
+where intake.submission_id in (
+  'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+  'cccccccc-cccc-4ccc-8ccc-cccccccccccc'
+);
 
 set local role anon;
 select set_config('request.jwt.claim.sub', '', true);
