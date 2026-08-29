@@ -3,9 +3,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSafeNextPath } from "../../features/auth/auth-domain.mjs";
 import { getCaptchaConfig } from "../../features/auth/captcha-domain.mjs";
-import CaptchaWidget from "../../features/auth/captcha-widget";
+import LoginForm from "../../features/auth/login-form";
 import { createClient } from "../../lib/supabase/server";
-import { requestLoginLink } from "./actions";
 import styles from "./login.module.css";
 
 export const metadata = {
@@ -54,7 +53,7 @@ export default async function LoginPage({ searchParams }) {
 
       <section className={styles.card} aria-labelledby="login-title">
         <p className={styles.eyebrow}>Личный кабинет</p>
-        <h1 id="login-title"><span>Войти или</span><span>зарегистрироваться</span></h1>
+        <h1 id="login-title"><span>Войти или</span>{" "}<span>зарегистрироваться</span></h1>
         <p className={styles.lead}>
           Укажите email. Мы отправим одноразовую ссылку — пароль придумывать не нужно.
         </p>
@@ -66,27 +65,7 @@ export default async function LoginPage({ searchParams }) {
             <Link href={`/login?next=${encodeURIComponent(next)}`}>Указать другой email</Link>
           </div>
         ) : (
-          <form className={styles.form} action={requestLoginLink}>
-            <input type="hidden" name="next" value={next} />
-            <label htmlFor="login-email">Email</label>
-            <input
-              id="login-email"
-              name="email"
-              type="email"
-              inputMode="email"
-              autoComplete="email"
-              maxLength={254}
-              placeholder="name@example.ru"
-              required
-              aria-describedby={errorMessage ? "login-error login-note" : "login-note"}
-            />
-            {errorMessage && <p className={styles.error} id="login-error" role="alert">{errorMessage}</p>}
-            <CaptchaWidget config={captchaConfig} />
-            <button type="submit">Получить ссылку</button>
-            <p className={styles.note} id="login-note">
-              Если аккаунта ещё нет, он будет создан после подтверждения email. Доступ к делам назначается отдельно.
-            </p>
-          </form>
+          <LoginForm next={next} errorMessage={errorMessage} captchaConfig={captchaConfig} />
         )}
 
         <div className={styles.securityNote}>

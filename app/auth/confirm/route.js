@@ -60,6 +60,9 @@ export async function GET(request) {
     return NextResponse.redirect(cleanUrl);
   }
 
-  cleanUrl.pathname = next;
+  const nextUrl = new URL(next, cleanUrl.origin);
+  cleanUrl.pathname = nextUrl.pathname;
+  cleanUrl.search = nextUrl.search;
+  cleanUrl.hash = nextUrl.hash;
   return NextResponse.redirect(cleanUrl);
 }

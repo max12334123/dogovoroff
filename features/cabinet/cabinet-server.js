@@ -48,20 +48,22 @@ function formatDeadline(value, prefix = "до") {
 
 export async function loadCabinetData(supabase, userId, options = {}) {
   const messageParticipantLabel = options.messageParticipantLabel ?? "Команда ДоговорОфф";
+  const matterFields = [
+    "id",
+    ...(options.includeOrganizationId ? ["organization_id"] : []),
+    "reference",
+    "title",
+    "summary",
+    "status",
+    "response_due_at",
+    "next_action_title",
+    "next_action_description",
+    "next_action_due_at",
+    "updated_at",
+  ];
   const { data: matters, error: mattersError } = await supabase
     .from("matters")
-    .select([
-      "id",
-      "reference",
-      "title",
-      "summary",
-      "status",
-      "response_due_at",
-      "next_action_title",
-      "next_action_description",
-      "next_action_due_at",
-      "updated_at",
-    ].join(","))
+    .select(matterFields.join(","))
     .order("updated_at", { ascending: false });
 
   if (mattersError) {
@@ -113,16 +115,24 @@ export async function loadCabinetData(supabase, userId, options = {}) {
       detail: stage.detail || (stage.status === "current" ? "В работе" : ""),
       status: stage.status,
     }));
-    const currentStage = Math.max(0, stages.findIndex((stage) => stage.status === "current"));
+    const currentStageIndex = stages.findIndex((stage) => stage.status === "current");
 
     return {
       id: matter.id,
+      ...(options.includeOrganizationId
+        ? {
+            organizationId: matter.organization_id,
+            responseDueAt: matter.response_due_at || null,
+            detailsSummary: matter.summary || "",
+          }
+        : {}),
       index: String(index + 1).padStart(2, "0"),
       title: matter.title,
       reference: matter.reference,
-      state: matter.status === "completed" || matter.status === "archived" ? "archived" : "active",
+      state: matter.status,
       stateLabel: MATTER_STATE_LABELS[matter.status] ?? "Дело",
-      currentStage,
+      updated: DATE_TIME_FORMATTER.format(new Date(matter.updated_at)),
+      currentStage: currentStageIndex >= 0 ? currentStageIndex : null,
       responseBy: matter.response_due_at ? formatDeadline(matter.response_due_at) : "срок уточняется",
       summary: matter.summary || "Информация по делу готовится.",
       stages,
@@ -131,6 +141,7 @@ export async function loadCabinetData(supabase, userId, options = {}) {
             title: matter.next_action_title,
             description: matter.next_action_description || "Подробности доступны в сообщениях по делу.",
             deadline: formatDeadline(matter.next_action_due_at),
+            dueAt: matter.next_action_due_at || null,
           }
         : null,
       updates: (eventsByMatter.get(matter.id) ?? []).map((event) => {
@@ -153,6 +164,7 @@ export async function loadCabinetData(supabase, userId, options = {}) {
         mimeType: document.mime_type,
         sizeBytes: document.size_bytes,
         status: DOCUMENT_STATUS_LABELS[document.status] ?? "Получен",
+        updatedAt: document.updated_at,
         updated: DATE_FORMATTER.format(new Date(document.updated_at)),
       })),
       messages: (messagesByMatter.get(matter.id) ?? []).map((message) => ({

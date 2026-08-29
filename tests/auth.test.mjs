@@ -54,6 +54,25 @@ test("auth callback URL is controlled by stable server configuration", (t) => {
   assert.equal(getAuthConfirmUrl(), "https://dogovoroff-git-main-team.vercel.app/auth/confirm");
 });
 
+test("development callback follows the actual local browser origin", (t) => {
+  const previousNodeEnv = process.env.NODE_ENV;
+  const previousRedirectUrl = process.env.SUPABASE_AUTH_REDIRECT_URL;
+  const previousSiteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+
+  t.after(() => {
+    restoreEnvironmentVariable("NODE_ENV", previousNodeEnv);
+    restoreEnvironmentVariable("SUPABASE_AUTH_REDIRECT_URL", previousRedirectUrl);
+    restoreEnvironmentVariable("NEXT_PUBLIC_SITE_URL", previousSiteUrl);
+  });
+
+  process.env.NODE_ENV = "development";
+  process.env.SUPABASE_AUTH_REDIRECT_URL = "http://127.0.0.1:4175/auth/confirm";
+  process.env.NEXT_PUBLIC_SITE_URL = "http://127.0.0.1:4175";
+
+  assert.equal(getAuthConfirmUrl({ requestOrigin: "http://localhost:4173" }), "http://localhost:4173/auth/confirm");
+  assert.equal(getAuthConfirmUrl({ requestOrigin: "https://attacker.example" }), "http://127.0.0.1:4175/auth/confirm");
+});
+
 function restoreEnvironmentVariable(name, value) {
   if (value === undefined) {
     delete process.env[name];
@@ -69,6 +88,9 @@ test("open registration creates users without exposing account existence", () =>
   assert.doesNotMatch(loginActionSource, /console\.(log|error)\([^)]*email/);
   assert.match(confirmRouteSource, /exchangeCodeForSession|verifyOtp/);
   assert.match(confirmRouteSource, /getSafeNextPath/);
+  assert.match(confirmRouteSource, /nextUrl\.search/);
+  assert.match(confirmRouteSource, /nextUrl\.hash/);
+  assert.match(middlewareSource, /nextPath/);
 });
 
 test("auth callback explains same-browser PKCE failures without exposing provider details", () => {

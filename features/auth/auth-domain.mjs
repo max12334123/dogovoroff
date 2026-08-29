@@ -25,14 +25,24 @@ export function getSafeNextPath(value, fallback = "/cabinet") {
   }
 }
 
-export function getAuthConfirmUrl() {
+function getLocalRequestOrigin(value) {
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  const origin = value.trim().replace(/\/$/, "");
+  return /^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d{1,5})?$/.test(origin) ? origin : "";
+}
+
+export function getAuthConfirmUrl({ requestOrigin = "" } = {}) {
   const vercelOrigin = process.env.VERCEL_URL
     ? `https://${process.env.VERCEL_URL.replace(/^https?:\/\//, "")}`
     : "";
   // Authentication emails must return to the stable public origin. VERCEL_URL
   // identifies one deployment and is only a fallback for environments without
   // an explicitly configured canonical site URL.
-  const configured =
+  const localOrigin = process.env.NODE_ENV === "development" ? getLocalRequestOrigin(requestOrigin) : "";
+  const configured = localOrigin ||
     process.env.SUPABASE_AUTH_REDIRECT_URL ||
     process.env.NEXT_PUBLIC_SITE_URL ||
     vercelOrigin;

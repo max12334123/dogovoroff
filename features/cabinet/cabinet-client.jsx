@@ -76,7 +76,7 @@ function Timeline({ matter, condensed = false }) {
   return (
     <ol className={`${styles.timeline}${condensed ? ` ${styles.timelineCondensed}` : ""}`}>
       {matter.stages.map((stage, index) => (
-        <li key={stage.title} className={styles[`stage_${stage.status}`]}>
+        <li key={stage.id ?? `${stage.title}-${index}`} className={styles[`stage_${stage.status}`]}>
           <span className={styles.stageMarker} aria-hidden="true">
             {index + 1}
           </span>
@@ -91,7 +91,7 @@ function Timeline({ matter, condensed = false }) {
 }
 
 function UploadControl({ matter, feedback, isUploading, onFileChange, onOpenDocuments }) {
-  if (!matter.nextAction && matter.state === "archived") {
+  if (!matter.nextAction && (matter.state === "completed" || matter.state === "archived")) {
     return (
       <section className={`${styles.actionPanel} ${styles.actionPanelComplete}`} aria-labelledby="completed-action-title">
         <p className={styles.eyebrow}>Дело завершено</p>
@@ -167,7 +167,7 @@ function DocumentRegister({ documents, compact = false, feedback, downloadingId,
             <small>{downloadingId === document.id ? "Загрузка…" : "Скачать"}</small>
           </button>
           <span>{document.status}</span>
-          <time dateTime={document.updated.split(".").reverse().join("-")}>{document.updated}</time>
+          <time dateTime={document.updatedAt || undefined}>{document.updated}</time>
         </div>
       ))}
       {feedback?.text && (

@@ -23,6 +23,73 @@
   text-decoration: none;
 }
 
+.stateShell {
+  display: grid;
+  min-height: 100svh;
+  place-items: center;
+  padding: 32px 20px;
+  color: var(--cabinet-paper);
+  background:
+    radial-gradient(circle at 75% 18%, rgba(143, 185, 202, 0.13), transparent 36%),
+    var(--cabinet-black);
+}
+
+.stateCard {
+  width: min(560px, 100%);
+  padding: clamp(28px, 6vw, 56px);
+  border: 1px solid var(--cabinet-dark-line);
+  background: rgba(11, 12, 13, 0.84);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.32);
+}
+
+.stateCard h1 {
+  margin: 0;
+  font-size: clamp(34px, 7vw, 56px);
+  font-weight: 420;
+  line-height: 0.98;
+  letter-spacing: -0.055em;
+}
+
+.stateCard p:not(.eyebrow) {
+  margin: 18px 0 0;
+  color: var(--cabinet-silver);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.stateActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin-top: 30px;
+}
+
+.stateActions button,
+.stateActions a {
+  min-height: 48px;
+  padding: 0 18px;
+  border: 1px solid var(--cabinet-paper);
+  color: var(--cabinet-black);
+  background: var(--cabinet-paper);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.stateActions a {
+  display: inline-flex;
+  align-items: center;
+  color: var(--cabinet-paper);
+  background: transparent;
+}
+
+.stateActions :is(button, a):hover {
+  color: var(--cabinet-paper);
+  background: transparent;
+}
+
 .shell button,
 .shell input,
 .shell textarea,

@@ -152,6 +152,15 @@
   transform: translateY(-2px);
 }
 
+.form button:disabled,
+.form button:disabled:hover {
+  color: rgba(5, 5, 5, 0.55);
+  border-color: rgba(244, 243, 239, 0.55);
+  background: rgba(244, 243, 239, 0.55);
+  cursor: not-allowed;
+  transform: none;
+}
+
 .note,
 .error {
   margin: 4px 0 0;

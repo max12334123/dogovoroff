@@ -1,110 +1,71 @@
-# Design QA — анимация концепта 3
+# Design QA — staff workspace
 
-## Артефакты и состояние
+## Evidence
 
-- Визуальный источник: `C:\\Users\\yur03\\.codex\\generated_images\\019fff8a-ef94-7aa1-82a2-32ccb76da14e\\exec-79e76139-3b58-4443-b610-11a42922b550.png` — 1487 × 1058 px.
-- Реализация desktop: `..\\..\\outputs\\dogovoroff-motion\\implementation\\desktop-final.png` — 1425 × 975 px.
-- Реализация mobile: `..\\..\\outputs\\dogovoroff-motion\\implementation\\mobile-final.png` — 375 × 844 px.
-- Фокусный mobile-кадр льда: `..\\..\\outputs\\dogovoroff-motion\\implementation\\mobile-art-final.png` — 375 × 844 px.
-- Совмещённое сравнение: `..\\..\\outputs\\dogovoroff-motion\\implementation\\comparison-desktop-final.png` — 2860 × 975 px.
-- Запрошенный desktop viewport: 1440 × 1024 CSS px; фактическая клиентская область IAB: 1425 × 1025 CSS px; сохранённая видимая область: 1425 × 975 px; device scale factor 1.
-- Mobile viewport: 390 × 844 CSS px; фактическая клиентская область: 375 × 845 CSS px; снимок 375 × 844 px; device scale factor 1.
-- Состояние desktop-сравнения: первый экран, пик внутреннего преломления (opacity 0.81), курсор вне ледяного блока.
-- Нормализация: источник кадрирован без растяжения через fit до 1425 × 975 и помещён рядом с реализацией того же размера.
+- Source visual truth: `C:\Users\yur03\.codex\generated_images\019fff8a-ef94-7aa1-82a2-32ccb76da14e\exec-7202c756-1c53-4ec4-b2fa-07a81dbdbdbd.png`
+- Source pixels: 1487 × 1058, density 1x.
+- Desktop implementation: `C:\Users\yur03\.codex\visualizations\2026\08\14\019fff8a-ef94-7aa1-82a2-32ccb76da14e\staff-desktop-final.png`
+- Desktop screenshot pixels: 1425 × 975; browser CSS viewport: 1440 × 1025; density 1x. The in-app browser screenshot excludes browser chrome and the scrollbar gutter.
+- Mobile implementation: `C:\Users\yur03\.codex\visualizations\2026\08\14\019fff8a-ef94-7aa1-82a2-32ccb76da14e\staff-mobile-final.png`
+- Mobile screenshot pixels: 375 × 844; browser CSS viewport: 390 × 844; density 1x. The 15 px width difference is the scrollbar gutter.
+- Mobile drawer state: `C:\Users\yur03\.codex\visualizations\2026\08\14\019fff8a-ef94-7aa1-82a2-32ccb76da14e\staff-mobile-drawer-final.png`
+- Side-by-side comparison: `C:\Users\yur03\.codex\visualizations\2026\08\14\019fff8a-ef94-7aa1-82a2-32ccb76da14e\staff-comparison-final.png`
+- Comparison normalization: source and desktop capture were normalized to 1440 × 1024 at 1x and placed side by side. Browser chrome was not included.
+- State: authenticated staff dashboard represented with realistic non-personal test fixtures; active matter selected; mobile creation drawer open in the interaction capture.
 
-**Findings**
+## Full-view comparison evidence
 
-- P0: нет.
-- P1: нет.
-- P2, исправлено — черновой световой слой выходил за правую грань монолита и выглядел отдельной картинкой. Черновой asset удалён; вместо него создан совпадающий по геометрии кадр `public/media/ice-refraction-frame.png`, который накладывается строго на исходный монолит. Post-fix evidence: desktop-final.png и mobile-art-final.png.
-- P2, исправлено — в первом совмещённом сравнении блик был почти незаметен и не передавал выбранный концепт. Слой переведён в режим `lighten`, а пиковая фаза повышена до 0.82. Post-fix evidence: comparison-desktop-final.png; компактный холодный блик читается на правой внутренней грани, центральная серебряная линия становится ярче без засветки фона.
-- P3, принято — блик в реализации меньше, чем в статичном концепте. Это намеренное ограничение: анимация повторяется, поэтому более короткий импульс меньше отвлекает от CTA и заголовка.
+- Information architecture matches the approved target: compact account header, fixed navigation rail, task-first queues, persistent matter detail, search, and primary “Новое дело” action.
+- Layout rhythm preserves the target's three-column balance, thin rules, square controls, large editorial heading, and dense but scannable matter rows.
+- Colors map to the approved black, graphite, white, muted gray, and ice-blue palette. Active and focus states remain distinguishable without introducing decorative gradients or shadows.
+- Typography follows the site's existing premium sans-serif system and the target hierarchy. All visible leaf text now renders at 12 px or larger.
+- The only visible image asset is the existing Dogovoroff logo; it uses the real project asset rather than a code-drawn substitute.
+- App copy is shorter and task-oriented. Dynamic fixture counts and matter names intentionally differ from the concept image.
 
-## Обязательные поверхности качества
+## Focused region evidence
 
-- Fonts and typography: семейства, веса, размеры, межстрочные интервалы, переносы и оптическая иерархия исходной реализации сохранены. Анимация не меняет текст и его рендеринг.
-- Spacing and layout rhythm: сетка hero, границы колонок, CTA, метаданные и нижняя полоса не сдвигаются. Горизонтального переполнения нет на desktop и mobile.
-- Colors and visual tokens: чёрно-белая система сохранена; добавлен только краткий серебристо-белый блик с очень небольшим холодно-голубым ядром, как в выбранном направлении.
-- Image quality and asset fidelity: оба ледяных кадра являются реальными raster assets; масштаб, object-position и transform совпадают. Нет CSS-рисунков, placeholder-графики, растяжения или видимых швов.
-- Copy and content: весь текст, навигация, CTA и контактные данные не изменялись.
+A separate crop was not required because the native source and final desktop capture keep the header, queue rows, detail timeline, controls, and logo legible in the combined comparison. Small-control and responsive fidelity were additionally checked in the dedicated mobile dashboard and mobile drawer captures.
 
-## Полноэкранное и фокусное сравнение
+## Interaction and responsive checks
 
-- Полноэкранное desktop-сравнение подтверждает совпадение композиции, типографики, сетки, цветового баланса и позиции монолита.
-- Отдельный desktop crop не понадобился: hero занимает почти весь сохранённый кадр, и блик, CTA, заголовок и границы колонок читаются в полном размере.
-- Mobile-art-final.png использован как фокусное доказательство: монолит полностью виден, свет остаётся внутри стекла, следующий блок не перекрывается.
+- “Все дела” opens the register; status filter and text search reduce the visible set correctly.
+- “Новое дело” opens an accessible two-step drawer; step progression works, Escape/close returns focus to the trigger, and no submission was made during QA.
+- “Написать клиенту” exposes the message composer; “Открыть документы” moves focus to the document section.
+- Desktop and 390 px mobile layouts have no horizontal document overflow.
+- The mobile drawer fills the viewport, locks background scrolling, and remains vertically scrollable.
+- Browser console: no warnings or errors in the final pass.
 
-## Взаимодействия и доступность
+## Findings
 
-- Pointer enter увеличивает ледяную сцену до 1.012; pointer leave возвращает transform к нейтральному состоянию.
-- Параллакс ограничен максимумом 1.25° / 1.7° и микросмещением 4.5 × 3 px; расчёт детерминирован и покрыт тестами.
-- На coarse pointer курсорный параллакс не запускается; мобильная версия сохраняет только спокойный световой цикл.
-- `prefers-reduced-motion: reduce` отключает keyframe-анимацию и принудительно сбрасывает transforms; активный IAB работал в режиме `no-preference`, поэтому reduced-motion проверен по реализации, но не эмулировался браузером.
-- Мобильное меню открывается и закрывается: `aria-expanded`, наличие navigation и блокировка body меняются синхронно.
-- В IAB не найден Next.js runtime error overlay; изображения загрузились; desktop и mobile не имеют горизонтального overflow.
+No actionable P0, P1, or P2 findings remain.
 
-## Автоматическая проверка
+- Accepted product constraint: the current authorized matter payload does not expose client names or responsible-person names. The implementation uses matter title, reference, organization, status, and update time instead of inventing personal data or broadening the authorization boundary.
+- Accepted responsive adaptation: the desktop side rail becomes a horizontally scrollable navigation strip on narrow screens so all destinations remain reachable without squeezing labels.
 
-- `npm.cmd test`: 6 passed, 0 failed.
-- `npm.cmd run build`: production build passed, включая компиляцию, lint/type validation и статическую генерацию.
-- `git diff --check`: ошибок whitespace нет; показаны только существующие Windows LF/CRLF warnings.
+## Comparison history
 
-**Open Questions**
+### Pass 1
 
-- Нет блокирующих вопросов. Эмуляция reduced-motion остаётся необязательным P3 тестовым дополнением.
+- [P2] Several compact labels rendered below 12 px and were too small for comfortable scanning.
+- Fix: raised every sub-12 px staff-workspace declaration to 12 px while retaining the target's compact hierarchy.
+- Earlier evidence: `C:\Users\yur03\.codex\visualizations\2026\08\14\019fff8a-ef94-7aa1-82a2-32ccb76da14e\staff-comparison.png`.
 
-**Implementation Checklist**
+### Pass 2
 
-- [x] Геометрически согласованный световой asset.
-- [x] Медленный цикл внутреннего преломления.
-- [x] Сдержанный pointer parallax с возвратом в ноль.
-- [x] Mobile и reduced-motion ограничения.
-- [x] Тесты, production build и визуальное сравнение.
+- Post-fix evidence: `C:\Users\yur03\.codex\visualizations\2026\08\14\019fff8a-ef94-7aa1-82a2-32ccb76da14e\staff-comparison-final.png`.
+- Browser measurement confirms a 12 px minimum visible leaf-text size, no horizontal overflow at 1440 px or 390 px, and no console warnings or errors.
+- No actionable P0, P1, or P2 mismatch remains.
 
-**Follow-up Polish**
+## Follow-up polish
 
-- P3: после просмотра пользователем можно на 10–15% скорректировать яркость или длительность пика, не меняя архитектуру эффекта.
+- [P3] When the backend safely exposes assigned staff and client display names, those fields can replace the privacy-preserving matter labels and bring the detail density even closer to the concept.
 
-final result: passed
+## Implementation checklist
 
----
-
-# Design QA — двухэкранный предварительный разбор
-
-## Объём проверки
-
-- Сохранённая визуальная основа: `.codex-audit/precheck-flow/02-select-practice.png` и `.codex-audit/precheck-flow/06-review.png`.
-- Реализация: `.codex-audit/precheck-flow/13-two-screen-situation-aligned.png` и `.codex-audit/precheck-flow/11-two-screen-contacts.png`.
-- Совмещённые сравнения: `.codex-audit/precheck-flow/qa-comparison-situation.png` и `.codex-audit/precheck-flow/qa-comparison-contacts.png`.
-- Браузер и размер: встроенный браузер Codex, скриншоты 1266 × 712 px, одинаковый локальный URL и контактная секция.
-
-## Визуальное сравнение
-
-- Сохранены исходные контраст, сетка 50/50, типографическая иерархия, тонкие линии, ледяной акцент и спокойная анимация переходов.
-- Первый экран вмещает выбор направления и единое поле ситуации без визуального шума старой пятишаговой анкеты.
-- Второй экран использует ту же ритмику полей и согласий; основное действие визуально остаётся единственным приоритетом.
-- Итоговая карта сохраняет чёрную премиальную поверхность и получила отдельный статус доставки без изменения общего языка интерфейса.
-- Видимых обрезаний, горизонтального переполнения, конфликтов отступов или сломанной иерархии на проверенном размере нет.
-
-## Сценарии и доступность
-
-- Прямой вход во вкладку не выбирает направление за пользователя.
-- Проверены: выбор практики, ввод ситуации, переход вперёд и назад, обязательные имя/телефон/согласие, перенос фокуса к первой ошибке и live-status.
-- Полный путь до итоговой карты пройден с заполненным honeypot: сервер безопасно отклонил тестовую заявку до внешней доставки, а интерфейс показал рабочую резервную ссылку на письмо. Реальная заявка не отправлялась.
-- Отдельное AI-согласие остаётся необязательным; без него формируется базовая карта.
-- В консоли нет ошибок приложения; присутствуют только сообщения dev-режима и ожидаемая недоступность Vercel Analytics на localhost.
-- Узкий режим защищён отдельными правилами до 560 px и регрессионными тестами для одноколоночных вариантов, переносимых действий и нулевой минимальной ширины. Выбранный встроенный браузер не предоставил программное изменение viewport, поэтому новый мобильный скриншот в этом прогоне не создавался.
-
-## Итерации после сравнения
-
-- Убрано ошибочное начальное значение «Частный вопрос» при прямом открытии вкладки.
-- Ограничена длина заголовка базовой карты, при этом полное описание сохраняется в заявке.
-- Добавлена защита от повторной отправки быстрым двойным нажатием.
-
-## Автоматическая проверка текущей итерации
-
-- `npm.cmd test`: 123 passed, 0 failed.
-- `npm.cmd run build`: production build passed, включая компиляцию, lint/type validation и статическую генерацию 9 маршрутов.
-- `git diff --check`: ошибок whitespace нет; только информационные предупреждения Git о LF/CRLF в Windows.
+- [x] Match approved desktop composition and visual tokens.
+- [x] Preserve existing authorization and server-action contracts.
+- [x] Verify primary navigation, search, filters, document/message actions, and two-step creation flow.
+- [x] Verify desktop and mobile overflow behavior.
+- [x] Verify final browser console.
 
 final result: passed

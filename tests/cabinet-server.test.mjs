@@ -6,6 +6,7 @@ import { loadCabinetData } from "../features/cabinet/cabinet-server.js";
 const CLIENT_ID = "11111111-1111-4111-8111-111111111111";
 const LAWYER_ID = "33333333-3333-4333-8333-333333333333";
 const MATTER_ID = "a1111111-1111-4111-8111-111111111111";
+const ORGANIZATION_ID = "b1111111-1111-4111-8111-111111111111";
 
 function createSupabaseFixture(overrides = {}) {
   const requestedMatterIds = new Map();
@@ -13,6 +14,7 @@ function createSupabaseFixture(overrides = {}) {
     matters: {
       data: [{
         id: MATTER_ID,
+        organization_id: ORGANIZATION_ID,
         reference: "TEST-01",
         title: "Проверка договора",
         summary: "Безопасное тестовое описание.",
@@ -107,15 +109,32 @@ test("cabinet loader maps one RLS-filtered matter with documents and messages", 
 
   assert.equal(matters.length, 1);
   assert.equal(matters[0].id, MATTER_ID);
+  assert.equal("organizationId" in matters[0], false);
+  assert.equal("responseDueAt" in matters[0], false);
+  assert.equal("detailsSummary" in matters[0], false);
   assert.equal(matters[0].stages[0].status, "current");
   assert.equal(matters[0].documents[0].name, "Договор.pdf");
   assert.equal(matters[0].documents[0].storagePath.endsWith("/document.pdf"), true);
+  assert.equal(matters[0].documents[0].updatedAt, "2026-08-27T10:00:00.000Z");
   assert.deepEqual(matters[0].messages.map(({ sender }) => sender), ["Вы", "Команда ДоговорОфф"]);
   assert.equal(matters[0].nextAction.title, "Загрузить приложение");
+  assert.match(matters[0].updated, /27 августа/);
 
   for (const table of ["matter_stages", "matter_events", "documents", "messages"]) {
     assert.deepEqual(supabase.requestedMatterIds.get(table), [MATTER_ID]);
   }
+});
+
+test("cabinet loader exposes the organization id only for the explicit staff view", async () => {
+  const supabase = createSupabaseFixture();
+  const matters = await loadCabinetData(supabase, LAWYER_ID, {
+    includeOrganizationId: true,
+    messageParticipantLabel: "Участник дела",
+  });
+
+  assert.equal(matters[0].organizationId, ORGANIZATION_ID);
+  assert.equal(matters[0].responseDueAt, "2026-09-01T10:00:00.000Z");
+  assert.equal(matters[0].detailsSummary, "Безопасное тестовое описание.");
 });
 
 test("cabinet loader stops on an RLS query error without exposing provider details", async () => {

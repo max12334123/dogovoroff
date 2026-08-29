@@ -43,3 +43,68 @@ export function getAdminOrganizationIds(memberships) {
       .map((membership) => membership.organization_id),
   )];
 }
+
+export function getStaffMatterQueue(matter) {
+  if (!matter || matter.state === "archived" || matter.state === "completed") {
+    return "archive";
+  }
+
+  if (matter.state === "paused") {
+    return "paused";
+  }
+
+  return matter.nextAction ? "waiting" : "action";
+}
+
+export function filterStaffMatters(matters, query = "", queue = "all") {
+  if (!Array.isArray(matters)) {
+    return [];
+  }
+
+  const normalizedQuery = typeof query === "string" ? query.trim().toLocaleLowerCase("ru-RU") : "";
+
+  return matters.filter((matter) => {
+    const matchesQueue = queue === "all" || getStaffMatterQueue(matter) === queue;
+    if (!matchesQueue) {
+      return false;
+    }
+
+    if (!normalizedQuery) {
+      return true;
+    }
+
+    return [matter?.reference, matter?.title, matter?.summary]
+      .filter((value) => typeof value === "string")
+      .some((value) => value.toLocaleLowerCase("ru-RU").includes(normalizedQuery));
+  });
+}
+
+export function filterStaffAuditEvents(events, matters, query = "") {
+  if (!Array.isArray(events)) {
+    return [];
+  }
+
+  const normalizedQuery = typeof query === "string" ? query.trim().toLocaleLowerCase("ru-RU") : "";
+  if (!normalizedQuery) {
+    return events;
+  }
+
+  const matterById = new Map(
+    (Array.isArray(matters) ? matters : [])
+      .filter((matter) => typeof matter?.id === "string")
+      .map((matter) => [matter.id, matter]),
+  );
+
+  return events.filter((event) => {
+    const matter = matterById.get(event?.matterId);
+    return [
+      matter?.reference,
+      matter?.title,
+      matter?.summary,
+      event?.action,
+      event?.entityType,
+    ]
+      .filter((value) => typeof value === "string")
+      .some((value) => value.toLocaleLowerCase("ru-RU").includes(normalizedQuery));
+  });
+}

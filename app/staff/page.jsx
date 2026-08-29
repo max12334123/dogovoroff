@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import StaffClient from "../../features/staff/staff-client";
@@ -14,6 +15,18 @@ export const metadata = {
     noarchive: true,
   },
 };
+
+const STAFF_DATE_FORMATTER = new Intl.DateTimeFormat("ru-RU", {
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+  timeZone: "Asia/Yekaterinburg",
+});
+
+function capitalize(value) {
+  return value ? `${value[0].toUpperCase()}${value.slice(1)}` : "";
+}
 
 export default async function StaffPage() {
   const supabase = await createClient();
@@ -33,29 +46,41 @@ export default async function StaffPage() {
     redirect("/cabinet");
   }
 
+  const staffName = profile?.display_name || "Команда ДоговорОфф";
+
   return (
     <div className={styles.pageShell}>
+      <a className={styles.skipLink} href="#staff-main">Перейти к рабочей области</a>
       <header className={styles.header}>
-        <div>
-          <p className={styles.eyebrow}>Рабочая панель</p>
-          <h1>Дела команды</h1>
-          <p className={styles.headerMeta}>
-            {staffData.roleLabel} · {profile?.display_name || "Команда ДоговорОфф"}
-          </p>
+        <Link className={styles.brand} href="/" aria-label="ДоговорОфф — вернуться на сайт">
+          <span className={styles.brandMark}>
+            <Image src="/media/dogovoroff-mark.png" alt="" width={64} height={64} sizes="44px" priority />
+          </span>
+          <span className={styles.brandName}>ДоговорОфф</span>
+          <span className={styles.brandDescriptor}>Рабочая панель</span>
+        </Link>
+
+        <div className={styles.accountSummary}>
+          <span>{staffName}</span>
+          <strong>{staffData.roleLabel}</strong>
         </div>
-        <nav className={styles.headerNav} aria-label="Навигация рабочей панели">
+
+        <nav className={styles.headerNav} aria-label="Навигация аккаунта">
           <Link href="/cabinet">Личный кабинет</Link>
           <form action="/auth/signout" method="post">
             <button type="submit">Выйти</button>
           </form>
         </nav>
       </header>
-      <main className={styles.main}>
+
+      <main className={styles.main} id="staff-main">
         <StaffClient
           initialMatters={staffData.matters}
+          initialAuditEvents={staffData.auditEvents}
+          canViewAudit={staffData.canViewAudit}
           organizations={staffData.organizations}
           assignmentOrganizations={staffData.assignmentOrganizations}
-          roleLabel={staffData.roleLabel}
+          todayLabel={capitalize(STAFF_DATE_FORMATTER.format(new Date()))}
         />
       </main>
     </div>

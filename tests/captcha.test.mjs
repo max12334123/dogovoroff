@@ -4,9 +4,10 @@ import test from "node:test";
 
 import { getCaptchaConfig, getCaptchaToken, getCaptchaCspOrigins } from "../features/auth/captcha-domain.mjs";
 
-const [loginActionSource, loginPageSource, widgetSource, nextConfigSource] = await Promise.all([
+const [loginActionSource, loginPageSource, loginFormSource, widgetSource, nextConfigSource] = await Promise.all([
   readFile(new URL("../app/login/actions.js", import.meta.url), "utf8"),
   readFile(new URL("../app/login/page.jsx", import.meta.url), "utf8"),
+  readFile(new URL("../features/auth/login-form.jsx", import.meta.url), "utf8"),
   readFile(new URL("../features/auth/captcha-widget.jsx", import.meta.url), "utf8"),
   readFile(new URL("../next.config.mjs", import.meta.url), "utf8"),
 ]);
@@ -86,10 +87,26 @@ test("login sends CAPTCHA only when enabled and renders the public widget contra
   assert.match(loginActionSource, /getCaptchaConfig/);
   assert.match(loginActionSource, /getCaptchaToken/);
   assert.match(loginActionSource, /captchaToken/);
-  assert.match(loginPageSource, /CaptchaWidget/);
+  assert.match(loginPageSource, /LoginForm/);
+  assert.match(loginFormSource, /CaptchaWidget/);
   assert.match(widgetSource, /turnstile|hcaptcha/);
   assert.match(widgetSource, /next\/script/);
   assert.doesNotMatch(widgetSource, /AUTH_CAPTCHA_SECRET|SUPABASE_SERVICE_ROLE|service_role/);
   assert.match(nextConfigSource, /getCaptchaCspOrigins/);
   assert.doesNotMatch(loginActionSource, /SUPABASE_SERVICE_ROLE|service_role/);
+});
+
+test("login form cannot submit while an enabled CAPTCHA has no token", async () => {
+  assert.match(loginFormSource, /useFormStatus/);
+  assert.match(loginFormSource, /captchaEnabled && !hasCaptchaToken/);
+  assert.match(loginFormSource, /disabled=\{disabled\}/);
+  assert.match(widgetSource, /onTokenChange/);
+  assert.match(widgetSource, /api\.reset/);
+  assert.match(widgetSource, /Повторить проверку/);
+});
+
+test("captcha retry can recover when the provider script failed before rendering", () => {
+  assert.match(widgetSource, /setRenderAttempt\(\(current\) => current \+ 1\)/);
+  assert.match(widgetSource, /setScriptReady\(true\)/);
+  assert.match(widgetSource, /\[renderAttempt, renderWidget, scriptReady, updateStatus\]/);
 });

@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import {
   getAuthConfirmUrl,
   getAuthRequestErrorCode,
@@ -26,7 +27,13 @@ export async function requestLoginLink(formData) {
     redirect(`/login?error=captcha-required&next=${nextParam}`);
   }
 
-  const redirectUrl = new URL(getAuthConfirmUrl());
+  const requestHeaders = await headers();
+  const forwardedProto = requestHeaders.get("x-forwarded-proto")?.split(",")[0]?.trim() || "http";
+  const host = requestHeaders.get("host")?.trim() || "";
+  const requestOrigin = /^https?$/.test(forwardedProto) && /^(?:localhost|127\.0\.0\.1)(?::\d{1,5})?$/.test(host)
+    ? `${forwardedProto}://${host}`
+    : "";
+  const redirectUrl = new URL(getAuthConfirmUrl({ requestOrigin }));
   redirectUrl.searchParams.set("next", next);
 
   const authOptions = {

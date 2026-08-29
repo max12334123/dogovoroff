@@ -72,6 +72,13 @@ test("cabinet UI is client-facing, accessible, and connected to private matter o
   assert.doesNotMatch(componentSource, /Вопросы юриста|рабочая сводка|внутренняя инструкция/i);
 });
 
+test("cabinet keeps completed matters read-only and uses stable semantic identifiers", () => {
+  assert.match(componentSource, /matter\.state === "completed" \|\| matter\.state === "archived"/);
+  assert.match(componentSource, /key=\{stage\.id \?\? `\$\{stage\.title\}-\$\{index\}`\}/);
+  assert.match(componentSource, /dateTime=\{document\.updatedAt \|\| undefined\}/);
+  assert.match(serverSource, /updatedAt: document\.updated_at/);
+});
+
 test("private cabinet route is excluded from search and linked from the public navigation", () => {
   assert.match(pageSource, /index:\s*false/);
   assert.match(pageSource, /follow:\s*false/);

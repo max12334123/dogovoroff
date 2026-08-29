@@ -57,10 +57,38 @@ export async function loadStaffData(supabase, userId) {
         };
       }),
   );
-  const mattersPromise = loadCabinetData(supabase, userId, { messageParticipantLabel: "Участник дела" });
-  const [assignmentOrganizations, matters] = await Promise.all([
+  const mattersPromise = loadCabinetData(supabase, userId, {
+    includeOrganizationId: true,
+    messageParticipantLabel: "Участник дела",
+  });
+  const auditEventsPromise = adminOrganizationIds.size === 0
+    ? Promise.resolve([])
+    : (async () => {
+      const auditQuery = supabase
+        .from("audit_events")
+        .select("id,matter_id,action,entity_type,created_at")
+        .in("organization_id", [...adminOrganizationIds]);
+      const orderedQuery = auditQuery.order("created_at", { ascending: false });
+      const result = typeof orderedQuery?.limit === "function"
+        ? await orderedQuery.limit(80)
+        : await orderedQuery;
+
+      if (result.error) {
+        throw new Error(`Staff audit query failed: ${result.error.code ?? "unknown"}`);
+      }
+
+      return (result.data ?? []).map((event) => ({
+        id: event.id,
+        matterId: event.matter_id,
+        action: event.action,
+        entityType: event.entity_type,
+        createdAt: event.created_at,
+      }));
+    })();
+  const [assignmentOrganizations, matters, auditEvents] = await Promise.all([
     assignmentOrganizationsPromise,
     mattersPromise,
+    auditEventsPromise,
   ]);
 
   return {
@@ -68,5 +96,7 @@ export async function loadStaffData(supabase, userId) {
     organizations: organizations ?? [],
     assignmentOrganizations,
     matters,
+    auditEvents,
+    canViewAudit: adminOrganizationIds.size > 0,
   };
 }

@@ -14,3 +14,21 @@
   font-size: 11px;
   line-height: 1.45;
 }
+
+.retry {
+  margin-top: 4px;
+  padding: 0;
+  color: #92c0cf;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.retry:hover,
+.retry:focus-visible {
+  color: #f4f3ef;
+}
