@@ -5,6 +5,7 @@ import {
   getStaffRoleLabel,
   hasStaffAccess,
 } from "./staff-domain.mjs";
+import { mapIntakeRequestRows } from "./staff-intake-domain.mjs";
 
 export async function loadStaffData(supabase, userId) {
   if (typeof userId !== "string" || !userId) {
@@ -35,6 +36,7 @@ export async function loadStaffData(supabase, userId) {
   }
 
   const adminOrganizationIds = new Set(getAdminOrganizationIds(memberships));
+  const intakeEnabled = process.env.CONTACT_INBOX_ENABLED === "true";
   const assignmentOrganizationsPromise = Promise.all(
     (organizations ?? [])
       .filter((organization) => adminOrganizationIds.has(organization.id))
@@ -57,6 +59,23 @@ export async function loadStaffData(supabase, userId) {
         };
       }),
   );
+  const intakeRequestsPromise = intakeEnabled
+    ? Promise.all(
+      (organizations ?? []).map(async (organization) => {
+        const { data: requests, error: requestsError } = await supabase
+          .rpc("list_intake_requests", { target_organization_id: organization.id });
+
+        if (requestsError) {
+          throw new Error(`Staff intake query failed: ${requestsError.code ?? "unknown"}`);
+        }
+
+        return mapIntakeRequestRows(requests).map((request) => ({
+          ...request,
+          organizationName: organization.name,
+        }));
+      }),
+    ).then((groups) => groups.flat())
+    : Promise.resolve([]);
   const mattersPromise = loadCabinetData(supabase, userId, {
     includeOrganizationId: true,
     messageParticipantLabel: "Участник дела",
@@ -85,8 +104,9 @@ export async function loadStaffData(supabase, userId) {
         createdAt: event.created_at,
       }));
     })();
-  const [assignmentOrganizations, matters, auditEvents] = await Promise.all([
+  const [assignmentOrganizations, intakeRequests, matters, auditEvents] = await Promise.all([
     assignmentOrganizationsPromise,
+    intakeRequestsPromise,
     mattersPromise,
     auditEventsPromise,
   ]);
@@ -95,6 +115,8 @@ export async function loadStaffData(supabase, userId) {
     roleLabel: getStaffRoleLabel(memberships),
     organizations: organizations ?? [],
     assignmentOrganizations,
+    intakeEnabled,
+    intakeRequests,
     matters,
     auditEvents,
     canViewAudit: adminOrganizationIds.size > 0,

@@ -14,6 +14,11 @@ import {
   getMatterDetailsErrorMessage,
   validateMatterDetails,
 } from "./staff-matter-details-domain.mjs";
+import {
+  getIntakeErrorMessage,
+  validateIntakeMatterAssignment,
+  validateIntakeStatusUpdate,
+} from "./staff-intake-domain.mjs";
 
 const SESSION_ERROR = "Сессия истекла. Войдите повторно.";
 
@@ -86,6 +91,124 @@ export async function createMatterAssignment(input) {
       status: error?.status,
     });
     return actionError("Не удалось создать дело. Попробуйте ещё раз.");
+  }
+}
+
+export async function createMatterFromIntakeRequest(input) {
+  const assignmentValidation = validateMatterAssignment(input);
+  const intakeValidation = validateIntakeMatterAssignment(input);
+  if (!assignmentValidation.valid) {
+    return actionError(assignmentValidation.error);
+  }
+  if (!intakeValidation.valid) {
+    return actionError(intakeValidation.error);
+  }
+
+  try {
+    const supabase = await createClient();
+    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims();
+    const userId = claimsData?.claims?.sub;
+
+    if (claimsError || !userId) {
+      return actionError(SESSION_ERROR);
+    }
+
+    const assignment = assignmentValidation.value;
+    const { data: membership, error: membershipError } = await supabase
+      .from("organization_members")
+      .select("organization_id")
+      .eq("organization_id", assignment.organizationId)
+      .eq("user_id", userId)
+      .eq("role", "admin")
+      .maybeSingle();
+
+    if (membershipError || !membership) {
+      return actionError("У вас нет прав для принятия заявки в этой организации.");
+    }
+
+    const { data, error } = await supabase
+      .rpc("create_matter_from_intake_request", {
+        target_request_id: intakeValidation.value.intakeRequestId,
+        target_organization_id: assignment.organizationId,
+        target_client_email: assignment.clientEmail,
+        new_reference: assignment.reference,
+        new_title: assignment.title,
+        new_summary: assignment.summary,
+        target_lawyer_id: assignment.lawyerId,
+        initial_stage_title: assignment.stageTitle,
+        initial_stage_detail: assignment.stageDetail,
+        new_next_action_title: assignment.nextActionTitle,
+        new_next_action_description: assignment.nextActionDescription,
+      })
+      .single();
+
+    if (error || !data?.matter_id) {
+      console.error("Staff intake conversion failed", {
+        code: error?.code,
+        status: error?.status,
+      });
+      const intakeMessage = getIntakeErrorMessage(error);
+      const message = intakeMessage === "Не удалось обновить заявку. Попробуйте ещё раз."
+        ? getAssignmentErrorMessage(error)
+        : intakeMessage;
+      return actionError(message);
+    }
+
+    revalidatePath("/staff");
+    revalidatePath("/cabinet");
+
+    return {
+      ok: true,
+      message: `Заявка принята, дело создано: ${data.client_display_name || "клиент"}.`,
+      matterId: data.matter_id,
+    };
+  } catch (error) {
+    console.error("Staff intake conversion crashed", {
+      code: error?.code,
+      status: error?.status,
+    });
+    return actionError("Не удалось создать дело из заявки. Попробуйте ещё раз.");
+  }
+}
+
+export async function updateIntakeRequestStatus(input) {
+  const validation = validateIntakeStatusUpdate(input);
+  if (!validation.valid) {
+    return actionError(validation.error);
+  }
+
+  try {
+    const supabase = await createClient();
+    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims();
+    const userId = claimsData?.claims?.sub;
+
+    if (claimsError || !userId) {
+      return actionError(SESSION_ERROR);
+    }
+
+    const { data, error } = await supabase
+      .rpc("update_intake_request_status", {
+        target_request_id: validation.value.requestId,
+        new_status: validation.value.status,
+      })
+      .single();
+
+    if (error || !data?.request_id) {
+      console.error("Staff intake status update failed", {
+        code: error?.code,
+        status: error?.status,
+      });
+      return actionError(getIntakeErrorMessage(error));
+    }
+
+    revalidatePath("/staff");
+    return { ok: true, message: "Статус заявки обновлён.", requestId: data.request_id };
+  } catch (error) {
+    console.error("Staff intake status update crashed", {
+      code: error?.code,
+      status: error?.status,
+    });
+    return actionError("Не удалось обновить заявку. Попробуйте ещё раз.");
   }
 }
 

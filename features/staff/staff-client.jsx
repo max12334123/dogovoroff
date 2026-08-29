@@ -8,14 +8,16 @@ import { sendMatterMessage } from "../cabinet/cabinet-actions";
 import { getMatterById } from "../cabinet/cabinet-data.mjs";
 import { validateMatterMessage } from "../cabinet/cabinet-write-domain.mjs";
 import StaffAssignmentForm from "./staff-assignment-form";
+import StaffIntakePanel from "./staff-intake-panel";
 import StaffMatterDetailsForm from "./staff-matter-details-form";
-import { filterStaffAuditEvents, filterStaffMatters, getStaffMatterQueue } from "./staff-domain.mjs";
+import { filterStaffAuditEvents, filterStaffMatters, filterStaffNavigation, getStaffMatterQueue } from "./staff-domain.mjs";
 import { updateMatterWorkflow } from "./staff-actions";
 import { validateMatterWorkflow } from "./staff-workflow-domain.mjs";
 import styles from "./staff.module.css";
 
 const NAVIGATION = [
   { id: "today", label: "Сегодня" },
+  { id: "inbox", label: "Входящие" },
   { id: "matters", label: "Все дела" },
   { id: "clients", label: "Клиенты" },
   { id: "documents", label: "Документы" },
@@ -25,6 +27,7 @@ const NAVIGATION = [
 
 const VIEW_COPY = {
   today: { title: "Сегодня в работе", eyebrow: "Рабочий день" },
+  inbox: { title: "Входящие заявки", eyebrow: "Новые обращения" },
   matters: { title: "Все дела", eyebrow: "Реестр команды" },
   clients: { title: "Клиенты", eyebrow: "Доступ по делам" },
   documents: { title: "Документы", eyebrow: "Материалы по делам" },
@@ -60,6 +63,8 @@ const AUDIT_COPY = Object.freeze({
   "matter.updated": { label: "Обновлено дело", description: "Изменения рабочего статуса сохранены." },
   "document.created": { label: "Добавлен документ", description: "В дело добавлен новый документ." },
   "message.created": { label: "Отправлено сообщение", description: "В истории дела зарегистрировано сообщение." },
+  "intake.updated": { label: "Обновлена заявка", description: "Статус входящего обращения сохранён." },
+  "intake.converted": { label: "Заявка принята", description: "Входящее обращение превращено в дело." },
 });
 
 function getDateInputValue(value) {
@@ -529,6 +534,8 @@ function AuditList({ events, matters }) {
 
 export default function StaffClient({
   initialMatters = [],
+  initialIntakeRequests = [],
+  intakeEnabled = false,
   initialAuditEvents = [],
   canViewAudit = false,
   organizations = [],
@@ -548,6 +555,7 @@ export default function StaffClient({
   const [searchQuery, setSearchQuery] = useState("");
   const [registerFilter, setRegisterFilter] = useState("all");
   const [assignmentOpen, setAssignmentOpen] = useState(false);
+  const [assignmentIntakeRequest, setAssignmentIntakeRequest] = useState(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [composerOpen, setComposerOpen] = useState(false);
   const [draft, setDraft] = useState("");
@@ -587,10 +595,14 @@ export default function StaffClient({
   const assignmentStaff = assignmentOrganizations.find((organization) => organization.id === matter?.organizationId)?.staff ?? [];
   const canEditDetails = assignmentOrganizations.some((organization) => organization.id === matter?.organizationId);
   const viewCopy = VIEW_COPY[activeView];
-  const navigation = canViewAudit ? NAVIGATION : NAVIGATION.filter((item) => item.id !== "audit");
+  const navigation = filterStaffNavigation(NAVIGATION, { canViewAudit, intakeEnabled });
+  const openIntakeCount = initialIntakeRequests.filter((request) => (
+    request.status === "new" || request.status === "reviewing" || request.status === "contacted"
+  )).length;
 
   const navCounts = {
     today: activeCount,
+    inbox: openIntakeCount,
     matters: initialMatters.length,
     clients: null,
     documents: documentCount,
@@ -782,6 +794,7 @@ export default function StaffClient({
 
   const closeAssignment = () => {
     setAssignmentOpen(false);
+    setAssignmentIntakeRequest(null);
     requestAnimationFrame(() => newMatterButtonRef.current?.focus());
   };
 
@@ -801,6 +814,17 @@ export default function StaffClient({
   };
 
   const openMatterCard = () => {
+    setActiveView("matters");
+    window.scrollTo({ top: 0, behavior: getPreferredScrollBehavior() });
+  };
+
+  const openIntakeAssignment = (request) => {
+    setAssignmentIntakeRequest(request);
+    setAssignmentOpen(true);
+  };
+
+  const openConvertedMatter = (matterId) => {
+    setActiveMatterId(matterId);
     setActiveView("matters");
     window.scrollTo({ top: 0, behavior: getPreferredScrollBehavior() });
   };
@@ -864,15 +888,21 @@ export default function StaffClient({
           <div>
             <p className={styles.eyebrow}>{viewCopy.eyebrow}</p>
             <h1>{viewCopy.title}</h1>
-            <p className={styles.todayLabel}>{activeView === "today" ? todayLabel : `${searchedMatters.length} дел в текущей выборке`}</p>
+            <p className={styles.todayLabel}>
+              {activeView === "today"
+                ? todayLabel
+                : activeView === "inbox"
+                  ? `${initialIntakeRequests.length} заявок в журнале`
+                  : `${searchedMatters.length} дел в текущей выборке`}
+            </p>
           </div>
           <div className={styles.headerTools}>
             <label className={styles.searchField}>
-              <span className={styles.visuallyHidden}>Поиск по делам</span>
+              <span className={styles.visuallyHidden}>{activeView === "inbox" ? "Поиск по заявкам" : "Поиск по делам"}</span>
               <input
                 type="search"
                 value={searchQuery}
-                placeholder="Поиск по делу или номеру"
+                placeholder={activeView === "inbox" ? "Поиск по имени, телефону или запросу" : "Поиск по делу или номеру"}
                 onChange={(event) => setSearchQuery(event.target.value)}
               />
             </label>
@@ -881,7 +911,10 @@ export default function StaffClient({
                 className={styles.newMatterButton}
                 ref={newMatterButtonRef}
                 type="button"
-                onClick={() => setAssignmentOpen(true)}
+                onClick={() => {
+                  setAssignmentIntakeRequest(null);
+                  setAssignmentOpen(true);
+                }}
               >
                 Новое дело
               </button>
@@ -904,6 +937,16 @@ export default function StaffClient({
             </div>
             {showDetail()}
           </div>
+        ) : null}
+
+        {activeView === "inbox" ? (
+          <StaffIntakePanel
+            requests={initialIntakeRequests}
+            searchQuery={searchQuery}
+            assignmentOrganizations={assignmentOrganizations}
+            onCreateMatter={openIntakeAssignment}
+            onOpenMatter={openConvertedMatter}
+          />
         ) : null}
 
         {activeView === "matters" ? (
@@ -955,7 +998,9 @@ export default function StaffClient({
 
       {assignmentOpen ? (
         <StaffAssignmentForm
+          key={assignmentIntakeRequest?.id ?? "manual-assignment"}
           organizations={assignmentOrganizations}
+          intakeRequest={assignmentIntakeRequest}
           onClose={closeAssignment}
           onCreated={(matterId, message) => {
             setActiveMatterId(matterId);

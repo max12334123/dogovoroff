@@ -76,6 +76,8 @@ export default async function StaffPage() {
       <main className={styles.main} id="staff-main">
         <StaffClient
           initialMatters={staffData.matters}
+          initialIntakeRequests={staffData.intakeRequests}
+          intakeEnabled={staffData.intakeEnabled}
           initialAuditEvents={staffData.auditEvents}
           canViewAudit={staffData.canViewAudit}
           organizations={staffData.organizations}

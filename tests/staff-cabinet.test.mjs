@@ -5,6 +5,7 @@ import test from "node:test";
 import {
   filterStaffAuditEvents,
   filterStaffMatters,
+  filterStaffNavigation,
   getAdminOrganizationIds,
   getStaffMatterQueue,
   getStaffRoleLabel,
@@ -131,7 +132,16 @@ test("admin audit feed stays technical and follows the matter search", () => {
   assert.match(pageSource, /canViewAudit={staffData\.canViewAudit}/);
   assert.match(clientSource, /Журнал действий/);
   assert.match(clientSource, /canViewAudit/);
-  assert.match(clientSource, /filter\(\(item\) => item\.id !== "audit"\)/);
+  assert.deepEqual(filterStaffNavigation([
+    { id: "today" },
+    { id: "inbox" },
+    { id: "audit" },
+  ], { canViewAudit: false, intakeEnabled: false }).map((item) => item.id), ["today"]);
+  assert.deepEqual(filterStaffNavigation([
+    { id: "today" },
+    { id: "inbox" },
+    { id: "audit" },
+  ], { canViewAudit: true, intakeEnabled: true }).map((item) => item.id), ["today", "inbox", "audit"]);
   assert.match(clientSource, /Тексты сообщений, содержимое документов и email здесь не отображаются/);
   assert.doesNotMatch(clientSource, /actor_id|author_id/);
 });

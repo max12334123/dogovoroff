@@ -93,3 +93,22 @@ test("staff assignment SQL smoke suite is transactional and covers every role", 
   assert.match(source, /persistent_rows', 0/);
   assert.doesNotMatch(source, /service_role/i);
 });
+
+test("intake inbox SQL smoke suite is transactional and covers the server boundary", async () => {
+  const source = await readFile(
+    new URL("../supabase/tests/intake-inbox-smoke.sql", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(source, /^begin;/m);
+  assert.match(source, /^rollback;/m);
+  assert.doesNotMatch(source, /^commit;/m);
+  assert.match(source, /set local role service_role;/i);
+  assert.match(source, /anonymous:store-denied/);
+  assert.match(source, /client:list-denied/);
+  assert.match(source, /lawyer:update-status/);
+  assert.match(source, /admin:convert-new/);
+  assert.match(source, /admin:convert-closed-denied/);
+  assert.match(source, /database:request-linked/);
+  assert.match(source, /persistent_rows', 0/);
+});

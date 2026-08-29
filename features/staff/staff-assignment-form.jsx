@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { createMatterAssignment } from "./staff-actions";
+import { createMatterAssignment, createMatterFromIntakeRequest } from "./staff-actions";
 import { validateMatterAssignment } from "./staff-assignment-domain.mjs";
+import { getIntakeAssignmentDefaults } from "./staff-intake-domain.mjs";
 import styles from "./staff.module.css";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -35,8 +36,11 @@ function validateFirstStep(form) {
   return "";
 }
 
-export default function StaffAssignmentForm({ organizations, onCreated, onClose }) {
-  const firstOrganizationId = organizations[0]?.id ?? "";
+export default function StaffAssignmentForm({ organizations, intakeRequest = null, onCreated, onClose }) {
+  const intakeDefaults = getIntakeAssignmentDefaults(intakeRequest);
+  const firstOrganizationId = organizations.some((organization) => organization.id === intakeDefaults.organizationId)
+    ? intakeDefaults.organizationId
+    : organizations[0]?.id ?? "";
   const dialogRef = useRef(null);
   const emailRef = useRef(null);
   const stageRef = useRef(null);
@@ -45,13 +49,13 @@ export default function StaffAssignmentForm({ organizations, onCreated, onClose 
     organizationId: firstOrganizationId,
     clientEmail: "",
     reference: createReference(),
-    title: "",
-    summary: "",
+    title: intakeRequest ? intakeDefaults.title : "",
+    summary: intakeRequest ? intakeDefaults.summary : "",
     lawyerId: "",
-    stageTitle: "Первичная проверка",
-    stageDetail: "",
-    nextActionTitle: "",
-    nextActionDescription: "",
+    stageTitle: intakeDefaults.stageTitle,
+    stageDetail: intakeDefaults.stageDetail,
+    nextActionTitle: intakeDefaults.nextActionTitle,
+    nextActionDescription: intakeDefaults.nextActionDescription,
   }));
   const [feedback, setFeedback] = useState({ tone: "neutral", text: "" });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -115,7 +119,12 @@ export default function StaffAssignmentForm({ organizations, onCreated, onClose 
     setFeedback({ tone: "neutral", text: "Создаём дело и проверяем назначение…" });
 
     try {
-      const result = await createMatterAssignment(validation.value);
+      const result = intakeRequest
+        ? await createMatterFromIntakeRequest({
+          ...validation.value,
+          intakeRequestId: intakeRequest.id,
+        })
+        : await createMatterAssignment(validation.value);
       if (!result.ok) {
         setFeedback({ tone: "error", text: result.message });
         return;
@@ -167,8 +176,8 @@ export default function StaffAssignmentForm({ organizations, onCreated, onClose 
       >
         <header className={styles.drawerHeader}>
           <div>
-            <p className={styles.eyebrow}>Новое дело</p>
-            <h2 id="staff-assignment-title">Создать и назначить</h2>
+            <p className={styles.eyebrow}>{intakeRequest ? "Входящая заявка" : "Новое дело"}</p>
+            <h2 id="staff-assignment-title">{intakeRequest ? "Принять и создать дело" : "Создать и назначить"}</h2>
           </div>
           <button className={styles.drawerClose} type="button" onClick={onClose} disabled={isSubmitting}>
             Закрыть
@@ -181,7 +190,7 @@ export default function StaffAssignmentForm({ organizations, onCreated, onClose 
         </div>
 
         <form className={styles.assignmentForm} onSubmit={step === 1 ? handleContinue : handleSubmit}>
-          {organizations.length > 1 ? (
+          {organizations.length > 1 && !intakeRequest ? (
             <label className={styles.drawerField}>
               <span>Организация</span>
               <select
@@ -201,6 +210,14 @@ export default function StaffAssignmentForm({ organizations, onCreated, onClose 
               <strong>{activeOrganization?.name || "ДоговорОфф"}</strong>
             </p>
           )}
+
+          {intakeRequest ? (
+            <p className={styles.intakeContext}>
+              <span>Заявка от клиента</span>
+              <strong>{intakeRequest.name}</strong>
+              <small>{intakeRequest.phone} · {intakeRequest.service}</small>
+            </p>
+          ) : null}
 
           {step === 1 ? (
             <div className={styles.drawerFields}>
