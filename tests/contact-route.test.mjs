@@ -21,6 +21,10 @@ const DELIVERY_ENV_DEFAULTS = {
   RESEND_API_KEY: "",
   CONTACT_EMAIL_FROM: "",
   CONTACT_EMAIL_TO: "",
+  CONTACT_INBOX_ENABLED: "false",
+  NEXT_PUBLIC_SUPABASE_URL: "",
+  SUPABASE_SECRET_KEY: "",
+  CONTACT_ORGANIZATION_ID: "",
   AI_PRECHECK_ENABLED: "false",
   AI_PRECHECK_WORKER_URL: "",
   VERCEL_OIDC_TOKEN: "",
@@ -329,6 +333,64 @@ test("contact endpoint reports unavailable delivery when no channel is configure
     assert.equal(response.status, 503);
   });
   assert.equal(provider.mock.callCount(), 0);
+});
+
+test("a stored inbox request succeeds even when notification channels are not configured", async (context) => {
+  let call;
+  context.mock.method(globalThis, "fetch", async (url, options) => {
+    call = { url: String(url), body: JSON.parse(options.body) };
+    return Response.json([{
+      request_id: "22222222-2222-4222-8222-222222222222",
+      created: true,
+    }]);
+  });
+
+  await withEnvironment({
+    CONTACT_INBOX_ENABLED: "true",
+    NEXT_PUBLIC_SUPABASE_URL: "https://example-project.supabase.co",
+    SUPABASE_SECRET_KEY: `sb_secret_${"a".repeat(32)}`,
+    CONTACT_ORGANIZATION_ID: "11111111-1111-4111-8111-111111111111",
+  }, async () => {
+    const response = await POST(makeRequest(VALID_PAYLOAD, { ip: "203.0.113.28" }));
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { success: true, mode: "none" });
+  });
+
+  assert.equal(call.url, "https://example-project.supabase.co/rest/v1/rpc/store_intake_request");
+  assert.equal(call.body.new_submission_id, SUBMISSION_ID);
+});
+
+test("an unavailable inbox falls back to configured notification channels", async (context) => {
+  const calls = [];
+  context.mock.method(console, "warn", () => {});
+  context.mock.method(globalThis, "fetch", async (url) => {
+    calls.push(String(url));
+    if (String(url).includes("supabase.co")) {
+      return Response.json({ message: "unavailable" }, { status: 503 });
+    }
+    return Response.json({ ok: true });
+  });
+
+  await withEnvironment({
+    ...sheetsEnvironment,
+    CONTACT_INBOX_ENABLED: "true",
+    NEXT_PUBLIC_SUPABASE_URL: "https://example-project.supabase.co",
+    SUPABASE_SECRET_KEY: `sb_secret_${"a".repeat(32)}`,
+    CONTACT_ORGANIZATION_ID: "11111111-1111-4111-8111-111111111111",
+  }, async () => {
+    const response = await POST(makeRequest(VALID_PAYLOAD, { ip: "203.0.113.29" }));
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { success: true, mode: "none" });
+  });
+
+  assert.deepEqual(calls, [
+    "https://example-project.supabase.co/rest/v1/rpc/store_intake_request",
+    sheetsEnvironment.GOOGLE_SHEETS_WEBHOOK_URL,
+  ]);
+  assert.equal(console.warn.mock.callCount(), 1);
+  const [message, details] = console.warn.mock.calls[0].arguments;
+  assert.equal(message, "Contact inbox persistence failed.");
+  assert.deepEqual(Object.keys(details).sort(), ["reason", "status", "submissionId"]);
 });
 
 test("contact endpoint enforces a request-size limit and a per-client burst limit", async (context) => {

@@ -44,6 +44,18 @@ export function getAdminOrganizationIds(memberships) {
   )];
 }
 
+export function filterStaffNavigation(items, { canViewAudit = false, intakeEnabled = false } = {}) {
+  if (!Array.isArray(items)) {
+    return [];
+  }
+
+  return items.filter((item) => {
+    if (item?.id === "audit" && !canViewAudit) return false;
+    if (item?.id === "inbox" && !intakeEnabled) return false;
+    return true;
+  });
+}
+
 export function getStaffMatterQueue(matter) {
   if (!matter || matter.state === "archived" || matter.state === "completed") {
     return "archive";

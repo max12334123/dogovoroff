@@ -9,6 +9,7 @@ import {
   readJsonBody,
 } from "../../../lib/api-security.mjs";
 import { validateContactPayload } from "../../../lib/contact-form.mjs";
+import { persistContactIntake } from "../../../lib/contact-intake.mjs";
 import {
   createContactRecord,
   deliverContactIntegrations,
@@ -166,6 +167,15 @@ export async function POST(request) {
     consentVersion: `${LEGAL.policyVersion} от ${LEGAL.effectiveDate}`,
   });
 
+  const intakeResult = await persistContactIntake(record);
+  if (intakeResult.enabled && !intakeResult.ok) {
+    console.warn("Contact inbox persistence failed.", {
+      submissionId,
+      status: intakeResult.status,
+      reason: intakeResult.reason,
+    });
+  }
+
   const deliveryResults = await deliverContactIntegrations(record).catch(() => ({
     googleSheets: { attempted: false, ok: false, status: null, reason: "unexpected_error" },
     telegram: { attempted: false, ok: false, status: null, reason: "unexpected_error" },
@@ -190,7 +200,7 @@ export async function POST(request) {
     });
   }
 
-  if (attemptedDeliveries.some(([, result]) => result.ok)) {
+  if (intakeResult.ok || attemptedDeliveries.some(([, result]) => result.ok)) {
     return jsonResponse({ success: true, mode: lead.precheck?.mode || "none" }, 200);
   }
 
