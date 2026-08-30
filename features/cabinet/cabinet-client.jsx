@@ -6,6 +6,7 @@ import { useMemo, useRef, useState } from "react";
 import { AI_PRECHECK_HREF, LEAD_FORM_HREF } from "../../lib/public-navigation.mjs";
 import { createUuidV4 } from "../../lib/submission-id.mjs";
 import { registerMatterDocument, sendMatterMessage } from "./cabinet-actions";
+import NotificationCenter from "../notifications/notification-center";
 import { CABINET_VIEWS, EMPTY_CABINET_STEPS, getMatterById } from "./cabinet-data.mjs";
 import {
   buildDocumentStoragePath,
@@ -272,7 +273,7 @@ function MattersView({ matters, matter, onMatterSelect }) {
           <p className={styles.eyebrow}>Дела</p>
           <h1>История работы</h1>
         </div>
-        <p>Статусы и события изложены понятным для клиента языком.</p>
+        <p>Следите за этапами и последними изменениями по выбранному делу.</p>
       </div>
       <MatterSwitch matters={matters} activeMatterId={matter.id} onSelect={onMatterSelect} />
       <div className={styles.detailsGrid}>
@@ -318,7 +319,7 @@ function DocumentsView({
           <p className={styles.eyebrow}>Документы</p>
           <h1>Материалы дела</h1>
         </div>
-        <p>Здесь будут храниться только файлы, относящиеся к выбранному делу.</p>
+        <p>Здесь собраны файлы по выбранному делу.</p>
       </div>
       <MatterSwitch matters={matters} activeMatterId={matter.id} onSelect={onMatterSelect} />
       <div className={styles.documentsGrid} id="documents">
@@ -368,7 +369,7 @@ function MessagesView({
           <p className={styles.eyebrow}>Сообщения</p>
           <h1>Связь по делу</h1>
         </div>
-        <p>Обсуждение отделено от документов и привязано к конкретному делу.</p>
+        <p>Все сообщения относятся к выбранному делу.</p>
       </div>
       <MatterSwitch matters={matters} activeMatterId={matter.id} onSelect={onMatterSelect} />
       <div className={styles.messagesGrid}>
@@ -450,7 +451,12 @@ function EmptyCabinet() {
   );
 }
 
-export default function CabinetClient({ initialMatters = [], displayName = "Клиент", staffHref = null }) {
+export default function CabinetClient({
+  initialMatters = [],
+  initialNotifications = [],
+  displayName = "Клиент",
+  staffHref = null,
+}) {
   const router = useRouter();
   const matters = initialMatters;
   const hasMatters = matters.length > 0;
@@ -463,6 +469,7 @@ export default function CabinetClient({ initialMatters = [], displayName = "Кл
   const [draft, setDraft] = useState("");
   const [messageFeedback, setMessageFeedback] = useState({ tone: "neutral", text: "" });
   const [isSending, setIsSending] = useState(false);
+  const [headerPanel, setHeaderPanel] = useState(null);
   const mainRef = useRef(null);
   const messageIdRef = useRef(null);
   const matter = useMemo(() => getMatterById(activeMatterId, matters), [activeMatterId, matters]);
@@ -476,7 +483,11 @@ export default function CabinetClient({ initialMatters = [], displayName = "Кл
     }
     setActiveMatterId(matterId);
     setActiveView(view);
-    window.requestAnimationFrame(() => mainRef.current?.focus());
+    setHeaderPanel(null);
+    window.requestAnimationFrame(() => {
+      mainRef.current?.focus({ preventScroll: true });
+      mainRef.current?.scrollIntoView({ block: "start" });
+    });
   };
 
   const selectMatter = (matterId) => {
@@ -651,7 +662,22 @@ export default function CabinetClient({ initialMatters = [], displayName = "Кл
           ))}
           <a className={styles.aiTopLink} href={AI_PRECHECK_HREF}>AI-разбор</a>
         </nav>
-        <details className={styles.profile}>
+        <NotificationCenter
+          notifications={initialNotifications}
+          open={headerPanel === "notifications"}
+          onOpenChange={(isOpen) => {
+            setHeaderPanel((current) => (isOpen ? "notifications" : current === "notifications" ? null : current));
+          }}
+          onOpen={(notification) => selectView(notification.targetView, notification.matterId)}
+        />
+        <details
+          className={styles.profile}
+          open={headerPanel === "profile"}
+          onToggle={(event) => {
+            const isOpen = event.currentTarget.open;
+            setHeaderPanel((current) => (isOpen ? "profile" : current === "profile" ? null : current));
+          }}
+        >
           <summary>{displayName}</summary>
           <div>
             <span>Подтверждённый аккаунт</span>

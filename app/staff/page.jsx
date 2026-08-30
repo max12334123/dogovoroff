@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import StaffClient from "../../features/staff/staff-client";
 import { loadStaffData } from "../../features/staff/staff-server";
+import { buildNotificationFeed } from "../../features/notifications/notification-domain.mjs";
 import { createClient } from "../../lib/supabase/server";
 import styles from "../../features/staff/staff.module.css";
 
@@ -38,7 +39,7 @@ export default async function StaffPage() {
   }
 
   const [{ data: profile }, staffData] = await Promise.all([
-    supabase.from("profiles").select("display_name").eq("id", userId).maybeSingle(),
+    supabase.from("profiles").select("display_name,notifications_read_at").eq("id", userId).maybeSingle(),
     loadStaffData(supabase, userId),
   ]);
 
@@ -47,6 +48,7 @@ export default async function StaffPage() {
   }
 
   const staffName = profile?.display_name || "Команда ДоговорОфф";
+  const notifications = buildNotificationFeed(staffData.matters, profile?.notifications_read_at);
 
   return (
     <div className={styles.pageShell}>
@@ -76,6 +78,7 @@ export default async function StaffPage() {
       <main className={styles.main} id="staff-main">
         <StaffClient
           initialMatters={staffData.matters}
+          initialNotifications={notifications}
           initialIntakeRequests={staffData.intakeRequests}
           intakeEnabled={staffData.intakeEnabled}
           initialAuditEvents={staffData.auditEvents}

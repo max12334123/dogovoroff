@@ -6,6 +6,15 @@
   --staff-ice: #79c8f3;
   --staff-line: rgba(255, 255, 255, 0.16);
   --staff-soft-line: rgba(255, 255, 255, 0.09);
+  --staff-control-font-size: 12px;
+  --staff-control-font-weight: 620;
+  --staff-control-letter-spacing: 0.06em;
+  --staff-primary-font-size: 13px;
+  --staff-primary-font-weight: 650;
+  --staff-primary-letter-spacing: 0.02em;
+  --cabinet-control-font-size: 11px;
+  --cabinet-control-font-weight: 650;
+  --cabinet-control-letter-spacing: 0.12em;
   min-height: 100vh;
   color: var(--staff-paper);
   background: var(--staff-black);
@@ -18,11 +27,7 @@
   box-sizing: border-box;
 }
 
-.pageShell button,
-.pageShell input,
-.pageShell select,
-.pageShell textarea,
-.pageShell summary {
+.pageShell :where(button, input, select, textarea, summary) {
   font: inherit;
 }
 
@@ -90,9 +95,10 @@
   color: var(--staff-black);
   background: var(--staff-paper);
   cursor: pointer;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
+  font-size: var(--staff-control-font-size, 12px);
+  font-weight: var(--staff-control-font-weight, 620);
+  letter-spacing: var(--staff-control-letter-spacing, 0.06em);
+  line-height: 1.3;
   text-transform: uppercase;
 }
 
@@ -213,9 +219,10 @@
   padding: 0;
   color: #d7d7d3;
   background: transparent;
-  font-size: 12px;
-  font-weight: 650;
-  letter-spacing: 0.14em;
+  font-size: var(--cabinet-control-font-size);
+  font-weight: var(--cabinet-control-font-weight);
+  letter-spacing: var(--cabinet-control-letter-spacing);
+  line-height: 1.3;
   text-transform: uppercase;
   transition: color 220ms ease;
 }
@@ -393,9 +400,10 @@
   border: 1px solid var(--staff-ice);
   color: #071016;
   background: var(--staff-ice);
-  font-size: 13px;
-  font-weight: 650;
-  letter-spacing: 0.02em;
+  font-size: var(--staff-primary-font-size);
+  font-weight: var(--staff-primary-font-weight);
+  letter-spacing: var(--staff-primary-letter-spacing);
+  line-height: 1.3;
   white-space: nowrap;
   transition: color 220ms ease, background 220ms ease, transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -749,6 +757,9 @@
   border: 0;
   color: var(--staff-paper);
   background: transparent;
+  font-size: var(--staff-control-font-size);
+  font-weight: 520;
+  line-height: 1.45;
   text-align: left;
 }
 
@@ -760,9 +771,10 @@
 .documentDownload small {
   flex: 0 0 auto;
   color: var(--staff-ice);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
+  font-size: var(--cabinet-control-font-size);
+  font-weight: var(--cabinet-control-font-weight);
+  letter-spacing: var(--cabinet-control-letter-spacing);
+  line-height: 1.3;
   text-transform: uppercase;
 }
 
@@ -788,7 +800,10 @@
   color: var(--staff-ice);
   background: transparent;
   text-align: left;
-  font-size: 12px;
+  font-size: var(--staff-control-font-size);
+  font-weight: var(--staff-control-font-weight);
+  letter-spacing: var(--staff-control-letter-spacing);
+  line-height: 1.3;
   transition: color 220ms ease, padding-left 220ms ease;
 }
 
@@ -947,7 +962,10 @@
   border-bottom: 2px solid transparent;
   color: var(--staff-muted);
   background: transparent;
-  font-size: 12px;
+  font-size: var(--staff-control-font-size);
+  font-weight: var(--staff-control-font-weight);
+  letter-spacing: var(--staff-control-letter-spacing);
+  line-height: 1.3;
   white-space: nowrap;
 }
 
@@ -980,7 +998,10 @@
   border-bottom: 2px solid transparent;
   color: var(--staff-muted);
   background: transparent;
-  font-size: 12px;
+  font-size: var(--staff-control-font-size);
+  font-weight: var(--staff-control-font-weight);
+  letter-spacing: var(--staff-control-letter-spacing);
+  line-height: 1.3;
   white-space: nowrap;
 }
 
@@ -1192,9 +1213,10 @@
   border: 1px solid var(--staff-line);
   color: var(--staff-paper);
   background: transparent;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  font-size: var(--staff-control-font-size);
+  font-weight: var(--staff-control-font-weight);
+  letter-spacing: var(--staff-control-letter-spacing);
+  line-height: 1.3;
   transition: color 220ms ease, background 220ms ease, border-color 220ms ease;
 }
 
@@ -1667,7 +1689,10 @@
   padding: 0 14px;
   color: #232526;
   background: transparent;
-  font-size: 12px;
+  font-size: var(--staff-control-font-size);
+  font-weight: var(--staff-control-font-weight);
+  letter-spacing: var(--staff-control-letter-spacing);
+  line-height: 1.3;
 }
 
 .secondaryButton:hover {
@@ -1913,6 +1938,9 @@
     width: 100%;
     height: 54px;
     min-height: 54px;
+  }
+
+  .searchField input {
     font-size: 16px;
   }
 

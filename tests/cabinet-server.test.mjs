@@ -23,6 +23,8 @@ function createSupabaseFixture(overrides = {}) {
         next_action_title: "Загрузить приложение",
         next_action_description: "Добавьте недостающий файл.",
         next_action_due_at: "2026-09-02T10:00:00.000Z",
+        created_by: LAWYER_ID,
+        created_at: "2026-08-26T10:00:00.000Z",
         updated_at: "2026-08-27T10:00:00.000Z",
       }],
       error: null,
@@ -43,7 +45,9 @@ function createSupabaseFixture(overrides = {}) {
       data: [{
         id: "a1111111-aaaa-4111-9111-111111111111",
         matter_id: MATTER_ID,
+        event_type: "matter.updated",
         public_text: "Материалы переданы юристу.",
+        actor_id: LAWYER_ID,
         created_at: "2026-08-27T10:00:00.000Z",
       }],
       error: null,
@@ -57,6 +61,8 @@ function createSupabaseFixture(overrides = {}) {
         mime_type: "application/pdf",
         size_bytes: 2048,
         status: "received",
+        uploaded_by: LAWYER_ID,
+        created_at: "2026-08-27T09:30:00.000Z",
         updated_at: "2026-08-27T10:00:00.000Z",
       }],
       error: null,
@@ -119,6 +125,11 @@ test("cabinet loader maps one RLS-filtered matter with documents and messages", 
   assert.deepEqual(matters[0].messages.map(({ sender }) => sender), ["Вы", "Команда ДоговорОфф"]);
   assert.equal(matters[0].nextAction.title, "Загрузить приложение");
   assert.match(matters[0].updated, /27 августа/);
+  assert.deepEqual(
+    matters[0].notifications.map(({ type }) => type),
+    ["matter.created", "matter.updated", "matter.event.created", "document.created", "message.created"],
+  );
+  assert.doesNotMatch(JSON.stringify(matters[0].notifications), /Договор\.pdf|Сообщение клиента|Ответ команды/);
 
   for (const table of ["matter_stages", "matter_events", "documents", "messages"]) {
     assert.deepEqual(supabase.requestedMatterIds.get(table), [MATTER_ID]);

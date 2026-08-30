@@ -1,3 +1,5 @@
+import { createSafeNotification } from "../notifications/notification-domain.mjs";
+
 const DATE_TIME_FORMATTER = new Intl.DateTimeFormat("ru-RU", {
   day: "numeric",
   month: "long",
@@ -59,6 +61,8 @@ export async function loadCabinetData(supabase, userId, options = {}) {
     "next_action_title",
     "next_action_description",
     "next_action_due_at",
+    "created_by",
+    "created_at",
     "updated_at",
   ];
   const { data: matters, error: mattersError } = await supabase
@@ -83,12 +87,12 @@ export async function loadCabinetData(supabase, userId, options = {}) {
       .order("position", { ascending: true }),
     supabase
       .from("matter_events")
-      .select("id,matter_id,public_text,created_at")
+      .select("id,matter_id,event_type,public_text,actor_id,created_at")
       .in("matter_id", matterIds)
       .order("created_at", { ascending: false }),
     supabase
       .from("documents")
-      .select("id,matter_id,storage_path,original_name,mime_type,size_bytes,status,updated_at")
+      .select("id,matter_id,storage_path,original_name,mime_type,size_bytes,status,uploaded_by,created_at,updated_at")
       .in("matter_id", matterIds)
       .order("updated_at", { ascending: false }),
     supabase
@@ -109,6 +113,9 @@ export async function loadCabinetData(supabase, userId, options = {}) {
   const messagesByMatter = groupByMatter(messagesResult.data ?? []);
 
   return matters.map((matter, index) => {
+    const matterEvents = eventsByMatter.get(matter.id) ?? [];
+    const matterDocuments = documentsByMatter.get(matter.id) ?? [];
+    const matterMessages = messagesByMatter.get(matter.id) ?? [];
     const stages = (stagesByMatter.get(matter.id) ?? []).map((stage) => ({
       id: stage.id,
       title: stage.title,
@@ -116,6 +123,48 @@ export async function loadCabinetData(supabase, userId, options = {}) {
       status: stage.status,
     }));
     const currentStageIndex = stages.findIndex((stage) => stage.status === "current");
+    const notifications = [
+      matter.created_by !== userId
+        ? createSafeNotification({
+            id: matter.id,
+            matterId: matter.id,
+            type: "matter.created",
+            createdAt: matter.created_at,
+          })
+        : null,
+      matter.updated_at !== matter.created_at
+        ? createSafeNotification({
+            id: `${matter.id}:${matter.updated_at}`,
+            matterId: matter.id,
+            type: "matter.updated",
+            createdAt: matter.updated_at,
+          })
+        : null,
+      ...matterEvents.map((event) => (event.actor_id !== userId
+        ? createSafeNotification({
+            id: event.id,
+            matterId: matter.id,
+            type: "matter.event.created",
+            createdAt: event.created_at,
+          })
+        : null)),
+      ...matterDocuments.map((document) => (document.uploaded_by !== userId
+        ? createSafeNotification({
+            id: document.id,
+            matterId: matter.id,
+            type: "document.created",
+            createdAt: document.created_at,
+          })
+        : null)),
+      ...matterMessages.map((message) => (message.author_id !== userId
+        ? createSafeNotification({
+            id: message.id,
+            matterId: matter.id,
+            type: "message.created",
+            createdAt: message.created_at,
+          })
+        : null)),
+    ].filter(Boolean);
 
     return {
       id: matter.id,
@@ -136,6 +185,7 @@ export async function loadCabinetData(supabase, userId, options = {}) {
       responseBy: matter.response_due_at ? formatDeadline(matter.response_due_at) : "срок уточняется",
       summary: matter.summary || "Информация по делу готовится.",
       stages,
+      notifications,
       nextAction: matter.next_action_title
         ? {
             title: matter.next_action_title,
@@ -144,7 +194,7 @@ export async function loadCabinetData(supabase, userId, options = {}) {
             dueAt: matter.next_action_due_at || null,
           }
         : null,
-      updates: (eventsByMatter.get(matter.id) ?? []).map((event) => {
+      updates: matterEvents.map((event) => {
         const formatted = DATE_TIME_FORMATTER.formatToParts(new Date(event.created_at));
         const day = formatted.find((part) => part.type === "day")?.value;
         const month = formatted.find((part) => part.type === "month")?.value;
@@ -157,7 +207,7 @@ export async function loadCabinetData(supabase, userId, options = {}) {
           text: event.public_text,
         };
       }),
-      documents: (documentsByMatter.get(matter.id) ?? []).map((document) => ({
+      documents: matterDocuments.map((document) => ({
         id: document.id,
         name: document.original_name,
         storagePath: document.storage_path,
@@ -167,7 +217,7 @@ export async function loadCabinetData(supabase, userId, options = {}) {
         updatedAt: document.updated_at,
         updated: DATE_FORMATTER.format(new Date(document.updated_at)),
       })),
-      messages: (messagesByMatter.get(matter.id) ?? []).map((message) => ({
+      messages: matterMessages.map((message) => ({
         id: message.id,
         sender: message.author_id === userId ? "Вы" : messageParticipantLabel,
         date: DATE_TIME_FORMATTER.format(new Date(message.created_at)),
