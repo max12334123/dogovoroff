@@ -7,6 +7,7 @@ import { DOCUMENT_BUCKET } from "../cabinet/cabinet-write-domain.mjs";
 import { sendMatterMessage } from "../cabinet/cabinet-actions";
 import { getMatterById } from "../cabinet/cabinet-data.mjs";
 import { validateMatterMessage } from "../cabinet/cabinet-write-domain.mjs";
+import NotificationCenter from "../notifications/notification-center";
 import StaffAssignmentForm from "./staff-assignment-form";
 import StaffIntakePanel from "./staff-intake-panel";
 import StaffMatterDetailsForm from "./staff-matter-details-form";
@@ -534,6 +535,7 @@ function AuditList({ events, matters }) {
 
 export default function StaffClient({
   initialMatters = [],
+  initialNotifications = [],
   initialIntakeRequests = [],
   intakeEnabled = false,
   initialAuditEvents = [],
@@ -829,6 +831,12 @@ export default function StaffClient({
     window.scrollTo({ top: 0, behavior: getPreferredScrollBehavior() });
   };
 
+  const openNotification = (notification) => {
+    selectMatter(notification.matterId);
+    setActiveView(notification.targetView === "overview" ? "matters" : notification.targetView);
+    window.scrollTo({ top: 0, behavior: getPreferredScrollBehavior() });
+  };
+
   const showDetail = () => (
     <MatterDetail
       matter={matter}
@@ -897,6 +905,7 @@ export default function StaffClient({
             </p>
           </div>
           <div className={styles.headerTools}>
+            <NotificationCenter notifications={initialNotifications} onOpen={openNotification} />
             <label className={styles.searchField}>
               <span className={styles.visuallyHidden}>{activeView === "inbox" ? "Поиск по заявкам" : "Поиск по делам"}</span>
               <input

@@ -105,6 +105,19 @@ test("cabinet layout includes mobile and reduced-motion protection", () => {
   assert.match(cssSource, /@media \(max-width: 940px\)/);
   assert.match(cssSource, /@media \(max-width: 680px\)/);
   assert.match(cssSource, /@media \(max-width: 420px\)/);
+  assert.match(cssSource, /@media \(max-width: 360px\)/);
   assert.match(cssSource, /@media \(prefers-reduced-motion: reduce\)/);
   assert.match(cssSource, /overflow-wrap:\s*anywhere/);
+  assert.match(componentSource, /focus\(\{ preventScroll: true \}\)/);
+  assert.match(componentSource, /scrollIntoView\(\{ block: "start" \}\)/);
+  assert.match(cssSource, /scroll-margin-top:\s*116px/);
+});
+
+test("cabinet controls use explicit typography roles without a high-specificity font reset", () => {
+  assert.match(cssSource, /--cabinet-control-font-size:\s*10\.5px/);
+  assert.match(cssSource, /--cabinet-primary-font-size:\s*11px/);
+  assert.match(cssSource, /\.shell\s+:where\(button, input, textarea, summary\)/);
+  assert.match(cssSource, /\.topNavButton strong\s*\{\s*font:\s*inherit/);
+  assert.match(cssSource, /\.summaryHeading button[\s\S]*text-transform:\s*uppercase/);
+  assert.doesNotMatch(cssSource, /\.shell button,\s*\n\.shell input/);
 });

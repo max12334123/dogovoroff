@@ -6,6 +6,12 @@
   --cabinet-ice: #8fb9ca;
   --cabinet-dark-line: rgba(255, 255, 255, 0.16);
   --cabinet-light-line: rgba(5, 5, 5, 0.18);
+  --cabinet-control-font-size: 10.5px;
+  --cabinet-control-font-weight: 650;
+  --cabinet-control-letter-spacing: 0.12em;
+  --cabinet-primary-font-size: 11px;
+  --cabinet-primary-font-weight: 700;
+  --cabinet-primary-letter-spacing: 0.16em;
   min-height: 100vh;
   color: var(--cabinet-paper);
   background: var(--cabinet-black);
@@ -24,6 +30,12 @@
 }
 
 .stateShell {
+  --cabinet-control-font-size: 10.5px;
+  --cabinet-control-font-weight: 650;
+  --cabinet-control-letter-spacing: 0.12em;
+  --cabinet-primary-font-size: 11px;
+  --cabinet-primary-font-weight: 700;
+  --cabinet-primary-letter-spacing: 0.16em;
   display: grid;
   min-height: 100svh;
   place-items: center;
@@ -72,9 +84,10 @@
   color: var(--cabinet-black);
   background: var(--cabinet-paper);
   cursor: pointer;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
+  font-size: var(--cabinet-primary-font-size);
+  font-weight: var(--cabinet-primary-font-weight);
+  letter-spacing: var(--cabinet-primary-letter-spacing);
+  line-height: 1.3;
   text-transform: uppercase;
 }
 
@@ -90,10 +103,7 @@
   background: transparent;
 }
 
-.shell button,
-.shell input,
-.shell textarea,
-.shell summary {
+.shell :where(button, input, textarea, summary) {
   color: inherit;
   font: inherit;
 }
@@ -103,6 +113,11 @@
 .shell label,
 .shell a {
   -webkit-tap-highlight-color: transparent;
+}
+
+.shell :is(a, button, summary, input, textarea):focus-visible {
+  outline: 2px solid var(--cabinet-ice);
+  outline-offset: 3px;
 }
 
 .skipLink {
@@ -126,8 +141,8 @@
   z-index: 70;
   top: 0;
   display: grid;
-  grid-template-columns: minmax(280px, 1fr) auto minmax(170px, 1fr);
-  gap: 36px;
+  grid-template-columns: minmax(260px, 1fr) auto auto minmax(120px, 0.4fr);
+  gap: 28px;
   align-items: center;
   min-height: 86px;
   padding: 0 40px;
@@ -138,6 +153,7 @@
 
 .brand {
   display: inline-flex;
+  min-height: 44px;
   gap: 15px;
   align-items: center;
   justify-self: start;
@@ -183,15 +199,20 @@
 .topNavButton,
 .aiTopLink {
   position: relative;
-  min-height: 40px;
+  min-height: 44px;
   color: #d4d4d1;
   background: transparent;
   cursor: pointer;
-  font-size: 10.5px;
-  font-weight: 650;
-  letter-spacing: 0.15em;
+  font-size: var(--cabinet-control-font-size);
+  font-weight: var(--cabinet-control-font-weight);
+  letter-spacing: var(--cabinet-control-letter-spacing);
+  line-height: 1.3;
   text-transform: uppercase;
   transition: color 260ms ease;
+}
+
+.topNavButton strong {
+  font: inherit;
 }
 
 .topNavButton::after,
@@ -233,12 +254,17 @@
 }
 
 .profile summary {
+  display: flex;
   min-width: 96px;
-  padding: 12px 0;
+  min-height: 44px;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0;
   cursor: pointer;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.11em;
+  font-size: var(--cabinet-control-font-size);
+  font-weight: var(--cabinet-control-font-weight);
+  letter-spacing: var(--cabinet-control-letter-spacing);
+  line-height: 1.3;
   text-align: right;
   text-transform: uppercase;
 }
@@ -270,6 +296,9 @@
 
 .profile > div a,
 .profile > div button {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
   color: var(--cabinet-paper);
 }
 
@@ -348,9 +377,10 @@
 }
 
 .railButton strong {
-  font-size: 10.5px;
-  font-weight: 650;
-  letter-spacing: 0.17em;
+  font-size: var(--cabinet-control-font-size);
+  font-weight: var(--cabinet-control-font-weight);
+  letter-spacing: var(--cabinet-control-letter-spacing);
+  line-height: 1.3;
   text-transform: uppercase;
 }
 
@@ -385,6 +415,7 @@
   margin-inline: auto;
   padding: 58px clamp(34px, 4vw, 70px) 90px;
   outline: none;
+  scroll-margin-top: 86px;
 }
 
 .emptyCabinet {
@@ -490,10 +521,14 @@
 }
 
 .quietLink {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
   color: var(--cabinet-ice) !important;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.15em;
+  font-size: var(--cabinet-control-font-size);
+  font-weight: var(--cabinet-control-font-weight);
+  letter-spacing: var(--cabinet-control-letter-spacing);
+  line-height: 1.3;
   text-transform: uppercase;
 }
 
@@ -774,7 +809,9 @@
 }
 
 .aiLink {
-  display: inline-block;
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
   margin-top: 28px;
   color: var(--cabinet-ice);
   font-family: var(--font-cormorant), Georgia, serif;
@@ -833,9 +870,10 @@
   color: var(--cabinet-paper);
   background: var(--cabinet-black);
   cursor: pointer;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.2em;
+  font-size: var(--cabinet-primary-font-size);
+  font-weight: var(--cabinet-primary-font-weight);
+  letter-spacing: var(--cabinet-primary-letter-spacing);
+  line-height: 1.3;
   text-align: center;
   text-transform: uppercase;
   transition: color 300ms ease, background-color 300ms ease, transform 300ms cubic-bezier(0.22, 1, 0.36, 1);
@@ -891,10 +929,16 @@
 }
 
 .summaryHeading button {
+  min-height: 44px;
+  padding-block: 8px;
   color: var(--cabinet-ice);
   background: transparent;
   cursor: pointer;
-  font-size: 9.5px;
+  font-size: var(--cabinet-control-font-size);
+  font-weight: var(--cabinet-control-font-weight);
+  letter-spacing: var(--cabinet-control-letter-spacing);
+  line-height: 1.3;
+  text-transform: uppercase;
 }
 
 .summaryPanel h2 {
@@ -961,6 +1005,7 @@
 
 .documentDownload {
   display: flex;
+  min-height: 44px;
   min-width: 0;
   gap: 12px;
   align-items: center;
@@ -978,9 +1023,10 @@
 .documentDownload small {
   flex: 0 0 auto;
   color: var(--cabinet-ice);
-  font-size: 8px;
-  font-weight: 700;
-  letter-spacing: 0.13em;
+  font-size: var(--cabinet-control-font-size);
+  font-weight: var(--cabinet-control-font-weight);
+  letter-spacing: var(--cabinet-control-letter-spacing);
+  line-height: 1.3;
   text-transform: uppercase;
   opacity: 0;
   transition: opacity 220ms ease;
@@ -1204,8 +1250,8 @@
 
 @media (max-width: 1180px) {
   .header {
-    grid-template-columns: minmax(220px, 1fr) auto auto;
-    gap: 24px;
+    grid-template-columns: minmax(220px, 1fr) auto auto minmax(96px, 0.3fr);
+    gap: 18px;
     padding-inline: 28px;
   }
 
@@ -1247,7 +1293,7 @@
 
 @media (max-width: 940px) {
   .header {
-    grid-template-columns: 1fr auto;
+    grid-template-columns: 1fr auto auto;
   }
 
   .topNav {
@@ -1284,6 +1330,7 @@
 
   .main {
     padding-top: 48px;
+    scroll-margin-top: 134px;
   }
 
   .overviewGrid,
@@ -1346,6 +1393,13 @@
 }
 
 @media (max-width: 680px) {
+  .shell {
+    --cabinet-control-font-size: 9.5px;
+    --cabinet-control-letter-spacing: 0.08em;
+    --cabinet-primary-font-size: 10.5px;
+    --cabinet-primary-letter-spacing: 0.14em;
+  }
+
   .header {
     min-height: 68px;
     padding-inline: 16px;
@@ -1366,7 +1420,6 @@
 
   .profile summary {
     min-width: 74px;
-    font-size: 9.5px;
   }
 
   .profile > div {
@@ -1379,11 +1432,11 @@
 
   .mobileNav .topNavButton {
     min-height: 48px;
-    letter-spacing: 0.08em;
   }
 
   .main {
     padding: 36px 18px 70px;
+    scroll-margin-top: 116px;
   }
 
   .emptyCabinet {
@@ -1530,6 +1583,10 @@
     display: grid;
     gap: 4px;
   }
+
+  .summaryHeading button {
+    min-height: 44px;
+  }
 }
 
 @media (max-width: 420px) {
@@ -1544,10 +1601,6 @@
     min-width: auto;
   }
 
-  .mobileNav .topNavButton {
-    font-size: 8.5px;
-  }
-
   .matterSwitchButton {
     padding-inline: 15px;
   }
@@ -1555,6 +1608,22 @@
   .actionButton,
   .darkButton {
     min-height: 58px;
+  }
+}
+
+@media (max-width: 360px) {
+  .header {
+    grid-template-columns: auto 1fr auto;
+    gap: 10px;
+  }
+
+  .brandName {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
   }
 }
 

@@ -28,7 +28,7 @@ export const EMPTY_CABINET_STEPS = [
     state: "future",
     statusLabel: "Далее",
     title: "Получите доступ к делу",
-    description: "После проверки юрист свяжет принятое дело с вашим аккаунтом.",
+    description: "Когда юрист примет обращение, дело появится в кабинете.",
   },
 ];
 

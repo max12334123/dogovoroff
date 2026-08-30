@@ -1,5 +1,6 @@
 import CabinetClient from "../../features/cabinet/cabinet-client";
 import { loadCabinetData } from "../../features/cabinet/cabinet-server";
+import { buildNotificationFeed } from "../../features/notifications/notification-domain.mjs";
 import { createClient } from "../../lib/supabase/server";
 import { redirect } from "next/navigation";
 
@@ -23,16 +24,18 @@ export default async function CabinetPage() {
   }
 
   const [{ data: profile }, { data: memberships }, matters] = await Promise.all([
-    supabase.from("profiles").select("display_name").eq("id", userId).maybeSingle(),
+    supabase.from("profiles").select("display_name,notifications_read_at").eq("id", userId).maybeSingle(),
     supabase.from("organization_members").select("role").eq("user_id", userId),
     loadCabinetData(supabase, userId),
   ]);
 
   const hasStaffRole = memberships?.some((membership) => membership.role === "admin" || membership.role === "lawyer");
+  const notifications = buildNotificationFeed(matters, profile?.notifications_read_at);
 
   return (
     <CabinetClient
       initialMatters={matters}
+      initialNotifications={notifications}
       displayName={profile?.display_name || "Клиент"}
       staffHref={hasStaffRole ? "/staff" : null}
     />

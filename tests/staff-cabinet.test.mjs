@@ -13,7 +13,7 @@ import {
 } from "../features/staff/staff-domain.mjs";
 import { validateMatterWorkflow } from "../features/staff/staff-workflow-domain.mjs";
 
-const [pageSource, clientSource, assignmentFormSource, detailsFormSource, serverSource, actionsSource, middlewareSource, supabaseMiddlewareSource] = await Promise.all([
+const [pageSource, clientSource, assignmentFormSource, detailsFormSource, serverSource, actionsSource, middlewareSource, supabaseMiddlewareSource, cssSource] = await Promise.all([
   readFile(new URL("../app/staff/page.jsx", import.meta.url), "utf8"),
   readFile(new URL("../features/staff/staff-client.jsx", import.meta.url), "utf8"),
   readFile(new URL("../features/staff/staff-assignment-form.jsx", import.meta.url), "utf8"),
@@ -22,6 +22,7 @@ const [pageSource, clientSource, assignmentFormSource, detailsFormSource, server
   readFile(new URL("../features/staff/staff-actions.js", import.meta.url), "utf8"),
   readFile(new URL("../middleware.js", import.meta.url), "utf8"),
   readFile(new URL("../lib/supabase/middleware.js", import.meta.url), "utf8"),
+  readFile(new URL("../features/staff/staff.module.css", import.meta.url), "utf8"),
 ]);
 
 test("staff access is limited to organization lawyers and administrators", () => {
@@ -57,6 +58,18 @@ test("staff UI can respond by matter without exposing privileged credentials", (
   assert.match(clientSource, /Сохранить рабочий статус/);
   assert.match(clientSource, /Скачать/);
   assert.doesNotMatch(clientSource, /service_role|SUPABASE_SERVICE|localStorage|sessionStorage/);
+});
+
+test("staff controls keep explicit typography roles on desktop and mobile", () => {
+  const [mobileSharedRule = ""] = cssSource.match(/\.searchField input,\s*\n\s*\.newMatterButton\s*\{[^}]*\}/) ?? [];
+
+  assert.match(cssSource, /--staff-control-font-size:\s*12px/);
+  assert.match(cssSource, /--staff-primary-font-size:\s*13px/);
+  assert.match(cssSource, /\.pageShell\s+:where\(button, input, select, textarea, summary\)/);
+  assert.match(cssSource, /\.documentDownload[\s\S]*font-size:\s*var\(--staff-control-font-size\)/);
+  assert.match(cssSource, /\.searchField input\s*\{\s*font-size:\s*16px/);
+  assert.match(mobileSharedRule, /\.newMatterButton/);
+  assert.doesNotMatch(mobileSharedRule, /font-size/);
 });
 
 test("only administrators receive the matter metadata editor", () => {
