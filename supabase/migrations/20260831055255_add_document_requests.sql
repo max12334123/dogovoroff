@@ -601,7 +601,10 @@ begin
     raise exception using errcode = '42501', message = 'not_authorized';
   end if;
   if locked_status = new_decision
-    and locked_note is not distinct from normalized_note then
+    and (
+      new_decision = 'accepted'
+      or locked_note is not distinct from normalized_note
+    ) then
     return query select target_request_id, locked_status, locked_updated_at;
     return;
   end if;
@@ -612,7 +615,10 @@ begin
   update public.document_requests as request
   set
     status = new_decision,
-    last_review_note = normalized_note,
+    last_review_note = case
+      when new_decision = 'accepted' then locked_note
+      else normalized_note
+    end,
     reviewed_by = actor_id,
     reviewed_at = now()
   where request.id = target_request_id

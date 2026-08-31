@@ -1,5 +1,5 @@
 begin;
-select plan(34);
+select plan(36);
 
 insert into auth.users (
   id,
@@ -411,6 +411,15 @@ select is(
   'manager accepts the resubmitted request'
 );
 select is(
+  (
+    select request.status::text || '|' || request.last_review_note
+    from public.document_requests as request
+    join pg_temp.workflow_state as state on state.request_id = request.id
+  ),
+  'accepted|Замените нечитаемую страницу.',
+  'accept preserves the most recent correction note'
+);
+select is(
   (select document.status::text from public.documents as document where document.id = '40000000-0000-4000-8000-000000000002'),
   'ready',
   'accept marks the active replacement ready'
@@ -424,6 +433,11 @@ select is(
   (select count(*)::bigint from public.matter_events as event where event.event_type = 'document_request.accepted'),
   1::bigint,
   'accept retry does not duplicate timeline events'
+);
+select is(
+  (select count(*)::bigint from public.audit_events as event where event.action = 'document_request.accepted'),
+  1::bigint,
+  'accept retry does not duplicate audit records'
 );
 
 set local role authenticated;

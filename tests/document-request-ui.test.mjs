@@ -33,7 +33,10 @@ test("failed registrations stay independently retryable and file selection keeps
 });
 
 test("request layout is touch-safe, wraps long text, and stays card-based on mobile", () => {
-  assert.match(cssSource, /min-height:\s*44px/);
+  assert.match(
+    cssSource,
+    /\.fileButton\s*\{[^}]*min-height:\s*44px;[^}]*align-items:\s*center;/,
+  );
   assert.match(cssSource, /overflow-wrap:\s*anywhere/);
   assert.match(cssSource, /@media \(max-width: 680px\)/);
   assert.doesNotMatch(cssSource, /white-space:\s*nowrap/);

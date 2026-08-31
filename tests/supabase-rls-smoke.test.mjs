@@ -113,6 +113,36 @@ test("intake inbox SQL smoke suite is transactional and covers the server bounda
   assert.match(source, /persistent_rows', 0/);
 });
 
+test("read-only token smoke remains strict and contains no mutation calls", async () => {
+  const source = await readFile(
+    new URL("../scripts/supabase-rls-smoke.mjs", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(source, /actual\.length !== expected\.length/);
+  assert.match(source, /actual\.some\(\(value, index\) => value !== expected\[index\]\)/);
+  assert.doesNotMatch(source, /\.(?:insert|update|delete|upsert|rpc)\s*\(/);
+});
+
+test("isolated runbooks create non-vacuous request fixtures before token smoke and clean up afterwards", async () => {
+  const [runbookSource, taskPlanSource] = await Promise.all([
+    readFile(new URL("../docs/supabase-e2e.md", import.meta.url), "utf8"),
+    readFile(
+      new URL("../docs/superpowers/plans/2026-08-30-managed-document-workflow.md", import.meta.url),
+      "utf8",
+    ),
+  ]);
+
+  assert.match(
+    runbookSource,
+    /before-token-smoke:[\s\S]*хотя бы одну строку `document_requests` для каждого ожидаемого дела[\s\S]*run-token-smoke:[\s\S]*cleanup-after-token-smoke:/,
+  );
+  assert.match(
+    taskPlanSource,
+    /Step 5: Prepare browser and synthetic fixtures[\s\S]*at least one `public\.document_requests` row for every\s+expected matter[\s\S]*Step 6: Run the temporary-token read-only smoke[\s\S]*while those fixtures still exist[\s\S]*Step 7: Clean up browser and synthetic fixtures/,
+  );
+});
+
 test("document request SQL smoke is transactional and covers role transitions", async () => {
   const source = await readFile(
     new URL("../supabase/tests/document-requests-smoke.sql", import.meta.url),
@@ -138,7 +168,15 @@ test("document request SQL smoke is transactional and covers role transitions", 
   assert.match(source, /create temporary table document_request_sensitive_values/);
   assert.match(
     source,
-    /insert into pg_temp\.document_request_sensitive_values[\s\S]*'Synthetic request A'[\s\S]*'Synthetic review note'[\s\S]*'synthetic-first\.pdf'/,
+    /insert into pg_temp\.document_request_sensitive_values[\s\S]*'Synthetic request A'[\s\S]*'Synthetic review note'[\s\S]*'synthetic-first\.pdf'[\s\S]*'synthetic-cancelled\.pdf'/,
+  );
+  assert.match(
+    source,
+    /'7d333333-3333-4333-8333-333333333333'[\s\S]*'7b222222-2222-4222-8222-222222222222\/7d333333-3333-4333-8333-333333333333\/document\.pdf'[\s\S]*'72222222-2222-4222-8222-222222222222'/,
+  );
+  assert.match(
+    source,
+    /'cancelled:register'[\s\S]*where label = 'B'[\s\S]*'7d333333-3333-4333-8333-333333333333'[\s\S]*'synthetic-cancelled\.pdf'/,
   );
   assert.match(source, /database:events-generic[\s\S]*document_request_sensitive_values/);
   assert.match(source, /create temporary table document_request_event_baseline/);
@@ -159,6 +197,10 @@ test("document request SQL smoke is transactional and covers role transitions", 
   assert.match(source, /Document request smoke failed: missing request audits/);
   assert.match(source, /rollback;[\s\S]*'persistent_rows'/);
   assert.match(source, /document_requests[\s\S]*storage\.objects/);
+  assert.match(
+    source,
+    /storage\.objects[\s\S]*name like '7a111111-1111-4111-8111-111111111111\/%'[\s\S]*name like '7b222222-2222-4222-8222-222222222222\/%'/,
+  );
   assert.doesNotMatch(source, /service_role|@|real client/i);
 
   const runnerSource = await readFile(

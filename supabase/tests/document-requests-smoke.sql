@@ -303,7 +303,8 @@ insert into pg_temp.document_request_sensitive_values (sensitive_text) values
   ('Anonymous request'),
   ('Client request'),
   ('Forbidden direct request'),
-  ('synthetic-second.pdf');
+  ('synthetic-second.pdf'),
+  ('synthetic-cancelled.pdf');
 
 insert into pg_temp.document_request_event_baseline (event_id)
 select event.id from public.matter_events as event;
@@ -365,6 +366,13 @@ insert into storage.objects (id, bucket_id, name, owner_id, metadata) values
     'matter-documents',
     '7a111111-1111-4111-8111-111111111111/7d222222-2222-4222-8222-222222222222/document.pdf',
     '71111111-1111-4111-8111-111111111111',
+    '{"size":1024,"mimetype":"application/pdf"}'::jsonb
+  ),
+  (
+    '7d333333-3333-4333-8333-333333333333',
+    'matter-documents',
+    '7b222222-2222-4222-8222-222222222222/7d333333-3333-4333-8333-333333333333/document.pdf',
+    '72222222-2222-4222-8222-222222222222',
     '{"size":1024,"mimetype":"application/pdf"}'::jsonb
   );
 
@@ -512,8 +520,8 @@ insert into pg_temp.document_request_terminal_attempts values
   ('cancelled:submit', pg_temp.try_submit_document_request((select request_id from pg_temp.document_request_ids where label = 'B'))),
   ('cancelled:register', pg_temp.try_register_document_request_file(
     (select request_id from pg_temp.document_request_ids where label = 'B'),
-    '7d222222-2222-4222-8222-222222222222',
-    'synthetic-second.pdf'
+    '7d333333-3333-4333-8333-333333333333',
+    'synthetic-cancelled.pdf'
   ));
 reset role;
 
@@ -764,5 +772,8 @@ select json_build_object(
       '7a111111-1111-4111-8111-111111111111',
       '7b222222-2222-4222-8222-222222222222'
     ))
-    + (select count(*) from storage.objects where name like '7a111111-1111-4111-8111-111111111111/%')
+    + (select count(*) from storage.objects where
+      name like '7a111111-1111-4111-8111-111111111111/%'
+      or name like '7b222222-2222-4222-8222-222222222222/%'
+    )
 ) as result;

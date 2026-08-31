@@ -2020,26 +2020,18 @@ After the transaction, run read-only counts for the synthetic UUID prefix across
 `document_requests`, `documents`, `matter_events`, `audit_events`, and `storage.objects`.
 Every count must be zero.
 
-- [ ] **Step 5: Run the temporary-token read-only smoke**
-
-Set the existing `SUPABASE_E2E_*` variables only in the current PowerShell process, pointing
-to `dogovoroff-test`, then run:
-
-```powershell
-npm.cmd run supabase:smoke
-```
-
-Expected: `4 actors, 6 resources, 1 Storage isolation check`. Remove the temporary variables
-from the process immediately after the run. Never copy token values into documentation,
-Git, chat, logs or command output.
-
-- [ ] **Step 6: Perform local browser accessibility and interaction checks**
+- [ ] **Step 5: Prepare browser and synthetic fixtures, then perform local checks**
 
 Inventory dedicated synthetic accounts in `dogovoroff-test` by UUID only. If client A,
 client B, lawyer and admin test accounts are not already available, stop and request approval
 before creating temporary Auth users or handling generated credentials. Keep generated
-passwords only in the current process, never in Git/chat/logs, and delete any newly created
-test users plus their fixtures after the browser run.
+passwords only in the current process and never in Git/chat/logs.
+
+Before the browser run, ensure there is at least one `public.document_requests` row for every
+expected matter in the union of `SUPABASE_E2E_MATTER_A_ID`, `SUPABASE_E2E_MATTER_B_ID`,
+`SUPABASE_E2E_LAWYER_MATTER_IDS`, and `SUPABASE_E2E_ADMIN_MATTER_IDS`. Create only
+synthetic requests and files. Keep all browser and synthetic fixtures until the token smoke
+in Step 6 has completed; do not clean them up at the end of this step.
 
 Run the production build locally against `dogovoroff-test` and exercise the four synthetic
 accounts at desktop width 1440px and mobile widths 390px and 360px:
@@ -2055,17 +2047,37 @@ accounts at desktop width 1440px and mobile widths 390px and 360px:
    row without a second Storage upload;
 9. console has no uncaught error and network responses expose no private SQL details.
 
-After the run, remove browser fixtures and run read-only counts for their UUIDs. Record zero
-remaining rows for any temporary fixture that was created by this step.
+Record the UUID-only fixture inventory needed for the cleanup in Step 7.
 
-- [ ] **Step 7: Request approval before any Preview publication**
+- [ ] **Step 6: Run the temporary-token read-only smoke**
+
+Set the existing `SUPABASE_E2E_*` variables only in the current PowerShell process, pointing
+to `dogovoroff-test`, then run the strict read-only smoke while those fixtures still exist:
+
+```powershell
+npm.cmd run supabase:smoke
+```
+
+Expected: `4 actors, 6 resources, 1 Storage isolation check`. Exact resource equality must
+pass for every actor; an empty `document_requests` resource is not acceptable evidence.
+Never copy token values into documentation, Git, chat, logs or command output.
+
+- [ ] **Step 7: Clean up browser and synthetic fixtures**
+
+After the token smoke completes, remove the temporary variables from the current process,
+then delete newly created test users and every browser/synthetic fixture inventoried in Step 5.
+Run read-only counts for their UUIDs across Auth, profiles, organization membership, matters,
+requests, documents, events, audits, messages, and Storage. Record zero remaining rows and
+objects. Cleanup happens after Step 6 even when the smoke reports a failure.
+
+- [ ] **Step 8: Request approval before any Preview publication**
 
 Present local/isolated evidence to the user. Because publishing an application build is an
 external state change, do not create or update a Vercel Preview until the user explicitly
 approves it. If approved, connect only controlled Preview configuration to the isolated
-test environment and repeat Step 6 on the Preview URL.
+test environment and repeat Steps 5 through 7 on the Preview URL.
 
-- [ ] **Step 8: Run Supabase advisors and record verified evidence**
+- [ ] **Step 9: Run Supabase advisors and record verified evidence**
 
 Run security/performance advisors on `dogovoroff-test`. Treat an RLS-with-no-policy finding
 or exposed `security definer` warning as a release blocker unless it exactly matches the
@@ -2074,9 +2086,9 @@ documented RPC-only boundary and each function has explicit internal authorizati
 Update `docs/cabinet-mvp.md` and ADR 0006 with the actual date, commands, counts, migration
 version and remaining limitations. Do not write a successful result before it occurs.
 
-- [ ] **Step 9: Commit the verified test record**
+- [ ] **Step 10: Commit the verified test record**
 
-If Step 8 added verified evidence to either document, run:
+If Step 9 added verified evidence to either document, run:
 
 ```powershell
 git add docs/cabinet-mvp.md docs/decisions/0006-managed-document-requests.md
