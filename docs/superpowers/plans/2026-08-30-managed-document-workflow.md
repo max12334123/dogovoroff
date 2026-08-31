@@ -20,7 +20,7 @@
 - Не менять публичные юридические документы, политику обработки данных и согласия.
 - Не отправлять названия запросов, имена файлов, инструкции и замечания в уведомления, аудит, аналитику или серверные логи.
 - Существующие документы с `request_id is null` продолжают работать в блоке «Другие документы».
-- Все новые SQL-функции используют `security definer set search_path = ''`, полные имена объектов, повторную проверку `auth.uid()` и явные `revoke`/`grant`.
+- Публичные RPC используют `security invoker`; одноимённые реализации записи находятся в закрытой схеме `private` и используют `security definer set search_path = ''`, полные имена объектов, повторную проверку `auth.uid()` и явные `revoke`/`grant`.
 - Сначала применять миграцию только к бесплатному `dogovoroff-test`; Production не изменять без отдельного подтверждения.
 - Перед каждым коммитом запускать целевой тест и `git diff --check`; перед передачей результата запускать весь `npm.cmd test` и `npm.cmd run build`.
 
@@ -33,10 +33,10 @@
 - `features/document-requests/client-document-requests.jsx` — клиентские карточки, загрузка, повтор регистрации, отправка и отзыв.
 - `features/document-requests/staff-document-requests.jsx` — форма запроса и проверка комплекта сотрудником.
 - `features/document-requests/document-requests.module.css` — общие стили модуля с мобильными и accessibility-состояниями.
-- `supabase/migrations/20260830140000_add_document_requests.sql` — enum, таблица, nullable-ссылка, RLS, RPC, события и аудит.
-- `supabase/tests/document-requests-smoke.sql` — транзакционная проверка пяти ролей и очистки.
+- `supabase/migrations/20260831055255_add_document_requests.sql` — enum, таблица, nullable-ссылка, RLS, RPC, события и аудит.
+- `supabase/tests/document_request_schema_test.sql` — исполняемый pgTAP-контракт схемы, RLS и полномочий.
+- `supabase/tests/document_request_workflow_test.sql` — транзакционная pgTAP-проверка ролей, переходов, повторов и приватности событий.
 - `tests/document-request-domain.test.mjs` — поведение чистого домена.
-- `tests/document-request-migration.test.mjs` — статический контракт миграции.
 - `tests/document-request-actions.test.mjs` — контракт server actions и регистрации файла.
 - `tests/document-request-ui.test.mjs` — структура, копирайтинг, доступность и отсутствие чувствительных полей.
 - `docs/decisions/0006-managed-document-requests.md` — краткий ADR фактически реализованного решения.
@@ -408,8 +408,9 @@ git commit -m "feat: add document request domain"
 
 **Files:**
 
-- Create: `supabase/migrations/20260830140000_add_document_requests.sql`
-- Create: `tests/document-request-migration.test.mjs`
+- Create: `supabase/migrations/20260831055255_add_document_requests.sql`
+- Create: `supabase/tests/document_request_schema_test.sql`
+- Create: `supabase/tests/document_request_workflow_test.sql`
 
 **Interfaces:**
 
@@ -421,6 +422,13 @@ a fixed non-sensitive message. State/input failures use only the fixed message k
 Task 1. Qualify every table column with an alias so PL/pgSQL output-column names cannot make
 queries ambiguous.
 
+**Implementation update (2026-08-31):** актуальные рекомендации Supabase требуют держать
+привилегированные реализации вне открытой схемы. Поэтому публичные сигнатуры ниже сохранены
+как `security invoker`-обёртки, а одноимённые `security definer`-функции перенесены в
+`private`. Статический тест исходного SQL из первоначальных шагов заменён двумя исполняемыми
+pgTAP-тестами из списка файлов выше; они проверяют каталог PostgreSQL и полный жизненный цикл.
+Это примечание заменяет противоречащие ему детали в первоначальных фрагментах Task 2.
+
 - [ ] **Step 1: Write the failing migration contract test**
 
 Create `tests/document-request-migration.test.mjs`:
@@ -431,7 +439,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const source = await readFile(
-  new URL("../supabase/migrations/20260830140000_add_document_requests.sql", import.meta.url),
+  new URL("../supabase/migrations/20260831055255_add_document_requests.sql", import.meta.url),
   "utf8",
 );
 
@@ -509,7 +517,7 @@ Expected: FAIL with `ENOENT` for the migration.
 
 - [ ] **Step 3: Add enum, table, indexes, RLS, and the nullable document link**
 
-Start `supabase/migrations/20260830140000_add_document_requests.sql` with this concrete schema:
+Start `supabase/migrations/20260831055255_add_document_requests.sql` with this concrete schema:
 
 ```sql
 create type public.document_request_status as enum (
@@ -953,7 +961,7 @@ Expected: PASS.
 - [ ] **Step 10: Commit the additive database boundary**
 
 ```powershell
-git add supabase/migrations/20260830140000_add_document_requests.sql tests/document-request-migration.test.mjs
+git add supabase/migrations/20260831055255_add_document_requests.sql supabase/tests/document_request_schema_test.sql supabase/tests/document_request_workflow_test.sql
 git commit -m "feat: add secure document request schema"
 ```
 
@@ -2009,7 +2017,7 @@ Expected: all Node tests PASS; Next.js production build exits 0 and lists `/cabi
 Present the local test/build evidence and request explicit approval to change RLS/schema in
 the isolated project. After approval, verify the selected Supabase project is named
 `dogovoroff-test` and is not the Production project. Apply
-`supabase/migrations/20260830140000_add_document_requests.sql` with the available Supabase
+`supabase/migrations/20260831055255_add_document_requests.sql` with the available Supabase
 management integration. Record the returned migration version and stop immediately if the
 selected project name/ref does not match the isolated test project.
 
