@@ -50,7 +50,7 @@ export default function ClientDocumentRequests({
   const cardRefs = useRef(new Map());
   const [busyKey, setBusyKey] = useState("");
   const [feedback, setFeedback] = useState({ tone: "neutral", text: "" });
-  const [pendingRegistration, setPendingRegistration] = useState(null);
+  const [pendingRegistrations, setPendingRegistrations] = useState({});
   const [withdrawal, setWithdrawal] = useState(null);
 
   const activeRequests = requests.filter((request) => request.status !== "cancelled");
@@ -75,20 +75,35 @@ export default function ClientDocumentRequests({
     window.requestAnimationFrame(focusFeedback);
   };
 
+  const savePendingRegistration = (registration) => {
+    setPendingRegistrations((current) => ({
+      ...current,
+      [registration.id]: registration,
+    }));
+  };
+
+  const clearPendingRegistration = (registrationId) => {
+    setPendingRegistrations((current) => {
+      const next = { ...current };
+      delete next[registrationId];
+      return next;
+    });
+  };
+
   const registerUploadedDocument = async (registration) => {
     try {
       const result = await registerMatterDocument(registration);
       if (!result?.ok) {
-        setPendingRegistration(registration);
+        savePendingRegistration(registration);
         failMutation(getErrorMessage(result, "Не удалось зарегистрировать документ. Повторите регистрацию."));
         return false;
       }
 
-      setPendingRegistration(null);
+      clearPendingRegistration(registration.id);
       completeMutation(registration.requestId, result.message);
       return true;
     } catch {
-      setPendingRegistration(registration);
+      savePendingRegistration(registration);
       failMutation("Не удалось зарегистрировать документ. Повторите регистрацию.");
       return false;
     }
@@ -149,16 +164,11 @@ export default function ClientDocumentRequests({
     }
   };
 
-  const handleRetryRegistration = async (requestId) => {
-    if (!pendingRegistration || pendingRegistration.requestId !== requestId) return;
-
-    setBusyKey(requestId);
+  const handleRetryRegistration = async (registration) => {
+    setBusyKey(registration.requestId);
     setFeedback({ tone: "neutral", text: "Повторно регистрируем документ…" });
     try {
-      await registerUploadedDocument(pendingRegistration);
-    } catch {
-      setPendingRegistration(pendingRegistration);
-      failMutation("Не удалось зарегистрировать документ. Повторите регистрацию.");
+      await registerUploadedDocument(registration);
     } finally {
       setBusyKey("");
     }
@@ -208,6 +218,8 @@ export default function ClientDocumentRequests({
     const activeDocuments = request.documents.filter(isActiveFile);
     const canAct = request.status === "requested" || request.status === "changes_requested";
     const busy = busyKey === request.id;
+    const pendingRequestRegistrations = Object.values(pendingRegistrations)
+      .filter((registration) => registration.requestId === request.id);
     const reviewNote = request.status === "changes_requested"
       || (request.status === "submitted" && request.lastReviewNote)
       ? request.lastReviewNote
@@ -277,9 +289,17 @@ export default function ClientDocumentRequests({
                 />
               </label>
             ) : <p className={styles.limitNote}>Не более 20 файлов</p>}
-            {pendingRegistration?.requestId === request.id && (
-              <button className={styles.secondaryButton} type="button" disabled={busy} onClick={() => handleRetryRegistration(request.id)}>Повторить регистрацию</button>
-            )}
+            {pendingRequestRegistrations.map((registration) => (
+              <button
+                className={styles.secondaryButton}
+                key={registration.id}
+                type="button"
+                disabled={busy}
+                onClick={() => handleRetryRegistration(registration)}
+              >
+                Повторить регистрацию: {registration.originalName}
+              </button>
+            ))}
             <button className={styles.primaryButton} type="button" disabled={busy || activeDocuments.length === 0} onClick={() => handleSubmit(request)}>Отправить комплект на проверку</button>
           </div>
         )}

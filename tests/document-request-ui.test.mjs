@@ -24,6 +24,14 @@ test("client requests expose one contextual action and an explicit submit bounda
   assert.doesNotMatch(clientSource, /dangerouslySetInnerHTML|localStorage|sessionStorage/);
 });
 
+test("failed registrations stay independently retryable and file selection keeps a visible focus boundary", () => {
+  assert.match(clientSource, /pendingRegistrations/);
+  assert.match(clientSource, /\[registration\.id\]: registration/);
+  assert.match(clientSource, /Object\.values\(pendingRegistrations\)/);
+  assert.match(clientSource, /registration\.requestId === request\.id/);
+  assert.match(cssSource, /\.secondaryButton:focus-within/);
+});
+
 test("request layout is touch-safe, wraps long text, and stays card-based on mobile", () => {
   assert.match(cssSource, /min-height:\s*44px/);
   assert.match(cssSource, /overflow-wrap:\s*anywhere/);
