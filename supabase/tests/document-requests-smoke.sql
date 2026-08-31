@@ -23,6 +23,26 @@ create temporary table document_request_terminal_attempts (
 
 grant select, insert on table pg_temp.document_request_terminal_attempts to authenticated, anon;
 
+create temporary table document_request_sensitive_values (
+  sensitive_text text primary key
+) on commit drop;
+
+create temporary table document_request_event_baseline (
+  event_id uuid primary key
+) on commit drop;
+
+create temporary table document_request_audit_baseline (
+  audit_id uuid primary key
+) on commit drop;
+
+create temporary table document_request_created_event_ids (
+  event_id uuid primary key
+) on commit drop;
+
+create temporary table document_request_created_audit_ids (
+  audit_id uuid primary key
+) on commit drop;
+
 create function pg_temp.try_create_document_request(target_matter_id uuid, request_title text)
 returns uuid
 language plpgsql
@@ -268,6 +288,31 @@ grant execute on function pg_temp.try_withdraw_document_request_file(uuid, uuid)
 grant execute on function pg_temp.try_direct_document_request_insert(uuid, uuid) to authenticated, anon;
 grant execute on function pg_temp.try_direct_linked_document_insert(uuid, uuid, uuid, text) to authenticated, anon;
 
+insert into pg_temp.document_request_sensitive_values (sensitive_text) values
+  ('Synthetic request A'),
+  ('Synthetic review note'),
+  ('synthetic-first.pdf'),
+  ('Synthetic request B'),
+  ('Synthetic request instructions'),
+  ('Updated request A'),
+  ('Updated synthetic instructions'),
+  ('Blocked request update'),
+  ('Terminal update'),
+  ('Terminal review'),
+  ('Cancelled update'),
+  ('Anonymous request'),
+  ('Client request'),
+  ('Forbidden direct request'),
+  ('synthetic-second.pdf');
+
+insert into pg_temp.document_request_event_baseline (event_id)
+select event.id from public.matter_events as event;
+
+insert into pg_temp.document_request_audit_baseline (audit_id)
+select event.id from public.audit_events as event;
+
+select set_config('request.jwt.claim.sub', '', true);
+
 insert into auth.users (
   id,
   aud,
@@ -359,7 +404,7 @@ insert into pg_temp.document_request_results values
     '7d111111-1111-4111-8111-111111111111',
     'synthetic-first.pdf'
   )::int, 0),
-  ('isolation', 'client_a:submit-empty-denied', pg_temp.try_submit_document_request((select request_id from pg_temp.document_request_ids where label = 'B'))::int, 0);
+  ('isolation', 'client_a:submit-empty-denied', pg_temp.try_submit_document_request((select request_id from pg_temp.document_request_ids where label = 'A'))::int, 0);
 reset role;
 
 set local role authenticated;
@@ -472,6 +517,24 @@ insert into pg_temp.document_request_terminal_attempts values
   ));
 reset role;
 
+insert into pg_temp.document_request_created_event_ids (event_id)
+select event.id
+from public.matter_events as event
+where not exists (
+  select 1
+  from pg_temp.document_request_event_baseline as baseline
+  where baseline.event_id = event.id
+);
+
+insert into pg_temp.document_request_created_audit_ids (audit_id)
+select event.id
+from public.audit_events as event
+where not exists (
+  select 1
+  from pg_temp.document_request_audit_baseline as baseline
+  where baseline.audit_id = event.id
+);
+
 insert into pg_temp.document_request_results values
   ('isolation', 'database:documents-ready', (
     select count(*)
@@ -482,45 +545,11 @@ insert into pg_temp.document_request_results values
   ('isolation', 'database:events-generic', (
     select case when exists (
       select 1
-      from public.matter_events as event
-      where event.matter_id in (
-        '7a111111-1111-4111-8111-111111111111',
-        '7b222222-2222-4222-8222-222222222222'
-      )
-        and exists (
-          select 1
-          from (
-            select request.title as sensitive_text
-            from public.document_requests as request
-            where request.matter_id in (
-              '7a111111-1111-4111-8111-111111111111',
-              '7b222222-2222-4222-8222-222222222222'
-            )
-            union all
-            select request.instructions
-            from public.document_requests as request
-            where request.matter_id in (
-              '7a111111-1111-4111-8111-111111111111',
-              '7b222222-2222-4222-8222-222222222222'
-            )
-            union all
-            select request.last_review_note
-            from public.document_requests as request
-            where request.matter_id in (
-              '7a111111-1111-4111-8111-111111111111',
-              '7b222222-2222-4222-8222-222222222222'
-            )
-            union all
-            select document.original_name
-            from public.documents as document
-            where document.matter_id in (
-              '7a111111-1111-4111-8111-111111111111',
-              '7b222222-2222-4222-8222-222222222222'
-            )
-          ) as sensitive
-          where sensitive.sensitive_text is not null
-            and position(lower(sensitive.sensitive_text) in lower(event.public_text)) > 0
-        )
+      from pg_temp.document_request_created_event_ids as created
+      join public.matter_events as event on event.id = created.event_id
+      cross join pg_temp.document_request_sensitive_values as sensitive
+      where position(lower(sensitive.sensitive_text) in lower(event.event_type)) > 0
+        or position(lower(sensitive.sensitive_text) in lower(event.public_text)) > 0
     ) then 0 else 1 end
   ), 1),
   ('isolation', 'database:terminal-immutable', (
@@ -551,86 +580,159 @@ begin
     raise exception 'Document request smoke failed: incomplete check categories';
   end if;
 
+  if (select count(*) from pg_temp.document_request_created_event_ids) <> 7
+    or (
+      select count(*)
+      from pg_temp.document_request_created_event_ids as created
+      join public.matter_events as event on event.id = created.event_id
+      where event.event_type = 'document_request.created'
+    ) <> 2
+    or (
+      select count(*)
+      from pg_temp.document_request_created_event_ids as created
+      join public.matter_events as event on event.id = created.event_id
+      where event.event_type = 'document_request.submitted'
+    ) <> 2
+    or (
+      select count(*)
+      from pg_temp.document_request_created_event_ids as created
+      join public.matter_events as event on event.id = created.event_id
+      where event.event_type = 'document_request.changes_requested'
+    ) <> 1
+    or (
+      select count(*)
+      from pg_temp.document_request_created_event_ids as created
+      join public.matter_events as event on event.id = created.event_id
+      where event.event_type = 'document_request.accepted'
+    ) <> 1
+    or (
+      select count(*)
+      from pg_temp.document_request_created_event_ids as created
+      join public.matter_events as event on event.id = created.event_id
+      where event.event_type = 'document_request.cancelled'
+    ) <> 1 then
+    raise exception 'Document request smoke failed: missing request events';
+  end if;
+
+  if (select count(*) from pg_temp.document_request_created_audit_ids) <> 13
+    or (
+      select count(*)
+      from pg_temp.document_request_created_audit_ids as created
+      join public.audit_events as event on event.id = created.audit_id
+      where event.action = 'matter.created'
+    ) <> 2
+    or (
+      select count(*)
+      from pg_temp.document_request_created_audit_ids as created
+      join public.audit_events as event on event.id = created.audit_id
+      where event.action = 'document_request.created'
+    ) <> 2
+    or (
+      select count(*)
+      from pg_temp.document_request_created_audit_ids as created
+      join public.audit_events as event on event.id = created.audit_id
+      where event.action = 'document_request.updated'
+    ) <> 1
+    or (
+      select count(*)
+      from pg_temp.document_request_created_audit_ids as created
+      join public.audit_events as event on event.id = created.audit_id
+      where event.action = 'document.created'
+    ) <> 2
+    or (
+      select count(*)
+      from pg_temp.document_request_created_audit_ids as created
+      join public.audit_events as event on event.id = created.audit_id
+      where event.action = 'document_request.submitted'
+    ) <> 2
+    or (
+      select count(*)
+      from pg_temp.document_request_created_audit_ids as created
+      join public.audit_events as event on event.id = created.audit_id
+      where event.action = 'document_request.changes_requested'
+    ) <> 1
+    or (
+      select count(*)
+      from pg_temp.document_request_created_audit_ids as created
+      join public.audit_events as event on event.id = created.audit_id
+      where event.action = 'document_request.file_withdrawn'
+    ) <> 1
+    or (
+      select count(*)
+      from pg_temp.document_request_created_audit_ids as created
+      join public.audit_events as event on event.id = created.audit_id
+      where event.action = 'document_request.accepted'
+    ) <> 1
+    or (
+      select count(*)
+      from pg_temp.document_request_created_audit_ids as created
+      join public.audit_events as event on event.id = created.audit_id
+      where event.action = 'document_request.cancelled'
+    ) <> 1 then
+    raise exception 'Document request smoke failed: missing request audits';
+  end if;
+
   if exists (
     select 1
-    from public.audit_events as event
-    where event.matter_id in (
+    from pg_temp.document_request_created_event_ids as created
+    join public.matter_events as event on event.id = created.event_id
+    where event.matter_id not in (
       '7a111111-1111-4111-8111-111111111111',
       '7b222222-2222-4222-8222-222222222222'
     )
-      and exists (
-        select 1
-        from (
-          select request.title as sensitive_text
-          from public.document_requests as request
-          where request.matter_id in (
-            '7a111111-1111-4111-8111-111111111111',
-            '7b222222-2222-4222-8222-222222222222'
-          )
-          union all
-          select request.instructions
-          from public.document_requests as request
-          where request.matter_id in (
-            '7a111111-1111-4111-8111-111111111111',
-            '7b222222-2222-4222-8222-222222222222'
-          )
-          union all
-          select request.last_review_note
-          from public.document_requests as request
-          where request.matter_id in (
-            '7a111111-1111-4111-8111-111111111111',
-            '7b222222-2222-4222-8222-222222222222'
-          )
-          union all
-          select document.original_name
-          from public.documents as document
-          where document.matter_id in (
-            '7a111111-1111-4111-8111-111111111111',
-            '7b222222-2222-4222-8222-222222222222'
-          )
-        ) as sensitive
-        where sensitive.sensitive_text is not null
-          and (
-            position(lower(sensitive.sensitive_text) in lower(event.action)) > 0
-            or position(lower(sensitive.sensitive_text) in lower(event.entity_type)) > 0
-          )
+      or (
+        event.actor_id is not null
+        and event.actor_id not in (
+          '71111111-1111-4111-8111-111111111111',
+          '72222222-2222-4222-8222-222222222222',
+          '73333333-3333-4333-8333-333333333333',
+          '74444444-4444-4444-8444-444444444444'
+        )
       )
+  ) then
+    raise exception 'Document request smoke failed: event identifier scope';
+  end if;
+
+  if exists (
+    select 1
+    from pg_temp.document_request_created_audit_ids as created
+    join public.audit_events as event on event.id = created.audit_id
+    cross join pg_temp.document_request_sensitive_values as sensitive
+    where position(lower(sensitive.sensitive_text) in lower(event.action)) > 0
+      or position(lower(sensitive.sensitive_text) in lower(event.entity_type)) > 0
   ) then
     raise exception 'Document request smoke failed: audit text exposure';
   end if;
 
   if exists (
     select 1
-    from public.audit_events as event
-    where event.matter_id in (
-      '7a111111-1111-4111-8111-111111111111',
-      '7b222222-2222-4222-8222-222222222222'
-    )
-      and (
-        event.organization_id <> '7aaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
-        or event.matter_id not in (
+    from pg_temp.document_request_created_audit_ids as created
+    join public.audit_events as event on event.id = created.audit_id
+    where event.organization_id <> '7aaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+      or event.matter_id is null
+      or event.matter_id not in (
+        '7a111111-1111-4111-8111-111111111111',
+        '7b222222-2222-4222-8222-222222222222'
+      )
+      or event.entity_type not in ('matter', 'documents', 'document_request')
+      or (
+        event.actor_id is not null
+        and event.actor_id not in (
+          '71111111-1111-4111-8111-111111111111',
+          '72222222-2222-4222-8222-222222222222',
+          '73333333-3333-4333-8333-333333333333',
+          '74444444-4444-4444-8444-444444444444'
+        )
+      )
+      or event.entity_id is null
+      or (
+        event.entity_id not in (
           '7a111111-1111-4111-8111-111111111111',
-          '7b222222-2222-4222-8222-222222222222'
+          '7b222222-2222-4222-8222-222222222222',
+          '7d111111-1111-4111-8111-111111111111',
+          '7d222222-2222-4222-8222-222222222222'
         )
-        or (
-          event.actor_id is not null
-          and event.actor_id not in (
-            '71111111-1111-4111-8111-111111111111',
-            '72222222-2222-4222-8222-222222222222',
-            '73333333-3333-4333-8333-333333333333',
-            '74444444-4444-4444-8444-444444444444'
-          )
-        )
-        or (
-          event.entity_id is not null
-          and event.entity_id not in (
-            '7a111111-1111-4111-8111-111111111111',
-            '7b222222-2222-4222-8222-222222222222',
-            '7d111111-1111-4111-8111-111111111111',
-            '7d222222-2222-4222-8222-222222222222'
-          )
-          and event.entity_id not in (select request_id from pg_temp.document_request_ids)
-        )
+        and event.entity_id not in (select request_id from pg_temp.document_request_ids)
       )
   ) then
     raise exception 'Document request smoke failed: audit identifier scope';

@@ -131,6 +131,32 @@ test("document request SQL smoke is transactional and covers role transitions", 
   assert.match(source, /client_a:direct-write-denied/);
   assert.match(source, /database:documents-ready/);
   assert.match(source, /database:events-generic/);
+  assert.match(
+    source,
+    /'client_a:submit-empty-denied'[\s\S]*?where label = 'A'\)\)::int, 0\);/,
+  );
+  assert.match(source, /create temporary table document_request_sensitive_values/);
+  assert.match(
+    source,
+    /insert into pg_temp\.document_request_sensitive_values[\s\S]*'Synthetic request A'[\s\S]*'Synthetic review note'[\s\S]*'synthetic-first\.pdf'/,
+  );
+  assert.match(source, /database:events-generic[\s\S]*document_request_sensitive_values/);
+  assert.match(source, /create temporary table document_request_event_baseline/);
+  assert.match(source, /create temporary table document_request_audit_baseline/);
+  assert.match(source, /create temporary table document_request_created_event_ids/);
+  assert.match(source, /create temporary table document_request_created_audit_ids/);
+  assert.match(source, /insert into pg_temp\.document_request_event_baseline[\s\S]*public\.matter_events/);
+  assert.match(source, /insert into pg_temp\.document_request_audit_baseline[\s\S]*public\.audit_events/);
+  assert.match(
+    source,
+    /database:events-generic[\s\S]*document_request_created_event_ids[\s\S]*document_request_sensitive_values/,
+  );
+  assert.match(
+    source,
+    /document_request_created_audit_ids[\s\S]*Document request smoke failed: audit text exposure/,
+  );
+  assert.match(source, /Document request smoke failed: missing request events/);
+  assert.match(source, /Document request smoke failed: missing request audits/);
   assert.match(source, /rollback;[\s\S]*'persistent_rows'/);
   assert.match(source, /document_requests[\s\S]*storage\.objects/);
   assert.doesNotMatch(source, /service_role|@|real client/i);
