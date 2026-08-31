@@ -112,3 +112,35 @@ test("intake inbox SQL smoke suite is transactional and covers the server bounda
   assert.match(source, /database:request-linked/);
   assert.match(source, /persistent_rows', 0/);
 });
+
+test("document request SQL smoke is transactional and covers role transitions", async () => {
+  const source = await readFile(
+    new URL("../supabase/tests/document-requests-smoke.sql", import.meta.url),
+    "utf8",
+  );
+  assert.match(source, /^begin;/m);
+  assert.match(source, /^rollback;/m);
+  assert.doesNotMatch(source, /^commit;/m);
+  assert.match(source, /client_a:read-own/);
+  assert.match(source, /client_a:read-client_b-denied/);
+  assert.match(source, /client_b:register-client_a-denied/);
+  assert.match(source, /lawyer:create/);
+  assert.match(source, /client_a:submit/);
+  assert.match(source, /lawyer:return-with-note/);
+  assert.match(source, /admin:accept/);
+  assert.match(source, /client_a:direct-write-denied/);
+  assert.match(source, /database:documents-ready/);
+  assert.match(source, /database:events-generic/);
+  assert.match(source, /rollback;[\s\S]*'persistent_rows'/);
+  assert.match(source, /document_requests[\s\S]*storage\.objects/);
+  assert.doesNotMatch(source, /service_role|@|real client/i);
+
+  const runnerSource = await readFile(
+    new URL("../scripts/supabase-rls-smoke.mjs", import.meta.url),
+    "utf8",
+  );
+  assert.match(
+    runnerSource,
+    /\{ table: "document_requests", idColumn: "matter_id", select: "matter_id" \}/,
+  );
+});

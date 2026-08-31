@@ -26,6 +26,7 @@ const RESOURCES = [
   { table: "matters", idColumn: "id", select: "id" },
   { table: "matter_stages", idColumn: "matter_id", select: "matter_id" },
   { table: "matter_events", idColumn: "matter_id", select: "matter_id" },
+  { table: "document_requests", idColumn: "matter_id", select: "matter_id" },
   { table: "documents", idColumn: "matter_id", select: "matter_id" },
   { table: "messages", idColumn: "matter_id", select: "matter_id" },
 ];
