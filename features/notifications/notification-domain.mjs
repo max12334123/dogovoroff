@@ -19,6 +19,31 @@ const NOTIFICATION_COPY = Object.freeze({
     description: "В личном кабинете появился новый документ.",
     targetView: "documents",
   },
+  "document_request.created": {
+    title: "Запрошены документы",
+    description: "В кабинете появился новый запрос документов.",
+    targetView: "documents",
+  },
+  "document_request.submitted": {
+    title: "Комплект отправлен",
+    description: "Комплект документов передан на проверку.",
+    targetView: "documents",
+  },
+  "document_request.changes_requested": {
+    title: "Комплект нужно уточнить",
+    description: "По комплекту документов появилось замечание.",
+    targetView: "documents",
+  },
+  "document_request.accepted": {
+    title: "Комплект принят",
+    description: "Проверка комплекта документов завершена.",
+    targetView: "documents",
+  },
+  "document_request.cancelled": {
+    title: "Запрос отменён",
+    description: "Запрос документов больше не требует действий.",
+    targetView: "documents",
+  },
   "message.created": {
     title: "Новое сообщение",
     description: "В личном кабинете появилось новое сообщение.",
