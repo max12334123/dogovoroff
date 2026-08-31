@@ -50,6 +50,7 @@ export default function StaffDocumentRequests({
   const [acceptingId, setAcceptingId] = useState(null);
   const [cancellingId, setCancellingId] = useState(null);
   const [pendingRequests, setPendingRequests] = useState({});
+  const [pendingFocusRequestId, setPendingFocusRequestId] = useState(null);
   const [feedback, setFeedback] = useState({ tone: "neutral", text: "" });
 
   const requests = matter?.documentRequests ?? [];
@@ -65,16 +66,24 @@ export default function StaffDocumentRequests({
     }
   }, [downloadFeedback]);
 
+  useEffect(() => {
+    if (!pendingFocusRequestId) return;
+    if (!requests.some((request) => request.id === pendingFocusRequestId)) return;
+
+    if (!cardRefs.current.get(pendingFocusRequestId)) return;
+
+    cardRefs.current.get(pendingFocusRequestId)?.focus({ preventScroll: true });
+    setPendingFocusRequestId(null);
+  }, [pendingFocusRequestId, requests]);
+
   const setPending = (requestId, pending) => {
     setPendingRequests((current) => ({ ...current, [requestId]: pending }));
   };
 
   const completeMutation = (requestId, message) => {
     setFeedback({ tone: "success", text: message });
+    setPendingFocusRequestId(requestId);
     router.refresh();
-    window.requestAnimationFrame(() => {
-      cardRefs.current.get(requestId)?.focus({ preventScroll: true });
-    });
   };
 
   const failMutation = (message) => {

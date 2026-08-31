@@ -61,3 +61,11 @@ test("staff request controls create, review, cancel, and keep private text out o
   assert.match(staffSource, /role="status"/);
   assert.doesNotMatch(staffSource, /service_role|SUPABASE_SERVICE|dangerouslySetInnerHTML/);
 });
+
+test("staff request completion waits for a refreshed request card before returning focus", () => {
+  assert.match(staffSource, /const \[pendingFocusRequestId, setPendingFocusRequestId\] = useState\(null\);/);
+  assert.match(staffSource, /setPendingFocusRequestId\(requestId\);/);
+  assert.match(staffSource, /if \(!requests\.some\(\(request\) => request\.id === pendingFocusRequestId\)\) return;/);
+  assert.match(staffSource, /cardRefs\.current\.get\(pendingFocusRequestId\)\?\.focus/);
+  assert.match(staffSource, /setPendingFocusRequestId\(null\);/);
+});
