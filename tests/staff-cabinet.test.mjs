@@ -60,6 +60,15 @@ test("staff UI can respond by matter without exposing privileged credentials", (
   assert.doesNotMatch(clientSource, /service_role|SUPABASE_SERVICE|localStorage|sessionStorage/);
 });
 
+test("staff detail separates managed requests from other documents without exposing audit text", () => {
+  assert.match(clientSource, /StaffDocumentRequests/);
+  assert.match(clientSource, /document_request\.created/);
+  assert.match(clientSource, /document_request\.accepted/);
+  assert.match(clientSource, /Другие документы/);
+  assert.match(clientSource, /requestId === null/);
+  assert.doesNotMatch(clientSource, /lastReviewNote.*AUDIT_COPY|originalName.*AUDIT_COPY/);
+});
+
 test("staff controls keep explicit typography roles on desktop and mobile", () => {
   const [mobileSharedRule = ""] = cssSource.match(/\.searchField input,\s*\n\s*\.newMatterButton\s*\{[^}]*\}/) ?? [];
 

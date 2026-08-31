@@ -46,3 +46,18 @@ test("cabinet renders requests ahead of the generic next action without removing
   assert.match(cabinetSource, /Других документов пока нет/);
   assert.match(cabinetSource, /DocumentRegister/);
 });
+
+test("staff request controls create, review, cancel, and keep private text out of navigation", () => {
+  assert.match(staffSource, /Запросить документы/);
+  assert.match(staffSource, /Принять комплект/);
+  assert.match(staffSource, /Подтвердить принятие/);
+  assert.match(staffSource, /Вернуть на исправление/);
+  assert.match(staffSource, /Отменить запрос/);
+  assert.match(staffSource, /Подтвердить отмену/);
+  assert.match(staffSource, /createDocumentRequest/);
+  assert.match(staffSource, /updateDocumentRequest/);
+  assert.match(staffSource, /reviewDocumentRequest/);
+  assert.match(staffSource, /cancelDocumentRequest/);
+  assert.match(staffSource, /role="status"/);
+  assert.doesNotMatch(staffSource, /service_role|SUPABASE_SERVICE|dangerouslySetInnerHTML/);
+});
