@@ -78,6 +78,13 @@ test("cabinet keeps completed matters read-only and uses stable semantic identif
   assert.match(serverSource, /updatedAt: document\.updated_at/);
 });
 
+test("cabinet keeps requested files distinct from ordinary documents", () => {
+  assert.match(componentSource, /ClientDocumentRequests/);
+  assert.match(componentSource, /clientPrimaryDocumentRequest/);
+  assert.match(componentSource, /document\.requestId === null/);
+  assert.match(componentSource, /Других документов пока нет\./);
+});
+
 test("private cabinet route is excluded from search and linked from the public navigation", () => {
   assert.match(pageSource, /index:\s*false/);
   assert.match(pageSource, /follow:\s*false/);

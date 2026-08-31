@@ -649,7 +649,7 @@
 
 .overviewGrid {
   display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(340px, 0.8fr);
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 0.8fr);
   border-top: 1px solid var(--cabinet-dark-line);
   border-bottom: 1px solid var(--cabinet-dark-line);
 }
@@ -1146,6 +1146,10 @@
   min-height: 520px;
 }
 
+.documentsGrid {
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 0.7fr);
+}
+
 .quietPanel p:last-child {
   margin-top: 22px;
   color: var(--cabinet-silver);
@@ -1275,7 +1279,7 @@
   .detailsGrid,
   .documentsGrid,
   .messagesGrid {
-    grid-template-columns: minmax(0, 1.25fr) minmax(310px, 0.75fr);
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.75fr);
   }
 
   .matterPanel,
