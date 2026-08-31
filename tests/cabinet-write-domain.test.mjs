@@ -86,6 +86,23 @@ test("document metadata must exactly match the generated storage path", () => {
   assert.equal(tampered.valid, false);
 });
 
+test("document registration accepts only an optional UUID request link", () => {
+  const linked = validateDocumentRegistration({
+    id: DOCUMENT_ID,
+    matterId: MATTER_ID,
+    requestId: "44444444-4444-4444-8444-444444444444",
+    storagePath: `${MATTER_ID}/${DOCUMENT_ID}/document.pdf`,
+    originalName: "Договор.pdf",
+    mimeType: "application/pdf",
+    sizeBytes: 1024,
+  });
+
+  assert.equal(linked.valid, true);
+  assert.equal(linked.value.requestId, "44444444-4444-4444-8444-444444444444");
+  assert.equal(validateDocumentRegistration({ ...linked.value, requestId: "bad" }).valid, false);
+  assert.equal(validateDocumentRegistration({ ...linked.value, requestId: "" }).value.requestId, null);
+});
+
 test("stored object metadata must match the validated registration", () => {
   const registration = validateDocumentRegistration({
     id: DOCUMENT_ID,

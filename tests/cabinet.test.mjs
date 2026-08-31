@@ -59,7 +59,6 @@ test("cabinet UI is client-facing, accessible, and connected to private matter o
   assert.match(componentSource, /\.upload\(storagePath, file/);
   assert.match(componentSource, /\.download\(document\.storagePath\)/);
   assert.match(actionsSource, /getClaims\(\)/);
-  assert.match(actionsSource, /from\("documents"\)\.insert/);
   assert.match(actionsSource, /from\("messages"\)\.insert/);
   assert.match(actionsSource, /23505/);
   assert.match(actionsSource, /message\.id/);

@@ -29,7 +29,9 @@
 **Create**
 
 - `features/document-requests/document-request-domain.mjs` — чистая валидация, статусы, сортировка и безопасные сообщения ошибок.
+- `features/document-requests/document-request-action-core.mjs` — тестируемая оркестрация RPC, безопасных ошибок и обновления защищённых представлений.
 - `features/document-requests/document-request-actions.js` — server actions для создания, изменения, отправки, проверки, отмены и отзыва файла.
+- `features/cabinet/cabinet-document-registration.mjs` — выбор между обычной регистрацией документа и атомарным RPC связанного файла.
 - `features/document-requests/client-document-requests.jsx` — клиентские карточки, загрузка, повтор регистрации, отправка и отзыв.
 - `features/document-requests/staff-document-requests.jsx` — форма запроса и проверка комплекта сотрудником.
 - `features/document-requests/document-requests.module.css` — общие стили модуля с мобильными и accessibility-состояниями.
@@ -970,6 +972,8 @@ git commit -m "feat: add secure document request schema"
 **Files:**
 
 - Create: `features/document-requests/document-request-actions.js`
+- Create: `features/document-requests/document-request-action-core.mjs`
+- Create: `features/cabinet/cabinet-document-registration.mjs`
 - Create: `tests/document-request-actions.test.mjs`
 - Modify: `features/cabinet/cabinet-write-domain.mjs:111-151`
 - Modify: `features/cabinet/cabinet-actions.js:31-88`
@@ -982,45 +986,19 @@ git commit -m "feat: add secure document request schema"
 
 - [ ] **Step 1: Write failing action and registration tests**
 
-Create `tests/document-request-actions.test.mjs` as a source-contract test and extend the
-existing domain test:
+Create `tests/document-request-actions.test.mjs` as a behavioral boundary test and extend the
+existing domain test. The behavioral test drives the extracted action core and registration
+router with controlled Supabase adapters, so it verifies RPC arguments, short-circuiting,
+safe error reporting, route invalidation, and ordinary/linked write behavior without matching
+source text.
 
-```js
-import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
-import test from "node:test";
+Cover these observable behaviors with literal expected payloads:
 
-const [requestActions, cabinetActions] = await Promise.all([
-  readFile(new URL("../features/document-requests/document-request-actions.js", import.meta.url), "utf8"),
-  readFile(new URL("../features/cabinet/cabinet-actions.js", import.meta.url), "utf8"),
-]);
-
-test("document request actions validate, authenticate, call narrow RPCs, and revalidate both views", () => {
-  for (const action of ["createDocumentRequest", "updateDocumentRequest", "submitDocumentRequest", "reviewDocumentRequest", "cancelDocumentRequest", "withdrawDocumentRequestFile"]) {
-    assert.match(requestActions, new RegExp(`export async function ${action}`));
-  }
-  assert.match(requestActions, /auth\.getClaims\(\)/);
-  assert.match(requestActions, /if \(!userId\)[\s\S]*SESSION_ERROR/);
-  assert.match(requestActions, /\.rpc\("create_document_request"/);
-  assert.match(requestActions, /\.rpc\("update_document_request"/);
-  assert.match(requestActions, /\.rpc\("submit_document_request"/);
-  assert.match(requestActions, /\.rpc\("review_document_request"/);
-  assert.match(requestActions, /\.rpc\("cancel_document_request"/);
-  assert.match(requestActions, /\.rpc\("withdraw_document_request_file"/);
-  assert.match(requestActions, /revalidatePath\("\/cabinet"\)/);
-  assert.match(requestActions, /revalidatePath\("\/staff"\)/);
-  assert.match(requestActions, /data:\s*\{\s*requestId:/);
-  assert.doesNotMatch(requestActions, /service_role|SUPABASE_SERVICE|lastReviewNote.*console|title.*console/i);
-});
-
-test("linked document registration uses the request RPC and preserves ordinary inserts", () => {
-  assert.match(cabinetActions, /document\.requestId[\s\S]*\.rpc\("register_document_request_file"/);
-  assert.match(cabinetActions, /requestId[^\n]+null[\s\S]*from\("documents"\)\.insert/);
-  assert.match(cabinetActions, /getDocumentRequestErrorMessage/);
-  assert.match(cabinetActions, /revalidatePath\("\/staff"\)/);
-  assert.doesNotMatch(cabinetActions, /service_role|SUPABASE_SERVICE/);
-});
-```
+- all six handlers validate before authentication and execute exactly one `.single()` RPC;
+- missing sessions and invalid inputs stop before the database and do not revalidate;
+- provider failures return bounded messages, do not revalidate, and report only `code`/`status`;
+- successful actions invalidate `/cabinet` and `/staff` and normalize the returned row;
+- linked documents use `register_document_request_file`, while ordinary documents preserve the existing direct insert.
 
 Add to `tests/cabinet-write-domain.test.mjs`:
 
