@@ -14,6 +14,7 @@ import {
   validateDocumentUpload,
   validateMatterMessage,
 } from "./cabinet-write-domain.mjs";
+import ClientDocumentRequests from "../document-requests/client-document-requests";
 import styles from "./cabinet.module.css";
 
 const TOP_NAVIGATION = CABINET_VIEWS.filter((item) => item.id !== "overview");
@@ -143,9 +144,16 @@ function UploadControl({ matter, feedback, isUploading, onFileChange, onOpenDocu
   );
 }
 
-function DocumentRegister({ documents, compact = false, feedback, downloadingId, onDownload }) {
+function DocumentRegister({
+  documents,
+  compact = false,
+  emptyText = "Документы по этому делу пока не добавлены.",
+  feedback,
+  downloadingId,
+  onDownload,
+}) {
   if (!documents.length) {
-    return <p className={styles.emptyList}>Документы по этому делу пока не добавлены.</p>;
+    return <p className={styles.emptyList}>{emptyText}</p>;
   }
 
   return (
@@ -221,13 +229,26 @@ function OverviewView({
         </section>
 
         <div className={styles.overviewAside}>
-          <UploadControl
-            matter={matter}
-            feedback={uploadFeedback}
-            isUploading={isUploading}
-            onFileChange={onFileChange}
-            onOpenDocuments={() => onNavigate("documents", matter.id)}
-          />
+          {matter.clientPrimaryDocumentRequest || matter.hasSubmittedDocumentRequest ? (
+            <ClientDocumentRequests
+              matterId={matter.id}
+              requests={matter.clientPrimaryDocumentRequest
+                ? [matter.clientPrimaryDocumentRequest]
+                : matter.documentRequests.filter((request) => request.status === "submitted").slice(0, 1)}
+              mode="overview"
+              downloadingId={downloadingId}
+              downloadFeedback={documentFeedback}
+              onDownload={onDownload}
+            />
+          ) : (
+            <UploadControl
+              matter={matter}
+              feedback={uploadFeedback}
+              isUploading={isUploading}
+              onFileChange={onFileChange}
+              onOpenDocuments={() => onNavigate("documents", matter.id)}
+            />
+          )}
 
           <section className={styles.summaryPanel} aria-labelledby="last-message-title">
             <div className={styles.summaryHeading}>
@@ -323,11 +344,20 @@ function DocumentsView({
       </div>
       <MatterSwitch matters={matters} activeMatterId={matter.id} onSelect={onMatterSelect} />
       <div className={styles.documentsGrid} id="documents">
-        <section className={styles.documentsMain} aria-labelledby="document-register-title">
+        <section className={styles.documentsMain} aria-labelledby="requested-documents-title">
           <p className={styles.eyebrow}>{matter.reference}</p>
-          <h2 id="document-register-title">Реестр документов</h2>
+          <h2 id="requested-documents-title">Запрошено</h2>
+          <ClientDocumentRequests
+            matterId={matter.id}
+            requests={matter.documentRequests}
+            downloadingId={downloadingId}
+            downloadFeedback={documentFeedback}
+            onDownload={onDownload}
+          />
+          <div className={styles.sectionLabel}>Другие документы</div>
           <DocumentRegister
-            documents={matter.documents}
+            documents={matter.documents.filter((document) => document.requestId === null)}
+            emptyText="Других документов пока нет."
             feedback={documentFeedback}
             downloadingId={downloadingId}
             onDownload={onDownload}

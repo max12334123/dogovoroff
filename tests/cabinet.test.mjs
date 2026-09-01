@@ -59,7 +59,6 @@ test("cabinet UI is client-facing, accessible, and connected to private matter o
   assert.match(componentSource, /\.upload\(storagePath, file/);
   assert.match(componentSource, /\.download\(document\.storagePath\)/);
   assert.match(actionsSource, /getClaims\(\)/);
-  assert.match(actionsSource, /from\("documents"\)\.insert/);
   assert.match(actionsSource, /from\("messages"\)\.insert/);
   assert.match(actionsSource, /23505/);
   assert.match(actionsSource, /message\.id/);
@@ -77,6 +76,13 @@ test("cabinet keeps completed matters read-only and uses stable semantic identif
   assert.match(componentSource, /key=\{stage\.id \?\? `\$\{stage\.title\}-\$\{index\}`\}/);
   assert.match(componentSource, /dateTime=\{document\.updatedAt \|\| undefined\}/);
   assert.match(serverSource, /updatedAt: document\.updated_at/);
+});
+
+test("cabinet keeps requested files distinct from ordinary documents", () => {
+  assert.match(componentSource, /ClientDocumentRequests/);
+  assert.match(componentSource, /clientPrimaryDocumentRequest/);
+  assert.match(componentSource, /document\.requestId === null/);
+  assert.match(componentSource, /Других документов пока нет\./);
 });
 
 test("private cabinet route is excluded from search and linked from the public navigation", () => {

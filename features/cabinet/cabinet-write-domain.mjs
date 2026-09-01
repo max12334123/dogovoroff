@@ -137,11 +137,19 @@ export function validateDocumentRegistration(input) {
     return invalid("Путь документа не соответствует выбранному делу.");
   }
 
+  const requestId = input.requestId === undefined || input.requestId === null || input.requestId === ""
+    ? null
+    : input.requestId;
+  if (requestId !== null && !isUuid(requestId)) {
+    return invalid("Некорректный запрос документов.");
+  }
+
   return {
     valid: true,
     value: {
       id: input.id,
       matterId: input.matterId,
+      requestId,
       storagePath: expectedStoragePath,
       originalName: upload.originalName,
       mimeType: upload.mimeType,

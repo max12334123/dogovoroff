@@ -112,3 +112,103 @@ test("intake inbox SQL smoke suite is transactional and covers the server bounda
   assert.match(source, /database:request-linked/);
   assert.match(source, /persistent_rows', 0/);
 });
+
+test("read-only token smoke remains strict and contains no mutation calls", async () => {
+  const source = await readFile(
+    new URL("../scripts/supabase-rls-smoke.mjs", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(source, /actual\.length !== expected\.length/);
+  assert.match(source, /actual\.some\(\(value, index\) => value !== expected\[index\]\)/);
+  assert.doesNotMatch(source, /\.(?:insert|update|delete|upsert|rpc)\s*\(/);
+});
+
+test("isolated runbooks create non-vacuous request fixtures before token smoke and clean up afterwards", async () => {
+  const [runbookSource, taskPlanSource] = await Promise.all([
+    readFile(new URL("../docs/supabase-e2e.md", import.meta.url), "utf8"),
+    readFile(
+      new URL("../docs/superpowers/plans/2026-08-30-managed-document-workflow.md", import.meta.url),
+      "utf8",
+    ),
+  ]);
+
+  assert.match(
+    runbookSource,
+    /before-token-smoke:[\s\S]*хотя бы одну строку `document_requests` для каждого ожидаемого дела[\s\S]*run-token-smoke:[\s\S]*cleanup-after-token-smoke:/,
+  );
+  assert.match(
+    taskPlanSource,
+    /Step 5: Prepare browser and synthetic fixtures[\s\S]*at least one `public\.document_requests` row for every\s+expected matter[\s\S]*Step 6: Run the temporary-token read-only smoke[\s\S]*while those fixtures still exist[\s\S]*Step 7: Clean up browser and synthetic fixtures/,
+  );
+});
+
+test("document request SQL smoke is transactional and covers role transitions", async () => {
+  const source = await readFile(
+    new URL("../supabase/tests/document-requests-smoke.sql", import.meta.url),
+    "utf8",
+  );
+  assert.match(source, /^begin;/m);
+  assert.match(source, /^rollback;/m);
+  assert.doesNotMatch(source, /^commit;/m);
+  assert.match(source, /client_a:read-own/);
+  assert.match(source, /client_a:read-client_b-denied/);
+  assert.match(source, /client_b:register-client_a-denied/);
+  assert.match(source, /lawyer:create/);
+  assert.match(source, /client_a:submit/);
+  assert.match(source, /lawyer:return-with-note/);
+  assert.match(source, /admin:accept/);
+  assert.match(source, /client_a:direct-write-denied/);
+  assert.match(source, /database:documents-ready/);
+  assert.match(source, /database:events-generic/);
+  assert.match(
+    source,
+    /'client_a:submit-empty-denied'[\s\S]*?where label = 'A'\)\)::int, 0\);/,
+  );
+  assert.match(source, /create temporary table document_request_sensitive_values/);
+  assert.match(
+    source,
+    /insert into pg_temp\.document_request_sensitive_values[\s\S]*'Synthetic request A'[\s\S]*'Synthetic review note'[\s\S]*'synthetic-first\.pdf'[\s\S]*'synthetic-cancelled\.pdf'/,
+  );
+  assert.match(
+    source,
+    /'7d333333-3333-4333-8333-333333333333'[\s\S]*'7b222222-2222-4222-8222-222222222222\/7d333333-3333-4333-8333-333333333333\/document\.pdf'[\s\S]*'72222222-2222-4222-8222-222222222222'/,
+  );
+  assert.match(
+    source,
+    /'cancelled:register'[\s\S]*where label = 'B'[\s\S]*'7d333333-3333-4333-8333-333333333333'[\s\S]*'synthetic-cancelled\.pdf'/,
+  );
+  assert.match(source, /database:events-generic[\s\S]*document_request_sensitive_values/);
+  assert.match(source, /create temporary table document_request_event_baseline/);
+  assert.match(source, /create temporary table document_request_audit_baseline/);
+  assert.match(source, /create temporary table document_request_created_event_ids/);
+  assert.match(source, /create temporary table document_request_created_audit_ids/);
+  assert.match(source, /insert into pg_temp\.document_request_event_baseline[\s\S]*public\.matter_events/);
+  assert.match(source, /insert into pg_temp\.document_request_audit_baseline[\s\S]*public\.audit_events/);
+  assert.match(
+    source,
+    /database:events-generic[\s\S]*document_request_created_event_ids[\s\S]*document_request_sensitive_values/,
+  );
+  assert.match(
+    source,
+    /document_request_created_audit_ids[\s\S]*Document request smoke failed: audit text exposure/,
+  );
+  assert.match(source, /Document request smoke failed: missing request events/);
+  assert.match(source, /Document request smoke failed: missing request audits/);
+  assert.match(source, /rollback;[\s\S]*'persistent_rows'/);
+  assert.match(source, /document_requests[\s\S]*storage\.objects/);
+  assert.match(
+    source,
+    /storage\.objects[\s\S]*name like '7a111111-1111-4111-8111-111111111111\/%'[\s\S]*name like '7b222222-2222-4222-8222-222222222222\/%'/,
+  );
+  assert.doesNotMatch(source, /service_role|@|real client/i);
+
+  const runnerSource = await readFile(
+    new URL("../scripts/supabase-rls-smoke.mjs", import.meta.url),
+    "utf8",
+  );
+  assert.match(
+    runnerSource,
+    /\{ table: "document_requests", idColumn: "matter_id", select: "matter_id" \}/,
+  );
+});

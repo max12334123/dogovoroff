@@ -7,6 +7,7 @@ const CLIENT_ID = "11111111-1111-4111-8111-111111111111";
 const LAWYER_ID = "33333333-3333-4333-8333-333333333333";
 const MATTER_ID = "a1111111-1111-4111-8111-111111111111";
 const ORGANIZATION_ID = "b1111111-1111-4111-8111-111111111111";
+const REQUEST_ID = "c1111111-1111-4111-8111-111111111111";
 
 function createSupabaseFixture(overrides = {}) {
   const requestedMatterIds = new Map();
@@ -42,13 +43,39 @@ function createSupabaseFixture(overrides = {}) {
       error: null,
     },
     matter_events: {
+      data: [
+        {
+          id: "a1111111-aaaa-4111-9111-111111111111",
+          matter_id: MATTER_ID,
+          event_type: "matter.updated",
+          public_text: "Материалы переданы юристу.",
+          actor_id: LAWYER_ID,
+          created_at: "2026-08-27T10:00:00.000Z",
+        },
+        {
+          id: "a1111111-aaaa-4111-9222-222222222222",
+          matter_id: MATTER_ID,
+          event_type: "document_request.changes_requested",
+          public_text: "Исправьте страницу договора.",
+          actor_id: LAWYER_ID,
+          created_at: "2026-08-27T09:45:00.000Z",
+        },
+      ],
+      error: null,
+    },
+    document_requests: {
       data: [{
-        id: "a1111111-aaaa-4111-9111-111111111111",
+        id: REQUEST_ID,
         matter_id: MATTER_ID,
-        event_type: "matter.updated",
-        public_text: "Материалы переданы юристу.",
-        actor_id: LAWYER_ID,
-        created_at: "2026-08-27T10:00:00.000Z",
+        title: "Договор и приложения",
+        instructions: "Загрузите подписанный экземпляр.",
+        due_on: "2026-09-05",
+        status: "changes_requested",
+        last_review_note: "Исправьте страницу договора.",
+        submitted_at: "2026-08-27T08:00:00.000Z",
+        reviewed_at: "2026-08-27T09:45:00.000Z",
+        created_at: "2026-08-26T12:00:00.000Z",
+        updated_at: "2026-08-27T09:45:00.000Z",
       }],
       error: null,
     },
@@ -56,6 +83,7 @@ function createSupabaseFixture(overrides = {}) {
       data: [{
         id: "a1111111-aaaa-4111-a111-111111111111",
         matter_id: MATTER_ID,
+        request_id: REQUEST_ID,
         storage_path: `${MATTER_ID}/a1111111-aaaa-4111-a111-111111111111/document.pdf`,
         original_name: "Договор.pdf",
         mime_type: "application/pdf",
@@ -121,17 +149,26 @@ test("cabinet loader maps one RLS-filtered matter with documents and messages", 
   assert.equal(matters[0].stages[0].status, "current");
   assert.equal(matters[0].documents[0].name, "Договор.pdf");
   assert.equal(matters[0].documents[0].storagePath.endsWith("/document.pdf"), true);
+  assert.equal(matters[0].documents[0].requestId, REQUEST_ID);
+  assert.equal(matters[0].documents[0].statusValue, "received");
   assert.equal(matters[0].documents[0].updatedAt, "2026-08-27T10:00:00.000Z");
+  assert.equal(matters[0].documentRequests.length, 1);
+  assert.equal(matters[0].documentRequests[0].documents[0].name, "Договор.pdf");
+  assert.equal(matters[0].clientPrimaryDocumentRequest.id, REQUEST_ID);
+  assert.equal(matters[0].hasSubmittedDocumentRequest, false);
   assert.deepEqual(matters[0].messages.map(({ sender }) => sender), ["Вы", "Команда ДоговорОфф"]);
   assert.equal(matters[0].nextAction.title, "Загрузить приложение");
   assert.match(matters[0].updated, /27 августа/);
   assert.deepEqual(
     matters[0].notifications.map(({ type }) => type),
-    ["matter.created", "matter.updated", "matter.event.created", "document.created", "message.created"],
+    ["matter.created", "matter.updated", "matter.updated", "document_request.changes_requested", "document.created", "message.created"],
   );
-  assert.doesNotMatch(JSON.stringify(matters[0].notifications), /Договор\.pdf|Сообщение клиента|Ответ команды/);
+  assert.doesNotMatch(
+    JSON.stringify(matters[0].notifications),
+    /Договор и приложения|Договор\.pdf|Исправьте|Сообщение клиента|Ответ команды/,
+  );
 
-  for (const table of ["matter_stages", "matter_events", "documents", "messages"]) {
+  for (const table of ["matter_stages", "matter_events", "document_requests", "documents", "messages"]) {
     assert.deepEqual(supabase.requestedMatterIds.get(table), [MATTER_ID]);
   }
 });
@@ -150,7 +187,7 @@ test("cabinet loader exposes the organization id only for the explicit staff vie
 
 test("cabinet loader stops on an RLS query error without exposing provider details", async () => {
   const supabase = createSupabaseFixture({
-    documents: { data: null, error: { code: "42501", message: "private provider detail" } },
+    document_requests: { data: null, error: { code: "42501", message: "private provider detail" } },
   });
 
   await assert.rejects(

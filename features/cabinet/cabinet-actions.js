@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "../../lib/supabase/server";
+import { getDocumentRequestErrorMessage } from "../document-requests/document-request-domain.mjs";
+import { registerDocumentMetadata } from "./cabinet-document-registration.mjs";
 import {
   DOCUMENT_BUCKET,
   getDocumentStorageLocation,
@@ -58,26 +60,29 @@ export async function registerMatterDocument(input) {
       return actionError(WRITE_ERROR_MESSAGE);
     }
 
-    const { error } = await supabase.from("documents").insert({
-      id: document.id,
-      matter_id: document.matterId,
-      storage_path: document.storagePath,
-      original_name: document.originalName,
-      mime_type: document.mimeType,
-      size_bytes: document.sizeBytes,
-      uploaded_by: userId,
-    });
+    const writeResult = await registerDocumentMetadata({ supabase, document, userId });
+    const { error } = writeResult;
 
     if (error) {
       console.error("Cabinet document registration failed", {
         code: error.code,
         status: error.status,
       });
-      return actionError(WRITE_ERROR_MESSAGE);
+      return actionError(writeResult.linked
+        ? getDocumentRequestErrorMessage(error)
+        : WRITE_ERROR_MESSAGE);
     }
 
     revalidatePath("/cabinet");
-    return { ok: true, message: "Документ загружен и добавлен к делу." };
+    if (writeResult.linked) {
+      revalidatePath("/staff");
+    }
+    return {
+      ok: true,
+      message: writeResult.linked
+        ? "Документ добавлен к запросу."
+        : "Документ загружен и добавлен к делу.",
+    };
   } catch (error) {
     console.error("Cabinet document registration crashed", {
       code: error?.code,

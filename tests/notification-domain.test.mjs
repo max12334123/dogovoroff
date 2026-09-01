@@ -36,6 +36,22 @@ test("safe notifications use allowlisted copy and discard arbitrary payload fiel
   assert.doesNotMatch(JSON.stringify(notification), /Секретное дело|Текст сообщения|Паспорт/);
 });
 
+test("document request notifications use fixed generic copy", () => {
+  const notification = createSafeNotification({
+    id: "event-1",
+    matterId: MATTER_ID,
+    type: "document_request.changes_requested",
+    createdAt: "2026-08-30T05:00:00.000Z",
+    title: "Паспорт",
+    note: "Исправьте страницу",
+  });
+
+  assert.equal(notification.title, "Комплект нужно уточнить");
+  assert.equal(notification.description, "По комплекту документов появилось замечание.");
+  assert.equal(notification.targetView, "documents");
+  assert.doesNotMatch(JSON.stringify(notification), /Паспорт|Исправьте/);
+});
+
 test("notification feed sorts activity, applies the read marker, and enforces the limit", () => {
   const notifications = Array.from({ length: NOTIFICATION_LIMIT + 5 }, (_, index) => createSafeNotification({
     id: `event-${index}`,

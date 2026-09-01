@@ -8,6 +8,7 @@ import { sendMatterMessage } from "../cabinet/cabinet-actions";
 import { getMatterById } from "../cabinet/cabinet-data.mjs";
 import { validateMatterMessage } from "../cabinet/cabinet-write-domain.mjs";
 import NotificationCenter from "../notifications/notification-center";
+import StaffDocumentRequests from "../document-requests/staff-document-requests";
 import StaffAssignmentForm from "./staff-assignment-form";
 import StaffIntakePanel from "./staff-intake-panel";
 import StaffMatterDetailsForm from "./staff-matter-details-form";
@@ -63,6 +64,13 @@ const AUDIT_COPY = Object.freeze({
   "matter.created": { label: "Создано дело", description: "Новое дело добавлено в рабочий реестр." },
   "matter.updated": { label: "Обновлено дело", description: "Изменения рабочего статуса сохранены." },
   "document.created": { label: "Добавлен документ", description: "В дело добавлен новый документ." },
+  "document_request.created": { label: "Создан запрос документов", description: "В деле создан запрос документов." },
+  "document_request.updated": { label: "Обновлён запрос документов", description: "Параметры запроса документов сохранены." },
+  "document_request.submitted": { label: "Получен комплект документов", description: "Комплект документов передан на проверку." },
+  "document_request.changes_requested": { label: "Комплект возвращён", description: "Комплект документов возвращён на исправление." },
+  "document_request.accepted": { label: "Комплект принят", description: "Комплект документов принят по делу." },
+  "document_request.cancelled": { label: "Запрос документов отменён", description: "Запрос документов отменён по делу." },
+  "document_request.file_withdrawn": { label: "Файл отозван", description: "Файл отозван из комплекта документов." },
   "message.created": { label: "Отправлено сообщение", description: "В истории дела зарегистрировано сообщение." },
   "intake.updated": { label: "Обновлена заявка", description: "Статус входящего обращения сохранён." },
   "intake.converted": { label: "Заявка принята", description: "Входящее обращение превращено в дело." },
@@ -102,6 +110,13 @@ function getWorkflowDraft(matter) {
 }
 
 function getMatterTask(matter) {
+  const requests = matter.documentRequests ?? [];
+  if (requests.some((request) => request.status === "submitted")) {
+    return "Проверить комплект документов";
+  }
+  if (requests.some((request) => request.status === "requested" || request.status === "changes_requested")) {
+    return "Ожидаем документы от клиента";
+  }
   if (matter.nextAction) {
     return matter.nextAction.title;
   }
@@ -235,6 +250,8 @@ function MatterDetail({
     );
   }
 
+  const otherDocuments = matter.documents.filter((document) => document.requestId === null);
+
   return (
     <aside className={styles.detailPanel} aria-labelledby="staff-matter-title">
       <div className={styles.detailIntro}>
@@ -263,6 +280,15 @@ function MatterDetail({
           {matter.nextAction.deadline ? <small>{matter.nextAction.deadline}</small> : null}
         </section>
       ) : null}
+
+      <section className={styles.documentRequestSection} aria-label="Запросы документов">
+        <StaffDocumentRequests
+          matter={matter}
+          downloadingId={downloadingId}
+          downloadFeedback={documentFeedback}
+          onDownload={onDownload}
+        />
+      </section>
 
       <section className={styles.workflowSection} aria-labelledby="staff-workflow-title">
         <div className={styles.sectionHeading}>
@@ -353,13 +379,13 @@ function MatterDetail({
 
       <section className={styles.documentSection} ref={documentsRef} tabIndex="-1" aria-labelledby="staff-documents-title">
         <div className={styles.sectionHeading}>
-          <p className={styles.eyebrow}>Документы</p>
-          <span>{matter.documents.length}</span>
+          <p className={styles.eyebrow}>Другие документы</p>
+          <span>{otherDocuments.length}</span>
         </div>
-        <h3 className={styles.visuallyHidden} id="staff-documents-title">Документы по делу</h3>
-        {matter.documents.length ? (
+        <h3 className={styles.visuallyHidden} id="staff-documents-title">Другие документы по делу</h3>
+        {otherDocuments.length ? (
           <ul className={styles.documentList}>
-            {matter.documents.map((document) => (
+            {otherDocuments.map((document) => (
               <li key={document.id}>
                 <button
                   className={styles.documentDownload}
@@ -375,13 +401,8 @@ function MatterDetail({
             ))}
           </ul>
         ) : (
-          <p className={styles.muted}>Документы по делу ещё не загружены.</p>
+          <p className={styles.muted}>Других документов пока нет.</p>
         )}
-        {documentFeedback.text ? (
-          <p className={`${styles.feedback}${documentFeedback.tone === "error" ? ` ${styles.feedbackError}` : ""}`} role="status" aria-live="polite">
-            {documentFeedback.text}
-          </p>
-        ) : null}
       </section>
 
       {composerOpen ? (

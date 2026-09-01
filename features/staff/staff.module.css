@@ -586,6 +586,49 @@
   scroll-margin-top: 102px;
 }
 
+.documentRequestSection {
+  --cabinet-black: var(--staff-black);
+  --cabinet-paper: var(--staff-paper);
+  --cabinet-ice: var(--staff-ice);
+  --cabinet-silver: var(--staff-muted);
+  --cabinet-dark-line: var(--staff-line);
+  --cabinet-control-font-size: var(--staff-control-font-size);
+  --cabinet-control-font-weight: var(--staff-control-font-weight);
+  --cabinet-control-letter-spacing: var(--staff-control-letter-spacing);
+  --cabinet-primary-font-size: var(--staff-primary-font-size);
+  --cabinet-primary-font-weight: var(--staff-primary-font-weight);
+  --cabinet-primary-letter-spacing: var(--staff-primary-letter-spacing);
+  min-width: 0;
+  margin-top: 28px;
+  padding-top: 24px;
+  border-top: 1px solid var(--staff-line);
+}
+
+.documentRequestSection form {
+  display: grid;
+  gap: 14px;
+  margin-top: 20px;
+}
+
+.documentRequestSection label {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.documentRequestSection label > span {
+  color: var(--staff-muted);
+  font-size: var(--staff-control-font-size);
+  font-weight: var(--staff-control-font-weight);
+  letter-spacing: var(--staff-control-letter-spacing);
+  text-transform: uppercase;
+}
+
+.documentRequestSection :is(input, textarea) {
+  width: 100%;
+  min-height: 44px;
+}
+
 .stageList {
   position: relative;
   display: grid;

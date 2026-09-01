@@ -65,6 +65,14 @@ export function getStaffMatterQueue(matter) {
     return "paused";
   }
 
+  const requests = Array.isArray(matter.documentRequests) ? matter.documentRequests : [];
+  if (requests.some((request) => request.status === "submitted")) {
+    return "action";
+  }
+  if (requests.some((request) => request.status === "requested" || request.status === "changes_requested")) {
+    return "waiting";
+  }
+
   return matter.nextAction ? "waiting" : "action";
 }
 
