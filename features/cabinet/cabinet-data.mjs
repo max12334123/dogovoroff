@@ -1,6 +1,6 @@
 export const CABINET_VIEWS = [
-  { id: "overview", index: "01", label: "Обзор" },
-  { id: "matters", index: "02", label: "Дела" },
+  { id: "overview", index: "01", label: "Главная" },
+  { id: "matters", index: "02", label: "Мои дела" },
   { id: "documents", index: "03", label: "Документы" },
   { id: "messages", index: "04", label: "Сообщения" },
 ];

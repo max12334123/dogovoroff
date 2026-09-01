@@ -13,8 +13,9 @@ import {
   getRequestModeFromSearch,
 } from "../lib/public-navigation.mjs";
 
-const [componentSource, pageSource, cssSource, homeSource, actionsSource, serverSource, nextConfigSource] = await Promise.all([
+const [componentSource, navigationSource, pageSource, cssSource, homeSource, actionsSource, serverSource, nextConfigSource] = await Promise.all([
   readFile(new URL("../features/cabinet/cabinet-client.jsx", import.meta.url), "utf8"),
+  readFile(new URL("../features/cabinet/cabinet-navigation.jsx", import.meta.url), "utf8"),
   readFile(new URL("../app/cabinet/page.jsx", import.meta.url), "utf8"),
   readFile(new URL("../features/cabinet/cabinet.module.css", import.meta.url), "utf8"),
   readFile(new URL("../app/page.jsx", import.meta.url), "utf8"),
@@ -49,7 +50,7 @@ test("empty cabinet guides a newly registered client without storing onboarding 
 });
 
 test("cabinet UI is client-facing, accessible, and connected to private matter operations", () => {
-  assert.match(componentSource, /aria-label="Навигация личного кабинета"/);
+  assert.match(navigationSource, /aria-label="Разделы личного кабинета"/);
   assert.match(componentSource, /aria-live="polite"/);
   assert.match(componentSource, /type="file"/);
   assert.match(componentSource, /Приватном хранилище|приватном хранилище/);
@@ -115,7 +116,6 @@ test("cabinet layout includes mobile and reduced-motion protection", () => {
   assert.match(cssSource, /@media \(prefers-reduced-motion: reduce\)/);
   assert.match(cssSource, /overflow-wrap:\s*anywhere/);
   assert.match(componentSource, /focus\(\{ preventScroll: true \}\)/);
-  assert.match(componentSource, /scrollIntoView\(\{ block: "start" \}\)/);
   assert.match(cssSource, /scroll-margin-top:\s*116px/);
 });
 
@@ -126,4 +126,14 @@ test("cabinet controls use explicit typography roles without a high-specificity 
   assert.match(cssSource, /\.topNavButton strong\s*\{\s*font:\s*inherit/);
   assert.match(cssSource, /\.summaryHeading button[\s\S]*text-transform:\s*uppercase/);
   assert.doesNotMatch(cssSource, /\.shell button,\s*\n\.shell input/);
+});
+
+test("cabinet navigation uses allowlisted URL state and keeps AI in the header", () => {
+  assert.match(componentSource, /parseCabinetLocation/);
+  assert.match(componentSource, /popstate/);
+  assert.match(componentSource, /history\.pushState/);
+  assert.match(navigationSource, /AI-разбор/);
+  assert.match(navigationSource, /Главная/);
+  assert.match(navigationSource, /Мои дела/);
+  assert.doesNotMatch(navigationSource, /localStorage|sessionStorage/);
 });

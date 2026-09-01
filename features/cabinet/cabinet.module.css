@@ -320,7 +320,7 @@
 
 .layout {
   display: grid;
-  grid-template-columns: 220px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   min-height: calc(100vh - 86px);
 }
 
@@ -1265,10 +1265,6 @@
 
   .topNav {
     gap: 22px;
-  }
-
-  .layout {
-    grid-template-columns: 190px minmax(0, 1fr);
   }
 
   .rail {

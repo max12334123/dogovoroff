@@ -1,13 +1,13 @@
 "use client";
 
-import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AI_PRECHECK_HREF, LEAD_FORM_HREF } from "../../lib/public-navigation.mjs";
 import { createUuidV4 } from "../../lib/submission-id.mjs";
 import { registerMatterDocument, sendMatterMessage } from "./cabinet-actions";
-import NotificationCenter from "../notifications/notification-center";
-import { CABINET_VIEWS, EMPTY_CABINET_STEPS, getMatterById } from "./cabinet-data.mjs";
+import CabinetNavigation from "./cabinet-navigation";
+import { EMPTY_CABINET_STEPS, getMatterById } from "./cabinet-data.mjs";
+import { buildCabinetHref, parseCabinetLocation } from "./cabinet-navigation-domain.mjs";
 import {
   buildDocumentStoragePath,
   DOCUMENT_BUCKET,
@@ -16,36 +16,6 @@ import {
 } from "./cabinet-write-domain.mjs";
 import ClientDocumentRequests from "../document-requests/client-document-requests";
 import styles from "./cabinet.module.css";
-
-const TOP_NAVIGATION = CABINET_VIEWS.filter((item) => item.id !== "overview");
-
-function Brand() {
-  return (
-    <a className={styles.brand} href="/" aria-label="ДоговорОфф — вернуться на сайт">
-      <span className={styles.brandMark}>
-        <Image src="/media/dogovoroff-mark.png" alt="" width={64} height={64} sizes="44px" priority />
-      </span>
-      <span className={styles.brandName}>ДоговорОфф</span>
-      <span className={styles.brandDescriptor}>Личный кабинет</span>
-    </a>
-  );
-}
-
-function ViewButton({ item, activeView, onSelect, compact = false }) {
-  const active = item.id === activeView;
-
-  return (
-    <button
-      className={`${compact ? styles.topNavButton : styles.railButton}${active ? ` ${styles.isActive}` : ""}`}
-      type="button"
-      aria-current={active ? "page" : undefined}
-      onClick={() => onSelect(item.id)}
-    >
-      {!compact && <span>{item.index}</span>}
-      <strong>{item.label}</strong>
-    </button>
-  );
-}
 
 function MatterSwitch({ matters, activeMatterId, onSelect }) {
   return (
@@ -504,20 +474,37 @@ export default function CabinetClient({
   const messageIdRef = useRef(null);
   const matter = useMemo(() => getMatterById(activeMatterId, matters), [activeMatterId, matters]);
 
-  const selectView = (view, matterId = activeMatterId) => {
-    if (matterId !== activeMatterId) {
+  useEffect(() => {
+    const applyLocation = () => {
+      const next = parseCabinetLocation(window.location.search, matters);
+      setActiveView(next.view);
+      setActiveMatterId(next.matterId);
+    };
+    applyLocation();
+    window.addEventListener("popstate", applyLocation);
+    return () => window.removeEventListener("popstate", applyLocation);
+  }, [matters]);
+
+  const selectView = (view, matterId = activeMatterId, { replace = false } = {}) => {
+    const next = parseCabinetLocation(
+      buildCabinetHref({ view, matterId }).split("?")[1] || "",
+      matters,
+    );
+    if (next.matterId !== activeMatterId) {
       setDraft("");
       messageIdRef.current = null;
       setMessageFeedback({ tone: "neutral", text: "" });
       setDocumentFeedback({ tone: "neutral", text: "" });
     }
-    setActiveMatterId(matterId);
-    setActiveView(view);
+    if (replace) {
+      window.history.replaceState(null, "", buildCabinetHref(next));
+    } else {
+      window.history.pushState(null, "", buildCabinetHref(next));
+    }
+    setActiveView(next.view);
+    setActiveMatterId(next.matterId);
     setHeaderPanel(null);
-    window.requestAnimationFrame(() => {
-      mainRef.current?.focus({ preventScroll: true });
-      mainRef.current?.scrollIntoView({ block: "start" });
-    });
+    window.requestAnimationFrame(() => mainRef.current?.focus({ preventScroll: true }));
   };
 
   const selectMatter = (matterId) => {
@@ -684,62 +671,19 @@ export default function CabinetClient({
   return (
     <div className={styles.shell}>
       <a className={styles.skipLink} href="#cabinet-main">Перейти к содержанию</a>
-      <header className={styles.header}>
-        <Brand />
-        <nav className={styles.topNav} aria-label="Разделы личного кабинета">
-          {hasMatters && TOP_NAVIGATION.map((item) => (
-            <ViewButton key={item.id} item={item} activeView={activeView} onSelect={selectView} compact />
-          ))}
-          <a className={styles.aiTopLink} href={AI_PRECHECK_HREF}>AI-разбор</a>
-        </nav>
-        <NotificationCenter
-          notifications={initialNotifications}
-          open={headerPanel === "notifications"}
-          onOpenChange={(isOpen) => {
-            setHeaderPanel((current) => (isOpen ? "notifications" : current === "notifications" ? null : current));
-          }}
-          onOpen={(notification) => selectView(notification.targetView, notification.matterId)}
-        />
-        <details
-          className={styles.profile}
-          open={headerPanel === "profile"}
-          onToggle={(event) => {
-            const isOpen = event.currentTarget.open;
-            setHeaderPanel((current) => (isOpen ? "profile" : current === "profile" ? null : current));
-          }}
-        >
-          <summary>{displayName}</summary>
-          <div>
-            <span>Подтверждённый аккаунт</span>
-            {staffHref && <a href={staffHref}>Рабочая панель</a>}
-            <a href="/">Вернуться на сайт</a>
-            <form action="/auth/signout" method="post">
-              <button type="submit">Выйти</button>
-            </form>
-          </div>
-        </details>
-      </header>
-
-      {hasMatters && <nav className={styles.mobileNav} aria-label="Разделы личного кабинета на мобильном устройстве">
-        {CABINET_VIEWS.map((item) => (
-          <ViewButton key={item.id} item={item} activeView={activeView} onSelect={selectView} compact />
-        ))}
-      </nav>}
+      <CabinetNavigation
+        activeView={activeView}
+        displayName={displayName}
+        hasMatters={hasMatters}
+        headerPanel={headerPanel}
+        notifications={initialNotifications}
+        onHeaderPanelChange={setHeaderPanel}
+        onNotificationOpen={(notification) => selectView(notification.targetView, notification.matterId)}
+        onSelectView={selectView}
+        staffHref={staffHref}
+      />
 
       <div className={styles.layout}>
-        <aside className={styles.rail}>
-          <p className={styles.railTitle}>Кабинет</p>
-          {hasMatters ? <nav aria-label="Навигация личного кабинета">
-            {CABINET_VIEWS.map((item) => (
-              <ViewButton key={item.id} item={item} activeView={activeView} onSelect={selectView} />
-            ))}
-          </nav> : <p className={styles.railEmpty}>Дела появятся после принятия обращения.</p>}
-          <div className={styles.railFooter}>
-            <span>Защищённый доступ</span>
-            <a href="/privacy">Конфиденциальность</a>
-          </div>
-        </aside>
-
         <main id="cabinet-main" className={styles.main} ref={mainRef} tabIndex={-1}>
           {!matter && <EmptyCabinet />}
           {matter && activeView === "overview" && (
