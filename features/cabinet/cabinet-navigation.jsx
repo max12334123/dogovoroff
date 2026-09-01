@@ -46,6 +46,10 @@ export default function CabinetNavigation({
   onSelectView,
   staffHref,
 }) {
+  const handleHeaderPanelChange = (panel, open) => {
+    onHeaderPanelChange((current) => (open ? panel : current === panel ? null : current));
+  };
+
   return (
     <>
       <header className={styles.header}>
@@ -59,13 +63,13 @@ export default function CabinetNavigation({
         <NotificationCenter
           notifications={notifications}
           open={headerPanel === "notifications"}
-          onOpenChange={(open) => onHeaderPanelChange(open ? "notifications" : null)}
+          onOpenChange={(open) => handleHeaderPanelChange("notifications", open)}
           onOpen={onNotificationOpen}
         />
         <details
           className={styles.profile}
           open={headerPanel === "profile"}
-          onToggle={(event) => onHeaderPanelChange(event.currentTarget.open ? "profile" : null)}
+          onToggle={(event) => handleHeaderPanelChange("profile", event.currentTarget.open)}
         >
           <summary>{displayName}</summary>
           <div>

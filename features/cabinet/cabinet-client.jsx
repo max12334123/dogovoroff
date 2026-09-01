@@ -472,13 +472,25 @@ export default function CabinetClient({
   const [headerPanel, setHeaderPanel] = useState(null);
   const mainRef = useRef(null);
   const messageIdRef = useRef(null);
+  const activeMatterIdRef = useRef(activeMatterId);
   const matter = useMemo(() => getMatterById(activeMatterId, matters), [activeMatterId, matters]);
+
+  const applyCabinetLocation = (next) => {
+    if (next.matterId !== activeMatterIdRef.current) {
+      setDraft("");
+      messageIdRef.current = null;
+      setMessageFeedback({ tone: "neutral", text: "" });
+      setDocumentFeedback({ tone: "neutral", text: "" });
+    }
+    activeMatterIdRef.current = next.matterId;
+    setActiveView(next.view);
+    setActiveMatterId(next.matterId);
+  };
 
   useEffect(() => {
     const applyLocation = () => {
       const next = parseCabinetLocation(window.location.search, matters);
-      setActiveView(next.view);
-      setActiveMatterId(next.matterId);
+      applyCabinetLocation(next);
     };
     applyLocation();
     window.addEventListener("popstate", applyLocation);
@@ -490,19 +502,12 @@ export default function CabinetClient({
       buildCabinetHref({ view, matterId }).split("?")[1] || "",
       matters,
     );
-    if (next.matterId !== activeMatterId) {
-      setDraft("");
-      messageIdRef.current = null;
-      setMessageFeedback({ tone: "neutral", text: "" });
-      setDocumentFeedback({ tone: "neutral", text: "" });
-    }
     if (replace) {
       window.history.replaceState(null, "", buildCabinetHref(next));
     } else {
       window.history.pushState(null, "", buildCabinetHref(next));
     }
-    setActiveView(next.view);
-    setActiveMatterId(next.matterId);
+    applyCabinetLocation(next);
     setHeaderPanel(null);
     window.requestAnimationFrame(() => mainRef.current?.focus({ preventScroll: true }));
   };

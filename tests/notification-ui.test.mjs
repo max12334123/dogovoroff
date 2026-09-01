@@ -42,6 +42,13 @@ test("cabinet keeps notification and profile panels mutually exclusive", () => {
   assert.match(cabinetNavigationSource, /open=\{headerPanel === "profile"\}/);
 });
 
+test("closing one controlled header panel does not close the other panel", () => {
+  assert.match(cabinetNavigationSource, /const handleHeaderPanelChange = \(panel, open\) =>/);
+  assert.match(cabinetNavigationSource, /current === panel \? null : current/);
+  assert.match(cabinetNavigationSource, /handleHeaderPanelChange\("notifications", open\)/);
+  assert.match(cabinetNavigationSource, /handleHeaderPanelChange\("profile", event\.currentTarget\.open\)/);
+});
+
 test("read marker action authenticates and updates only the current profile", () => {
   assert.match(actionsSource, /auth\.getClaims\(\)/);
   assert.match(actionsSource, /notifications_read_at/);

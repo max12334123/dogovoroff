@@ -137,3 +137,10 @@ test("cabinet navigation uses allowlisted URL state and keeps AI in the header",
   assert.match(navigationSource, /Мои дела/);
   assert.doesNotMatch(navigationSource, /localStorage|sessionStorage/);
 });
+
+test("cabinet history transitions clear matter-scoped feedback through one selection path", () => {
+  assert.match(componentSource, /const activeMatterIdRef = useRef\(/);
+  assert.match(componentSource, /const applyCabinetLocation = \(next\) =>/);
+  assert.equal((componentSource.match(/applyCabinetLocation\(next\);/g) ?? []).length, 2);
+  assert.match(componentSource, /setDraft\(""\)[\s\S]*setDocumentFeedback\(\{ tone: "neutral", text: "" \}\)/);
+});
