@@ -13,8 +13,11 @@ import {
   getRequestModeFromSearch,
 } from "../lib/public-navigation.mjs";
 
-const [componentSource, navigationSource, pageSource, cssSource, homeSource, actionsSource, serverSource, nextConfigSource] = await Promise.all([
+const [clientSource, matterComponentsSource, overviewSource, actionDomainSource, navigationSource, pageSource, cssSource, homeSource, actionsSource, serverSource, nextConfigSource] = await Promise.all([
   readFile(new URL("../features/cabinet/cabinet-client.jsx", import.meta.url), "utf8"),
+  readFile(new URL("../features/cabinet/cabinet-matter-components.jsx", import.meta.url), "utf8"),
+  readFile(new URL("../features/cabinet/cabinet-overview.jsx", import.meta.url), "utf8"),
+  readFile(new URL("../features/cabinet/cabinet-navigation-domain.mjs", import.meta.url), "utf8"),
   readFile(new URL("../features/cabinet/cabinet-navigation.jsx", import.meta.url), "utf8"),
   readFile(new URL("../app/cabinet/page.jsx", import.meta.url), "utf8"),
   readFile(new URL("../features/cabinet/cabinet.module.css", import.meta.url), "utf8"),
@@ -23,6 +26,7 @@ const [componentSource, navigationSource, pageSource, cssSource, homeSource, act
   readFile(new URL("../features/cabinet/cabinet-server.js", import.meta.url), "utf8"),
   readFile(new URL("../next.config.mjs", import.meta.url), "utf8"),
 ]);
+const componentSource = [clientSource, matterComponentsSource, overviewSource, actionDomainSource].join("\n");
 
 test("cabinet data keeps the client journey explicit and stable", () => {
   assert.deepEqual(CABINET_VIEWS.map((view) => view.id), ["overview", "matters", "documents", "messages"]);
@@ -143,4 +147,15 @@ test("cabinet history transitions clear matter-scoped feedback through one selec
   assert.match(componentSource, /const applyCabinetLocation = \(next\) =>/);
   assert.equal((componentSource.match(/applyCabinetLocation\(next\);/g) ?? []).length, 2);
   assert.match(componentSource, /setDraft\(""\)[\s\S]*setDocumentFeedback\(\{ tone: "neutral", text: "" \}\)/);
+});
+
+test("client overview leads with one primary action and quiet waiting copy", async () => {
+  const source = await readFile(
+    new URL("../features/cabinet/cabinet-overview.jsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(source, /getClientPrimaryAction/);
+  assert.match(source, /Что происходит по делу/);
+  assert.match(source, /Сейчас от вас ничего не требуется/);
+  assert.equal((source.match(/styles\.primaryButton/g) ?? []).length, 1);
 });

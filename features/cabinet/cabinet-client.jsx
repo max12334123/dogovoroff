@@ -5,7 +5,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AI_PRECHECK_HREF, LEAD_FORM_HREF } from "../../lib/public-navigation.mjs";
 import { createUuidV4 } from "../../lib/submission-id.mjs";
 import { registerMatterDocument, sendMatterMessage } from "./cabinet-actions";
+import { DocumentRegister, MatterSwitch, Timeline, UploadControl } from "./cabinet-matter-components";
 import CabinetNavigation from "./cabinet-navigation";
+import CabinetOverview from "./cabinet-overview";
 import { EMPTY_CABINET_STEPS, getMatterById } from "./cabinet-data.mjs";
 import { buildCabinetHref, parseCabinetLocation } from "./cabinet-navigation-domain.mjs";
 import {
@@ -16,245 +18,6 @@ import {
 } from "./cabinet-write-domain.mjs";
 import ClientDocumentRequests from "../document-requests/client-document-requests";
 import styles from "./cabinet.module.css";
-
-function MatterSwitch({ matters, activeMatterId, onSelect }) {
-  return (
-    <div className={styles.matterSwitch} aria-label="Выбор дела">
-      {matters.map((matter) => {
-        const active = matter.id === activeMatterId;
-        return (
-          <button
-            key={matter.id}
-            className={`${styles.matterSwitchButton}${active ? ` ${styles.isActive}` : ""}`}
-            type="button"
-            aria-pressed={active}
-            onClick={() => onSelect(matter.id)}
-          >
-            <span>{matter.index}</span>
-            <strong>{matter.title}</strong>
-            <small>{matter.stateLabel}</small>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-function Timeline({ matter, condensed = false }) {
-  if (!matter.stages.length) {
-    return <p className={styles.emptyList}>Этапы появятся после принятия дела в работу.</p>;
-  }
-
-  return (
-    <ol className={`${styles.timeline}${condensed ? ` ${styles.timelineCondensed}` : ""}`}>
-      {matter.stages.map((stage, index) => (
-        <li key={stage.id ?? `${stage.title}-${index}`} className={styles[`stage_${stage.status}`]}>
-          <span className={styles.stageMarker} aria-hidden="true">
-            {index + 1}
-          </span>
-          <div>
-            <strong>{stage.title}</strong>
-            <small>{stage.detail}</small>
-          </div>
-        </li>
-      ))}
-    </ol>
-  );
-}
-
-function UploadControl({ matter, feedback, isUploading, onFileChange, onOpenDocuments }) {
-  if (!matter.nextAction && (matter.state === "completed" || matter.state === "archived")) {
-    return (
-      <section className={`${styles.actionPanel} ${styles.actionPanelComplete}`} aria-labelledby="completed-action-title">
-        <p className={styles.eyebrow}>Дело завершено</p>
-        <h2 id="completed-action-title">Все материалы готовы.</h2>
-        <p>Итоговые документы и рекомендации доступны в кабинете.</p>
-        <button className={styles.actionButton} type="button" onClick={onOpenDocuments}>Открыть документы</button>
-      </section>
-    );
-  }
-
-  if (!matter.nextAction) {
-    return (
-      <section className={`${styles.actionPanel} ${styles.actionPanelComplete}`} aria-labelledby="pending-action-title">
-        <p className={styles.eyebrow}>Следующий шаг</p>
-        <h2 id="pending-action-title">Уточняется юристом.</h2>
-        <p>Когда потребуется документ или ответ, информация появится здесь и в сообщениях.</p>
-      </section>
-    );
-  }
-
-  return (
-    <section className={styles.actionPanel} aria-labelledby="next-action-title">
-      <p className={styles.eyebrow}>Ваш следующий шаг</p>
-      <h2 id="next-action-title">{matter.nextAction.title}</h2>
-      <p className={styles.actionDeadline}>{matter.nextAction.deadline}</p>
-      <p className={styles.actionDescription}>{matter.nextAction.description}</p>
-      <label className={styles.actionButton} aria-disabled={isUploading}>
-        <span>{isUploading ? "Загрузка…" : "Загрузить документ"}</span>
-        <input
-          className={styles.visuallyHidden}
-          type="file"
-          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-          aria-describedby="upload-note upload-feedback"
-          disabled={isUploading}
-          onChange={onFileChange}
-        />
-      </label>
-      <p id="upload-note" className={styles.privacyNote}>Файл будет сохранён в приватном хранилище и доступен только участникам дела.</p>
-      <p
-        id="upload-feedback"
-        className={`${styles.uploadFeedback} ${feedback.tone === "error" ? styles.uploadFeedbackError : ""}`}
-        role="status"
-        aria-live="polite"
-      >
-        {feedback.text}
-      </p>
-    </section>
-  );
-}
-
-function DocumentRegister({
-  documents,
-  compact = false,
-  emptyText = "Документы по этому делу пока не добавлены.",
-  feedback,
-  downloadingId,
-  onDownload,
-}) {
-  if (!documents.length) {
-    return <p className={styles.emptyList}>{emptyText}</p>;
-  }
-
-  return (
-    <div className={`${styles.documentRegister}${compact ? ` ${styles.documentRegisterCompact}` : ""}`}>
-      <div className={styles.documentHeader} aria-hidden="true">
-        <span>Документ</span>
-        <span>Статус</span>
-        <span>Обновлён</span>
-      </div>
-      {documents.map((document) => (
-        <div className={styles.documentRow} key={document.id}>
-          <button
-            className={styles.documentDownload}
-            type="button"
-            disabled={downloadingId === document.id}
-            aria-label={`Скачать ${document.name}`}
-            onClick={() => onDownload(document)}
-          >
-            <strong>{document.name}</strong>
-            <small>{downloadingId === document.id ? "Загрузка…" : "Скачать"}</small>
-          </button>
-          <span>{document.status}</span>
-          <time dateTime={document.updatedAt || undefined}>{document.updated}</time>
-        </div>
-      ))}
-      {feedback?.text && (
-        <p
-          className={`${styles.documentFeedback}${feedback.tone === "error" ? ` ${styles.uploadFeedbackError}` : ""}`}
-          role="status"
-          aria-live="polite"
-        >
-          {feedback.text}
-        </p>
-      )}
-    </div>
-  );
-}
-
-function OverviewView({
-  matters,
-  matter,
-  uploadFeedback,
-  documentFeedback,
-  downloadingId,
-  isUploading,
-  onDownload,
-  onFileChange,
-  onNavigate,
-}) {
-  return (
-    <>
-      <div className={styles.pageIntro}>
-        <p className={styles.eyebrow}>Кабинет клиента</p>
-        <h1>Добрый день</h1>
-        <p className={styles.editorial}>Вот что происходит по вашему делу</p>
-      </div>
-
-      <MatterSwitch matters={matters} activeMatterId={matter.id} onSelect={(id) => onNavigate("overview", id)} />
-
-      <div className={styles.overviewGrid}>
-        <section className={styles.matterPanel} aria-labelledby="active-matter-title">
-          <div className={styles.matterHeading}>
-            <div>
-              <p className={styles.eyebrow}>{matter.reference}</p>
-              <h2 id="active-matter-title">{matter.title}</h2>
-            </div>
-            <p className={styles.matterState}>{matter.stateLabel}</p>
-          </div>
-          <p className={styles.matterSummary}>{matter.summary}</p>
-          <div className={styles.sectionLabel}>Ход дела</div>
-          <Timeline matter={matter} />
-          <a className={styles.aiLink} href={AI_PRECHECK_HREF}>Новый AI-разбор</a>
-        </section>
-
-        <div className={styles.overviewAside}>
-          {matter.clientPrimaryDocumentRequest || matter.hasSubmittedDocumentRequest ? (
-            <ClientDocumentRequests
-              matterId={matter.id}
-              requests={matter.clientPrimaryDocumentRequest
-                ? [matter.clientPrimaryDocumentRequest]
-                : matter.documentRequests.filter((request) => request.status === "submitted").slice(0, 1)}
-              mode="overview"
-              downloadingId={downloadingId}
-              downloadFeedback={documentFeedback}
-              onDownload={onDownload}
-            />
-          ) : (
-            <UploadControl
-              matter={matter}
-              feedback={uploadFeedback}
-              isUploading={isUploading}
-              onFileChange={onFileChange}
-              onOpenDocuments={() => onNavigate("documents", matter.id)}
-            />
-          )}
-
-          <section className={styles.summaryPanel} aria-labelledby="last-message-title">
-            <div className={styles.summaryHeading}>
-              <p className={styles.eyebrow}>Последнее сообщение</p>
-              <button type="button" onClick={() => onNavigate("messages", matter.id)}>Все сообщения</button>
-            </div>
-            {matter.messages[0] ? (
-              <>
-                <h2 id="last-message-title">{matter.messages[0].sender}</h2>
-                <time>{matter.messages[0].date}</time>
-                <p>{matter.messages[0].text}</p>
-              </>
-            ) : (
-              <p className={styles.emptyList} id="last-message-title">Сообщений по делу пока нет.</p>
-            )}
-          </section>
-
-          <section className={styles.summaryPanel} aria-labelledby="last-documents-title">
-            <div className={styles.summaryHeading}>
-              <p className={styles.eyebrow}>Последние документы</p>
-              <button type="button" onClick={() => onNavigate("documents", matter.id)}>Все документы</button>
-            </div>
-            <h2 className={styles.visuallyHidden} id="last-documents-title">Последние документы по делу</h2>
-            <DocumentRegister
-              documents={matter.documents.slice(0, 3)}
-              compact
-              feedback={documentFeedback}
-              downloadingId={downloadingId}
-              onDownload={onDownload}
-            />
-          </section>
-        </div>
-      </div>
-    </>
-  );
-}
 
 function MattersView({ matters, matter, onMatterSelect }) {
   return (
@@ -474,6 +237,9 @@ export default function CabinetClient({
   const messageIdRef = useRef(null);
   const activeMatterIdRef = useRef(activeMatterId);
   const matter = useMemo(() => getMatterById(activeMatterId, matters), [activeMatterId, matters]);
+  const hasUnreadMessage = initialNotifications.some((notification) => (
+    notification.matterId === matter?.id && notification.type === "message.created"
+  ));
 
   const applyCabinetLocation = (next) => {
     if (next.matterId !== activeMatterIdRef.current) {
@@ -692,15 +458,13 @@ export default function CabinetClient({
         <main id="cabinet-main" className={styles.main} ref={mainRef} tabIndex={-1}>
           {!matter && <EmptyCabinet />}
           {matter && activeView === "overview" && (
-            <OverviewView
+            <CabinetOverview
               matters={matters}
               matter={matter}
-              uploadFeedback={uploadFeedback}
+              hasUnreadMessage={hasUnreadMessage}
               documentFeedback={documentFeedback}
               downloadingId={downloadingId}
-              isUploading={isUploading}
               onDownload={handleDocumentDownload}
-              onFileChange={handleFileChange}
               onNavigate={selectView}
             />
           )}

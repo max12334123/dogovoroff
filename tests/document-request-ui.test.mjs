@@ -2,12 +2,15 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-const [clientSource, staffSource, cssSource, cabinetSource] = await Promise.all([
+const [clientSource, staffSource, cssSource, cabinetClientSource, cabinetOverviewSource, cabinetActionSource] = await Promise.all([
   readFile(new URL("../features/document-requests/client-document-requests.jsx", import.meta.url), "utf8"),
   readFile(new URL("../features/document-requests/staff-document-requests.jsx", import.meta.url), "utf8").catch(() => ""),
   readFile(new URL("../features/document-requests/document-requests.module.css", import.meta.url), "utf8"),
   readFile(new URL("../features/cabinet/cabinet-client.jsx", import.meta.url), "utf8"),
+  readFile(new URL("../features/cabinet/cabinet-overview.jsx", import.meta.url), "utf8"),
+  readFile(new URL("../features/cabinet/cabinet-navigation-domain.mjs", import.meta.url), "utf8"),
 ]);
+const cabinetSource = [cabinetClientSource, cabinetOverviewSource, cabinetActionSource].join("\n");
 
 test("client requests expose one contextual action and an explicit submit boundary", () => {
   assert.match(clientSource, /Требуется от вас/);
