@@ -24,16 +24,20 @@ export function MatterSwitch({ matters, activeMatterId, onSelect }) {
 }
 
 export function Timeline({ matter, condensed = false }) {
-  if (!matter.stages.length) {
+  const visibleStages = condensed
+    ? [matter.stages[matter.currentStage]].filter(Boolean)
+    : matter.stages;
+
+  if (!visibleStages.length) {
     return <p className={styles.emptyList}>Этапы появятся после принятия дела в работу.</p>;
   }
 
   return (
     <ol className={`${styles.timeline}${condensed ? ` ${styles.timelineCondensed}` : ""}`}>
-      {matter.stages.map((stage, index) => (
+      {visibleStages.map((stage, index) => (
         <li key={stage.id ?? `${stage.title}-${index}`} className={styles[`stage_${stage.status}`]}>
           <span className={styles.stageMarker} aria-hidden="true">
-            {index + 1}
+            {(condensed ? matter.currentStage : index) + 1}
           </span>
           <div>
             <strong>{stage.title}</strong>

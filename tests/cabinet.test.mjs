@@ -159,3 +159,25 @@ test("client overview leads with one primary action and quiet waiting copy", asy
   assert.match(source, /Сейчас от вас ничего не требуется/);
   assert.equal((source.match(/styles\.primaryButton/g) ?? []).length, 1);
 });
+
+test("client overview promotes only actually unread message notifications", () => {
+  assert.match(
+    clientSource,
+    /notification\.type === "message\.created" && notification\.unread === true/,
+  );
+});
+
+test("condensed timeline renders only the current matter stage", () => {
+  assert.match(
+    matterComponentsSource,
+    /const visibleStages = condensed\s*\? \[matter\.stages\[matter\.currentStage\]\]\.filter\(Boolean\)\s*:\s*matter\.stages/,
+  );
+  assert.match(matterComponentsSource, /visibleStages\.map\(\(stage, index\) =>/);
+});
+
+test("single condensed stage uses the available timeline width", () => {
+  assert.match(
+    cssSource,
+    /\.timelineCondensed\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/,
+  );
+});

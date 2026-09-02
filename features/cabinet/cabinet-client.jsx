@@ -238,7 +238,8 @@ export default function CabinetClient({
   const activeMatterIdRef = useRef(activeMatterId);
   const matter = useMemo(() => getMatterById(activeMatterId, matters), [activeMatterId, matters]);
   const hasUnreadMessage = initialNotifications.some((notification) => (
-    notification.matterId === matter?.id && notification.type === "message.created"
+    notification.matterId === matter?.id
+      && notification.type === "message.created" && notification.unread === true
   ));
 
   const applyCabinetLocation = (next) => {

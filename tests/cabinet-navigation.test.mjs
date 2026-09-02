@@ -30,6 +30,41 @@ test("quiet matter has no artificial call to action", () => {
   assert.deepEqual(getClientPrimaryAction(matters[1]), { kind: "waiting", eyebrow: "Текущий статус", title: "Сейчас от вас ничего не требуется", description: "Юрист работает с материалами. Мы сообщим, когда потребуется ваше участие.", label: null, targetView: null });
 });
 
+test("unread message becomes the fallback client action", () => {
+  assert.deepEqual(
+    getClientPrimaryAction(matters[1], { hasUnreadMessage: true }),
+    {
+      kind: "message",
+      eyebrow: "Новое сообщение",
+      title: "Юрист написал по делу",
+      description: "Откройте защищённую переписку, чтобы прочитать сообщение.",
+      label: "Открыть сообщения",
+      targetView: "messages",
+    },
+  );
+});
+
+test("document request continues to outrank an unread message", () => {
+  assert.deepEqual(
+    getClientPrimaryAction({
+      ...matters[0],
+      clientPrimaryDocumentRequest: {
+        status: "requested",
+        title: "Документы по договору",
+        instructions: "Добавьте подписанный экземпляр.",
+      },
+    }, { hasUnreadMessage: true }),
+    {
+      kind: "document_request",
+      eyebrow: "Требуется от вас",
+      title: "Документы по договору",
+      description: "Добавьте подписанный экземпляр.",
+      label: "Добавить документы",
+      targetView: "documents",
+    },
+  );
+});
+
 test("completed matter links to its final documents", () => {
   assert.deepEqual(getClientPrimaryAction({ ...matters[1], state: "completed" }), { kind: "completed", eyebrow: "Дело завершено", title: "Итоговые материалы готовы", description: "Документы и рекомендации остаются доступны в защищённом кабинете.", label: "Открыть документы", targetView: "documents" });
 });
