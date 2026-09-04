@@ -57,7 +57,9 @@ export function filterStaffNavigation(items, { canViewAudit = false, intakeEnabl
 }
 
 export function getStaffMatterQueue(matter) {
-  if (!matter || matter.state === "archived" || matter.state === "completed") {
+  if (!matter || matter.trashedAt) return "trash";
+
+  if (matter.state === "archived" || matter.state === "completed") {
     return "archive";
   }
 
@@ -84,7 +86,8 @@ export function filterStaffMatters(matters, query = "", queue = "all") {
   const normalizedQuery = typeof query === "string" ? query.trim().toLocaleLowerCase("ru-RU") : "";
 
   return matters.filter((matter) => {
-    const matchesQueue = queue === "all" || getStaffMatterQueue(matter) === queue;
+    const matterQueue = getStaffMatterQueue(matter);
+    const matchesQueue = queue === "all" ? matterQueue !== "trash" : matterQueue === queue;
     if (!matchesQueue) {
       return false;
     }
