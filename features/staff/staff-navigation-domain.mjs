@@ -3,6 +3,7 @@ const MORE = ["documents", "messages", "audit", "trash"];
 const LIST_VIEWS = new Set(["today", "inbox", "matters", "clients", ...MORE]);
 export const STAFF_MATTER_TABS = Object.freeze(["overview", "documents", "messages", "management"]);
 const TAB_SET = new Set(STAFF_MATTER_TABS);
+const SAFE_MATTER_ID = /^(?:[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}|matter-[a-z0-9]+(?:-[a-z0-9]+)*)$/i;
 
 export function getStaffNavigation({ intakeEnabled = false, canViewAudit = false, canManageTrash = false } = {}) {
   return {
@@ -34,9 +35,12 @@ export function parseStaffLocation(search, matters = [], capabilities = {}) {
 
 export function buildStaffHref({ view = "today", matterId = null, tab = "overview", from = "today" } = {}) {
   const params = new URLSearchParams();
-  const safeView = view === "matter" || LIST_VIEWS.has(view) ? view : "today";
+  let safeView = view === "matter" || LIST_VIEWS.has(view) ? view : "today";
+  if (safeView === "matter" && !(typeof matterId === "string" && SAFE_MATTER_ID.test(matterId))) {
+    safeView = "today";
+  }
   if (safeView !== "today") params.set("view", safeView);
-  if (safeView === "matter" && matterId) {
+  if (safeView === "matter" && typeof matterId === "string" && SAFE_MATTER_ID.test(matterId)) {
     params.set("matter", matterId);
     if (TAB_SET.has(tab) && tab !== "overview") params.set("tab", tab);
     if (LIST_VIEWS.has(from)) params.set("from", from);

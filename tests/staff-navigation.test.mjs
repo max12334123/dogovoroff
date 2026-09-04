@@ -42,4 +42,19 @@ test("staff href carries identifiers but no client text", () => {
     buildStaffHref({ view: "matter", matterId: "matter-a", tab: "messages", from: "inbox" }),
     "/staff?view=matter&matter=matter-a&tab=messages&from=inbox",
   );
+  assert.equal(buildStaffHref({ view: "matter", matterId: "client@example.com", tab: "messages" }), "/staff");
+  assert.equal(buildStaffHref({ view: "matter", matterId: "contract.pdf", tab: "messages" }), "/staff");
+});
+
+test("staff location hides capability-gated views and origins", () => {
+  const capabilities = { intakeEnabled: false, canViewAudit: false, canManageTrash: false };
+  assert.deepEqual(parseStaffLocation("?view=audit", matters, capabilities), {
+    view: "today", matterId: null, tab: "overview", from: "today",
+  });
+  assert.deepEqual(parseStaffLocation("?view=trash", matters, capabilities), {
+    view: "today", matterId: null, tab: "overview", from: "today",
+  });
+  assert.deepEqual(parseStaffLocation("?view=matter&matter=matter-a&from=audit", matters, capabilities), {
+    view: "matter", matterId: "matter-a", tab: "overview", from: "today",
+  });
 });

@@ -120,6 +120,7 @@ test("staff dashboard separates team actions, client waiting, and archive withou
     { reference: "DO-5", title: "Комплект на проверке", summary: "Документы", state: "active", nextAction: { title: "Ожидаем клиента" }, documentRequests: [{ status: "submitted" }] },
     { reference: "DO-6", title: "Запрошен комплект", summary: "Документы", state: "active", nextAction: null, documentRequests: [{ status: "requested" }] },
     { reference: "DO-7", title: "Нужны исправления", summary: "Документы", state: "active", nextAction: null, documentRequests: [{ status: "changes_requested" }] },
+    { reference: "DO-8", title: "Удалённое дело", summary: "Корзина", state: "active", trashedAt: "2026-09-04T10:00:00.000Z", nextAction: null },
   ];
 
   assert.equal(getStaffMatterQueue(matters[0]), "action");
@@ -129,10 +130,13 @@ test("staff dashboard separates team actions, client waiting, and archive withou
   assert.equal(getStaffMatterQueue(matters[4]), "action");
   assert.equal(getStaffMatterQueue(matters[5]), "waiting");
   assert.equal(getStaffMatterQueue(matters[6]), "waiting");
+  assert.equal(getStaffMatterQueue(matters[7]), "trash");
   assert.deepEqual(filterStaffMatters(matters, "поставка", "action"), [matters[0]]);
   assert.deepEqual(filterStaffMatters(matters, "", "action"), [matters[0], matters[4]]);
   assert.deepEqual(filterStaffMatters(matters, "", "waiting"), [matters[1], matters[5], matters[6]]);
   assert.deepEqual(filterStaffMatters(matters, "", "archive"), [matters[2]]);
+  assert.deepEqual(filterStaffMatters(matters, "", "all"), matters.slice(0, 7));
+  assert.deepEqual(filterStaffMatters(matters, "", "trash"), [matters[7]]);
   assert.match(clientSource, /Сегодня в работе/);
   assert.match(clientSource, /Требуют вашего действия/);
   assert.match(clientSource, /Ожидают клиента/);
