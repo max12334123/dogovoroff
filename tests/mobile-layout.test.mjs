@@ -60,10 +60,14 @@ test("cabinet mobile controls remain usable without widening the page", () => {
   const mobileStyles = extractCssBlock(cabinetStylesSource, "@media (max-width: 680px)");
   const navStyles = extractCssBlock(mobileStyles, ".mobileNav");
   const caseTitleStyles = extractCssBlock(mobileStyles, ".caseTitle");
+  const profileNameStyles = extractCssBlock(mobileStyles, ".profileName");
+  const profileMobileLabelStyles = extractCssBlock(mobileStyles, ".profileMobileLabel");
 
   assert.match(navStyles, /grid-template-columns:\s*repeat\(4,\s*minmax\(84px,\s*1fr\)\)/);
   assert.match(navStyles, /overflow-x:\s*auto/);
   assert.match(mobileStyles, /\.mobileNav \.topNavButton\s*\{[\s\S]*min-height:\s*48px[\s\S]*font-size:\s*12px[\s\S]*white-space:\s*nowrap/);
+  assert.match(profileNameStyles, /display:\s*none/);
+  assert.match(profileMobileLabelStyles, /display:\s*inline/);
   assert.match(mobileStyles, /\.main :is\(input, select, textarea\)\s*\{\s*font-size:\s*16px/);
   assert.match(caseTitleStyles, /font-size:\s*clamp\(34px,\s*10vw,\s*50px\)/);
   assert.match(caseTitleStyles, /overflow-wrap:\s*anywhere/);

@@ -254,6 +254,19 @@
   text-transform: uppercase;
 }
 
+.profileMobileLabel {
+  display: none;
+}
+
+.profileAccountName {
+  display: block;
+  padding-bottom: 10px;
+  color: var(--cabinet-paper);
+  font-size: 12px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
 .profile > div {
   position: absolute;
   top: calc(100% + 12px);
@@ -1590,6 +1603,14 @@
 
   .profile summary {
     min-width: 74px;
+  }
+
+  .profileName {
+    display: none;
+  }
+
+  .profileMobileLabel {
+    display: inline;
   }
 
   .profile > div {

@@ -71,8 +71,12 @@ export default function CabinetNavigation({
           open={headerPanel === "profile"}
           onToggle={(event) => handleHeaderPanelChange("profile", event.currentTarget.open)}
         >
-          <summary>{displayName}</summary>
+          <summary aria-label={`Профиль: ${displayName}`}>
+            <span className={styles.profileName}>{displayName}</span>
+            <span className={styles.profileMobileLabel} aria-hidden="true">Профиль</span>
+          </summary>
           <div>
+            <strong className={styles.profileAccountName}>{displayName}</strong>
             <span>Подтверждённый аккаунт</span>
             {staffHref ? <a href={staffHref}>Рабочая панель</a> : null}
             <a href="/">Вернуться на сайт</a>

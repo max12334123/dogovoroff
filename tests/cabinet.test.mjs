@@ -199,6 +199,13 @@ test("cabinet navigation uses allowlisted URL state and keeps AI in the header",
   assert.doesNotMatch(navigationSource, /localStorage|sessionStorage/);
 });
 
+test("mobile profile keeps the account name accessible without crowding the header", () => {
+  assert.match(navigationSource, /aria-label=\{`Профиль: \$\{displayName\}`\}/);
+  assert.match(navigationSource, /className=\{styles\.profileName\}>\{displayName\}<\/span>/);
+  assert.match(navigationSource, /className=\{styles\.profileMobileLabel\} aria-hidden="true">Профиль<\/span>/);
+  assert.match(navigationSource, /className=\{styles\.profileAccountName\}>\{displayName\}<\/strong>/);
+});
+
 test("cabinet location transitions clear matter-scoped feedback through selection and history paths", () => {
   assert.match(componentSource, /const activeMatterIdRef = useRef\(/);
   assert.match(componentSource, /const applyCabinetLocation = \(next\) =>/);
