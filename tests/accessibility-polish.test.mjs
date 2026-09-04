@@ -2,13 +2,16 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-const [pageSource, cssSource, effectsSource, legalDocumentSource, precheckSource, layoutSource] = await Promise.all([
+const [pageSource, cssSource, effectsSource, legalDocumentSource, precheckSource, layoutSource, navigationSource, matterComponentsSource, errorSource] = await Promise.all([
   readFile(new URL("../app/page.jsx", import.meta.url), "utf8"),
   readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
   readFile(new URL("../app/effects.jsx", import.meta.url), "utf8"),
   readFile(new URL("../app/legal-document.jsx", import.meta.url), "utf8"),
   readFile(new URL("../features/precheck/precheck-section.jsx", import.meta.url), "utf8"),
   readFile(new URL("../app/layout.js", import.meta.url), "utf8"),
+  readFile(new URL("../features/cabinet/cabinet-navigation.jsx", import.meta.url), "utf8"),
+  readFile(new URL("../features/cabinet/cabinet-matter-components.jsx", import.meta.url), "utf8"),
+  readFile(new URL("../app/cabinet/error.jsx", import.meta.url), "utf8"),
 ]);
 
 test("required lead fields expose their requirement before validation", () => {
@@ -50,4 +53,22 @@ test("guided intake uses native groups and moves focus when a step changes", () 
   assert.match(precheckSource, /id="precheck-name"[\s\S]{0,700}aria-required="true"[\s\S]{0,200}required/);
   assert.match(precheckSource, /id="precheck-phone"[\s\S]{0,700}aria-required="true"[\s\S]{0,200}required/);
   assert.match(precheckSource, /id="precheck-personal-consent"[\s\S]{0,700}aria-required="true"[\s\S]{0,200}required/);
+});
+
+test("cabinet selection and unsaved-draft dialog preserve keyboard context", () => {
+  assert.match(navigationSource, /aria-current=\{active \? "page" : undefined\}/);
+  assert.match(matterComponentsSource, /aria-pressed=\{active\}/);
+  assert.match(matterComponentsSource, /const dialogRef = useRef\(null\)/);
+  assert.match(matterComponentsSource, /previouslyFocusedElementRef\.current = document\.activeElement/);
+  assert.match(matterComponentsSource, /dialogRef\.current\?\.focus\(\)/);
+  assert.match(matterComponentsSource, /event\.key !== "Tab"/);
+  assert.match(matterComponentsSource, /event\.shiftKey && \(document\.activeElement === dialogRef\.current/);
+  assert.match(matterComponentsSource, /previouslyFocusedElementRef\.current\?\.focus\(\)/);
+  assert.match(matterComponentsSource, /role="alertdialog"[\s\S]*aria-modal="true"/);
+});
+
+test("cabinet error boundary keeps a visible retry action connected to reset", () => {
+  assert.match(errorSource, /"use client"/);
+  assert.match(errorSource, />Повторить</);
+  assert.match(errorSource, /onClick=\{\(\) => reset\(\)\}/);
 });

@@ -384,12 +384,12 @@ export default function CabinetClient({
       }
 
       setUploadFeedback({ tone: "success", text: registration.message });
+      input.value = "";
       router.refresh();
     } catch {
       setUploadFeedback({ tone: "error", text: "Не удалось загрузить документ. Попробуйте ещё раз." });
     } finally {
       setIsUploading(false);
-      input.value = "";
     }
   };
 

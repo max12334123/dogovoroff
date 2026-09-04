@@ -157,12 +157,18 @@ test("cabinet layout includes mobile and reduced-motion protection", () => {
   assert.match(cssSource, /scroll-margin-top:\s*116px/);
 });
 
-test("cabinet controls use explicit typography roles without a high-specificity font reset", () => {
-  assert.match(cssSource, /--cabinet-control-font-size:\s*10\.5px/);
-  assert.match(cssSource, /--cabinet-primary-font-size:\s*11px/);
+test("cabinet controls use one readable hierarchy", () => {
+  assert.match(cssSource, /--cabinet-body-size:\s*16px/);
+  assert.match(cssSource, /--cabinet-control-size:\s*14px/);
+  assert.match(cssSource, /--cabinet-control-height:\s*44px/);
+  assert.match(cssSource, /min-height:\s*44px/);
+  assert.match(cssSource, /\.primaryButton/);
+  assert.match(cssSource, /\.secondaryButton/);
+  assert.match(cssSource, /\.textAction/);
+  assert.match(cssSource, /\.dangerButton/);
+  assert.match(cssSource, /@media \(prefers-reduced-motion: reduce\)/);
   assert.match(cssSource, /\.shell\s+:where\(button, input, textarea, summary\)/);
   assert.match(cssSource, /\.topNavButton strong\s*\{\s*font:\s*inherit/);
-  assert.match(cssSource, /\.summaryHeading button[\s\S]*text-transform:\s*uppercase/);
   assert.doesNotMatch(cssSource, /\.shell button,\s*\n\.shell input/);
 });
 
@@ -190,8 +196,20 @@ test("client overview leads with one primary action and quiet waiting copy", asy
   );
   assert.match(source, /getClientPrimaryAction/);
   assert.match(source, /Что происходит по делу/);
-  assert.match(source, /Сейчас от вас ничего не требуется/);
+  assert.match(actionDomainSource, /Сейчас от вас ничего не требуется/);
+  assert.match(source, /<h2 id="client-primary-action-title">\{action\.title\}<\/h2>/);
   assert.equal((source.match(/styles\.primaryButton/g) ?? []).length, 1);
+});
+
+test("cabinet upload keeps a selected valid file after a network failure", () => {
+  assert.match(
+    clientSource,
+    /if \(!registration\.ok\) \{[\s\S]*return;[\s\S]*setUploadFeedback\(\{ tone: "success", text: registration\.message \}\);[\s\S]*input\.value = "";/,
+  );
+  assert.doesNotMatch(
+    clientSource,
+    /finally \{\s*setIsUploading\(false\);\s*input\.value = "";\s*\}/,
+  );
 });
 
 test("client overview promotes only actually unread message notifications", () => {

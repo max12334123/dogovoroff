@@ -6,15 +6,21 @@
   --cabinet-ice: #8fb9ca;
   --cabinet-dark-line: rgba(255, 255, 255, 0.16);
   --cabinet-light-line: rgba(5, 5, 5, 0.18);
-  --cabinet-control-font-size: 10.5px;
+  --cabinet-body-size: 16px;
+  --cabinet-control-size: 14px;
+  --cabinet-control-height: 44px;
+  --cabinet-motion-fast: 180ms;
+  --cabinet-motion-slow: 360ms;
+  --cabinet-control-font-size: var(--cabinet-control-size);
   --cabinet-control-font-weight: 650;
   --cabinet-control-letter-spacing: 0.12em;
-  --cabinet-primary-font-size: 11px;
+  --cabinet-primary-font-size: var(--cabinet-control-size);
   --cabinet-primary-font-weight: 700;
   --cabinet-primary-letter-spacing: 0.16em;
   min-height: 100vh;
   color: var(--cabinet-paper);
   background: var(--cabinet-black);
+  font-size: var(--cabinet-body-size);
 }
 
 .shell,
@@ -30,10 +36,15 @@
 }
 
 .stateShell {
-  --cabinet-control-font-size: 10.5px;
+  --cabinet-body-size: 16px;
+  --cabinet-control-size: 14px;
+  --cabinet-control-height: 44px;
+  --cabinet-motion-fast: 180ms;
+  --cabinet-motion-slow: 360ms;
+  --cabinet-control-font-size: var(--cabinet-control-size);
   --cabinet-control-font-weight: 650;
   --cabinet-control-letter-spacing: 0.12em;
-  --cabinet-primary-font-size: 11px;
+  --cabinet-primary-font-size: var(--cabinet-control-size);
   --cabinet-primary-font-weight: 700;
   --cabinet-primary-letter-spacing: 0.16em;
   display: grid;
@@ -44,6 +55,7 @@
   background:
     radial-gradient(circle at 75% 18%, rgba(143, 185, 202, 0.13), transparent 36%),
     var(--cabinet-black);
+  font-size: var(--cabinet-body-size);
 }
 
 .stateCard {
@@ -76,33 +88,6 @@
   margin-top: 30px;
 }
 
-.stateActions button,
-.stateActions a {
-  min-height: 48px;
-  padding: 0 18px;
-  border: 1px solid var(--cabinet-paper);
-  color: var(--cabinet-black);
-  background: var(--cabinet-paper);
-  cursor: pointer;
-  font-size: var(--cabinet-primary-font-size);
-  font-weight: var(--cabinet-primary-font-weight);
-  letter-spacing: var(--cabinet-primary-letter-spacing);
-  line-height: 1.3;
-  text-transform: uppercase;
-}
-
-.stateActions a {
-  display: inline-flex;
-  align-items: center;
-  color: var(--cabinet-paper);
-  background: transparent;
-}
-
-.stateActions :is(button, a):hover {
-  color: var(--cabinet-paper);
-  background: transparent;
-}
-
 .shell :where(button, input, textarea, summary) {
   color: inherit;
   font: inherit;
@@ -129,7 +114,7 @@
   color: var(--cabinet-black);
   background: var(--cabinet-paper);
   transform: translateY(-180%);
-  transition: transform 240ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform var(--cabinet-motion-fast) cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .skipLink:focus {
@@ -208,7 +193,7 @@
   letter-spacing: var(--cabinet-control-letter-spacing);
   line-height: 1.3;
   text-transform: uppercase;
-  transition: color 260ms ease;
+  transition: color var(--cabinet-motion-fast) ease;
 }
 
 .topNavButton strong {
@@ -226,7 +211,7 @@
   content: "";
   transform: scaleX(0);
   transform-origin: right center;
-  transition: transform 360ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform var(--cabinet-motion-slow) cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .topNavButton:hover,
@@ -931,8 +916,7 @@
 }
 
 .actionButton,
-.darkButton,
-.primaryButton {
+.darkButton {
   display: grid;
   width: 100%;
   min-height: 64px;
@@ -951,16 +935,14 @@
 }
 
 .actionButton:hover,
-.darkButton:hover,
-.primaryButton:hover {
+.darkButton:hover {
   color: var(--cabinet-black);
   background: var(--cabinet-ice);
   transform: translateY(-2px);
 }
 
 .actionButton[aria-disabled="true"],
-.darkButton:disabled,
-.primaryButton:disabled {
+.darkButton:disabled {
   cursor: wait;
   opacity: 0.62;
   transform: none;
@@ -1046,17 +1028,78 @@
 }
 
 .textAction {
-  min-height: 44px;
   margin-top: 20px;
-  padding-block: 8px;
-  color: var(--cabinet-ice);
-  background: transparent;
+  border: 0;
+}
+
+.primaryButton,
+.secondaryButton,
+.textAction,
+.dangerButton {
+  display: inline-flex;
+  min-height: var(--cabinet-control-height);
+  align-items: center;
+  justify-content: center;
+  padding: 8px 18px;
   cursor: pointer;
-  font-size: var(--cabinet-control-font-size);
+  font-size: var(--cabinet-control-size);
   font-weight: var(--cabinet-control-font-weight);
   letter-spacing: var(--cabinet-control-letter-spacing);
   line-height: 1.3;
+  text-align: center;
   text-transform: uppercase;
+  transition: color var(--cabinet-motion-fast) ease, background-color var(--cabinet-motion-fast) ease, border-color var(--cabinet-motion-fast) ease;
+}
+
+.primaryButton {
+  width: min(100%, 360px);
+  margin-top: 34px;
+  border: 1px solid var(--cabinet-black);
+  color: var(--cabinet-paper);
+  background: var(--cabinet-black);
+}
+
+.primaryButton:hover,
+.primaryButton:focus-visible {
+  color: var(--cabinet-black);
+  background: var(--cabinet-ice);
+}
+
+.secondaryButton {
+  border: 1px solid var(--cabinet-paper);
+  color: var(--cabinet-paper);
+  background: transparent;
+}
+
+.secondaryButton:hover,
+.secondaryButton:focus-visible {
+  color: var(--cabinet-black);
+  background: var(--cabinet-paper);
+}
+
+.textAction,
+.dangerButton {
+  color: var(--cabinet-ice);
+  background: transparent;
+}
+
+.textAction:hover,
+.textAction:focus-visible,
+.dangerButton:hover,
+.dangerButton:focus-visible {
+  color: var(--cabinet-paper);
+}
+
+.dangerButton {
+  border: 1px solid transparent;
+}
+
+.primaryButton:disabled,
+.secondaryButton:disabled,
+.textAction:disabled,
+.dangerButton:disabled {
+  cursor: wait;
+  opacity: 0.62;
 }
 
 .documentRegister {
@@ -1524,13 +1567,6 @@
 }
 
 @media (max-width: 680px) {
-  .shell {
-    --cabinet-control-font-size: 9.5px;
-    --cabinet-control-letter-spacing: 0.08em;
-    --cabinet-primary-font-size: 10.5px;
-    --cabinet-primary-letter-spacing: 0.14em;
-  }
-
   .header {
     min-height: 68px;
     padding-inline: 16px;
@@ -1559,10 +1595,16 @@
 
   .mobileNav {
     top: 68px;
+    grid-template-columns: repeat(4, minmax(84px, 1fr));
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: auto;
   }
 
   .mobileNav .topNavButton {
     min-height: 48px;
+    font-size: 12px;
+    white-space: nowrap;
   }
 
   .main {
@@ -1647,7 +1689,12 @@
   }
 
   .caseTitle {
-    font-size: clamp(40px, 13vw, 58px);
+    font-size: clamp(34px, 10vw, 50px);
+    overflow-wrap: anywhere;
+  }
+
+  .main :is(input, select, textarea) {
+    font-size: 16px;
   }
 
   .timeline li {
@@ -1730,8 +1777,7 @@
   }
 
   .actionButton,
-  .darkButton,
-  .primaryButton {
+  .darkButton {
     min-height: 58px;
   }
 }
@@ -1758,5 +1804,6 @@
   .shell *::after {
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
   }
 }

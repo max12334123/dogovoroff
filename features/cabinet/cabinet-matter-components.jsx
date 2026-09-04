@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import styles from "./cabinet.module.css";
 
 export function CaseHeader({ matter, sectionTitle, onBack }) {
@@ -167,6 +168,54 @@ export function DocumentRegister({
 }
 
 export function UnsavedMessageDialog({ open, onContinue, onDiscard }) {
+  const dialogRef = useRef(null);
+  const previouslyFocusedElementRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) {
+      return undefined;
+    }
+
+    previouslyFocusedElementRef.current = document.activeElement;
+    dialogRef.current?.focus();
+
+    return () => {
+      previouslyFocusedElementRef.current?.focus();
+    };
+  }, [open]);
+
+  const handleKeyDown = (event) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      onContinue();
+      return;
+    }
+
+    if (event.key !== "Tab") {
+      return;
+    }
+
+    const focusableElements = Array.from(
+      dialogRef.current?.querySelectorAll("button:not([disabled])") ?? [],
+    );
+    const firstFocusableElement = focusableElements[0];
+    const lastFocusableElement = focusableElements.at(-1);
+
+    if (!firstFocusableElement || !lastFocusableElement) {
+      event.preventDefault();
+      dialogRef.current?.focus();
+      return;
+    }
+
+    if (event.shiftKey && (document.activeElement === dialogRef.current || document.activeElement === firstFocusableElement)) {
+      event.preventDefault();
+      lastFocusableElement.focus();
+    } else if (!event.shiftKey && document.activeElement === lastFocusableElement) {
+      event.preventDefault();
+      firstFocusableElement.focus();
+    }
+  };
+
   if (!open) {
     return null;
   }
@@ -175,10 +224,13 @@ export function UnsavedMessageDialog({ open, onContinue, onDiscard }) {
     <div className={styles.dialogBackdrop}>
       <section
         className={styles.confirmationDialog}
+        ref={dialogRef}
         role="alertdialog"
+        tabIndex={-1}
         aria-modal="true"
         aria-labelledby="unsaved-message-title"
         aria-describedby="unsaved-message-description"
+        onKeyDown={handleKeyDown}
       >
         <p className={styles.eyebrow}>Черновик сообщения</p>
         <h2 id="unsaved-message-title">Несохранённое сообщение</h2>
@@ -186,7 +238,7 @@ export function UnsavedMessageDialog({ open, onContinue, onDiscard }) {
           Если перейти в другой раздел или дело, текст сообщения будет удалён.
         </p>
         <div className={styles.dialogActions}>
-          <button className={styles.dialogPrimary} type="button" autoFocus onClick={onContinue}>
+          <button className={styles.dialogPrimary} type="button" onClick={onContinue}>
             Продолжить писать
           </button>
           <button className={styles.dialogSecondary} type="button" onClick={onDiscard}>

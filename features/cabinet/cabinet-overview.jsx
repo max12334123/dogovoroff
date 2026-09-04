@@ -12,9 +12,6 @@ export default function CabinetOverview({
   onNavigate,
 }) {
   const action = getClientPrimaryAction(matter, { hasUnreadMessage });
-  const actionTitle = action.kind === "waiting"
-    ? "Сейчас от вас ничего не требуется"
-    : action.title;
 
   return (
     <>
@@ -34,7 +31,7 @@ export default function CabinetOverview({
 
       <section className={styles.primaryActionPanel} aria-labelledby="client-primary-action-title">
         <p className={styles.eyebrow}>{action.eyebrow}</p>
-        <h2 id="client-primary-action-title">{actionTitle}</h2>
+        <h2 id="client-primary-action-title">{action.title}</h2>
         <p>{action.description}</p>
         {action.label ? (
           <button
