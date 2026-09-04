@@ -573,8 +573,7 @@
   margin-bottom: 48px;
 }
 
-.pageIntro h1,
-.viewHeading h1 {
+.pageIntro h1 {
   margin-top: 13px;
   font-size: clamp(54px, 5.2vw, 76px);
   font-weight: 420;
@@ -589,6 +588,62 @@
   font-size: 23px;
   font-style: italic;
   line-height: 1.2;
+}
+
+.caseHeader {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 30px;
+  padding-bottom: 30px;
+  border-bottom: 1px solid var(--cabinet-dark-line);
+}
+
+.backAction {
+  width: fit-content;
+  min-height: 44px;
+  padding: 8px 0;
+  color: var(--cabinet-ice);
+  background: transparent;
+  cursor: pointer;
+  font-size: var(--cabinet-control-font-size);
+  font-weight: var(--cabinet-control-font-weight);
+  letter-spacing: var(--cabinet-control-letter-spacing);
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+
+.backAction:hover,
+.backAction:focus-visible {
+  color: var(--cabinet-paper);
+}
+
+.caseTitle {
+  max-width: 900px;
+  color: var(--cabinet-paper);
+  font-family: var(--font-cormorant), Georgia, serif;
+  font-size: clamp(44px, 5.2vw, 76px);
+  font-weight: 500;
+  letter-spacing: -0.055em;
+  line-height: 0.95;
+}
+
+.statusText,
+.caseSection {
+  color: var(--cabinet-ice);
+  font-size: 9.5px;
+  font-weight: 650;
+  letter-spacing: 0.18em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.caseSection {
+  margin-top: 6px;
+  color: var(--cabinet-silver);
+}
+
+.userTitle {
+  overflow-wrap: anywhere;
 }
 
 .matterSwitch {
@@ -625,13 +680,16 @@
 }
 
 .matterSwitchButton strong {
-  overflow: hidden;
   color: inherit;
   font-size: 16px;
   font-weight: 500;
   letter-spacing: -0.02em;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+}
+
+.matterSwitchButton .userTitle {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
 }
 
 .matterSwitchButton small {
@@ -647,29 +705,6 @@
   background: rgba(143, 185, 202, 0.045);
 }
 
-.overviewGrid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(0, 0.8fr);
-  border-top: 1px solid var(--cabinet-dark-line);
-  border-bottom: 1px solid var(--cabinet-dark-line);
-}
-
-.matterPanel {
-  min-width: 0;
-  padding: 36px 42px 32px 0;
-  border-right: 1px solid var(--cabinet-dark-line);
-}
-
-.matterHeading {
-  display: flex;
-  gap: 24px;
-  align-items: flex-end;
-  justify-content: space-between;
-  padding-bottom: 24px;
-  border-bottom: 1px solid var(--cabinet-dark-line);
-}
-
-.matterHeading h2,
 .detailsMain h2,
 .documentsMain h2,
 .messageHistory h2,
@@ -681,15 +716,6 @@
   font-weight: 420;
   letter-spacing: -0.055em;
   line-height: 1;
-}
-
-.matterState {
-  flex: 0 0 auto;
-  color: var(--cabinet-ice);
-  font-size: 9.5px;
-  font-weight: 650;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
 }
 
 .matterSummary {
@@ -785,6 +811,14 @@
   padding-top: 28px;
 }
 
+.matterSwitchCompact {
+  margin-bottom: 30px;
+}
+
+.matterSwitchCompact .matterSwitchButton {
+  padding: 15px 18px;
+}
+
 .timelineCondensed::before {
   top: 45px;
   right: 17px;
@@ -817,10 +851,6 @@
   font-family: var(--font-cormorant), Georgia, serif;
   font-size: 20px;
   font-style: italic;
-}
-
-.overviewAside {
-  min-width: 0;
 }
 
 .primaryActionPanel {
@@ -1069,6 +1099,12 @@
   white-space: nowrap;
 }
 
+.documentRow .userTitle {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
+
 .documentDownload {
   display: flex;
   min-height: 44px;
@@ -1135,20 +1171,6 @@
 
 .documentRegisterCompact .documentRow span {
   display: none;
-}
-
-.viewHeading {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.45fr);
-  gap: 60px;
-  align-items: flex-end;
-  margin-bottom: 52px;
-}
-
-.viewHeading > p {
-  color: var(--cabinet-silver);
-  font-size: 13px;
-  line-height: 1.7;
 }
 
 .detailsGrid,
@@ -1306,6 +1328,76 @@
   background: var(--cabinet-ice);
 }
 
+.dialogBackdrop {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  display: grid;
+  padding: 24px;
+  place-items: center;
+  background: rgba(5, 5, 5, 0.76);
+}
+
+.confirmationDialog {
+  display: grid;
+  width: min(100%, 520px);
+  gap: 18px;
+  padding: 32px;
+  border: 1px solid var(--cabinet-dark-line);
+  box-shadow: 0 18px 72px rgba(0, 0, 0, 0.45);
+  background: #101112;
+}
+
+.confirmationDialog h2 {
+  color: var(--cabinet-paper);
+  font-family: var(--font-cormorant), Georgia, serif;
+  font-size: clamp(32px, 5vw, 46px);
+  font-weight: 500;
+  letter-spacing: -0.045em;
+  line-height: 0.98;
+}
+
+.confirmationDialog > p:not(.eyebrow) {
+  color: var(--cabinet-silver);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.dialogActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 22px;
+  align-items: center;
+}
+
+.dialogPrimary,
+.dialogSecondary {
+  min-height: 44px;
+  padding: 8px 0;
+  background: transparent;
+  cursor: pointer;
+  font-size: var(--cabinet-control-font-size);
+  font-weight: var(--cabinet-control-font-weight);
+  letter-spacing: var(--cabinet-control-letter-spacing);
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+
+.dialogPrimary {
+  color: var(--cabinet-paper);
+}
+
+.dialogSecondary {
+  color: var(--cabinet-ice);
+}
+
+.dialogPrimary:hover,
+.dialogPrimary:focus-visible,
+.dialogSecondary:hover,
+.dialogSecondary:focus-visible {
+  color: var(--cabinet-paper);
+}
+
 .visuallyHidden {
   position: absolute;
   width: 1px;
@@ -1337,14 +1429,12 @@
     padding-inline: 28px 24px;
   }
 
-  .overviewGrid,
   .detailsGrid,
   .documentsGrid,
   .messagesGrid {
     grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.75fr);
   }
 
-  .matterPanel,
   .detailsMain,
   .documentsMain,
   .messageHistory {
@@ -1399,36 +1489,12 @@
     scroll-margin-top: 134px;
   }
 
-  .overviewGrid,
   .detailsGrid,
   .documentsGrid,
   .messagesGrid {
     grid-template-columns: 1fr;
   }
 
-  .overviewGrid {
-    display: flex;
-    flex-direction: column;
-  }
-
-  .overviewAside {
-    display: contents;
-  }
-
-  .overviewAside > .actionPanel {
-    order: 1;
-  }
-
-  .overviewGrid > .matterPanel {
-    order: 2;
-    border-top: 1px solid var(--cabinet-dark-line);
-  }
-
-  .overviewAside > .summaryPanel {
-    order: 3;
-  }
-
-  .matterPanel,
   .detailsMain,
   .documentsMain,
   .messageHistory {
@@ -1436,7 +1502,6 @@
     border-right: 0;
   }
 
-  .overviewAside,
   .updatesPanel,
   .documentsGrid > :last-child,
   .messageComposer {
@@ -1541,19 +1606,12 @@
     margin-bottom: 34px;
   }
 
-  .pageIntro h1,
-  .viewHeading h1 {
+  .pageIntro h1 {
     font-size: clamp(48px, 14vw, 64px);
   }
 
   .editorial {
     font-size: 20px;
-  }
-
-  .viewHeading {
-    grid-template-columns: 1fr;
-    gap: 22px;
-    margin-bottom: 36px;
   }
 
   .matterSwitch {
@@ -1571,24 +1629,25 @@
     border-bottom: 0;
   }
 
-  .matterPanel,
   .detailsMain,
   .documentsMain,
   .messageHistory {
     padding-block: 30px 36px;
   }
 
-  .matterHeading {
-    display: grid;
-    align-items: start;
-  }
-
-  .matterHeading h2,
   .detailsMain h2,
   .documentsMain h2,
   .messageHistory h2 {
     font-size: clamp(34px, 10vw, 46px);
-    overflow-wrap: anywhere;
+  }
+
+  .caseHeader {
+    margin-bottom: 24px;
+    padding-bottom: 24px;
+  }
+
+  .caseTitle {
+    font-size: clamp(40px, 13vw, 58px);
   }
 
   .timeline li {
@@ -1622,7 +1681,6 @@
 
   .actionPanel h2 {
     font-size: clamp(38px, 12vw, 50px);
-    overflow-wrap: anywhere;
   }
 
   .documentHeader {

@@ -5,7 +5,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AI_PRECHECK_HREF, LEAD_FORM_HREF } from "../../lib/public-navigation.mjs";
 import { createUuidV4 } from "../../lib/submission-id.mjs";
 import { registerMatterDocument, sendMatterMessage } from "./cabinet-actions";
-import { DocumentRegister, MatterSwitch, Timeline, UploadControl } from "./cabinet-matter-components";
+import {
+  CaseHeader,
+  DocumentRegister,
+  MatterSwitch,
+  Timeline,
+  UnsavedMessageDialog,
+  UploadControl,
+} from "./cabinet-matter-components";
 import CabinetNavigation from "./cabinet-navigation";
 import CabinetOverview from "./cabinet-overview";
 import { EMPTY_CABINET_STEPS, getMatterById } from "./cabinet-data.mjs";
@@ -19,21 +26,22 @@ import {
 import ClientDocumentRequests from "../document-requests/client-document-requests";
 import styles from "./cabinet.module.css";
 
-function MattersView({ matters, matter, onMatterSelect }) {
+function MattersView({ matters, matter, onNavigate }) {
   return (
     <>
-      <div className={styles.viewHeading}>
-        <div>
-          <p className={styles.eyebrow}>Дела</p>
-          <h1>История работы</h1>
-        </div>
-        <p>Следите за этапами и последними изменениями по выбранному делу.</p>
-      </div>
-      <MatterSwitch matters={matters} activeMatterId={matter.id} onSelect={onMatterSelect} />
+      <CaseHeader matter={matter} sectionTitle="Мои дела" onBack={() => onNavigate("overview", matter.id)} />
+      {matters.length > 1 ? (
+        <MatterSwitch
+          compact
+          matters={matters}
+          activeMatterId={matter.id}
+          onSelect={(id) => onNavigate("matters", id)}
+        />
+      ) : null}
       <div className={styles.detailsGrid}>
         <section className={styles.detailsMain} aria-labelledby="matter-details-title">
           <p className={styles.eyebrow}>{matter.reference}</p>
-          <h2 id="matter-details-title">{matter.title}</h2>
+          <h2 className={styles.userTitle} id="matter-details-title">{matter.title}</h2>
           <p className={styles.matterSummary}>{matter.summary}</p>
           <div className={styles.sectionLabel}>Этапы</div>
           <Timeline matter={matter} condensed />
@@ -58,7 +66,7 @@ function MattersView({ matters, matter, onMatterSelect }) {
 function DocumentsView({
   matters,
   matter,
-  onMatterSelect,
+  onNavigate,
   uploadFeedback,
   documentFeedback,
   downloadingId,
@@ -68,14 +76,15 @@ function DocumentsView({
 }) {
   return (
     <>
-      <div className={styles.viewHeading}>
-        <div>
-          <p className={styles.eyebrow}>Документы</p>
-          <h1>Материалы дела</h1>
-        </div>
-        <p>Здесь собраны файлы по выбранному делу.</p>
-      </div>
-      <MatterSwitch matters={matters} activeMatterId={matter.id} onSelect={onMatterSelect} />
+      <CaseHeader matter={matter} sectionTitle="Материалы дела" onBack={() => onNavigate("overview", matter.id)} />
+      {matters.length > 1 ? (
+        <MatterSwitch
+          compact
+          matters={matters}
+          activeMatterId={matter.id}
+          onSelect={(id) => onNavigate("documents", id)}
+        />
+      ) : null}
       <div className={styles.documentsGrid} id="documents">
         <section className={styles.documentsMain} aria-labelledby="requested-documents-title">
           <p className={styles.eyebrow}>{matter.reference}</p>
@@ -118,7 +127,7 @@ function DocumentsView({
 function MessagesView({
   matters,
   matter,
-  onMatterSelect,
+  onNavigate,
   draft,
   onDraftChange,
   feedback,
@@ -127,14 +136,15 @@ function MessagesView({
 }) {
   return (
     <>
-      <div className={styles.viewHeading}>
-        <div>
-          <p className={styles.eyebrow}>Сообщения</p>
-          <h1>Связь по делу</h1>
-        </div>
-        <p>Все сообщения относятся к выбранному делу.</p>
-      </div>
-      <MatterSwitch matters={matters} activeMatterId={matter.id} onSelect={onMatterSelect} />
+      <CaseHeader matter={matter} sectionTitle="Связь по делу" onBack={() => onNavigate("overview", matter.id)} />
+      {matters.length > 1 ? (
+        <MatterSwitch
+          compact
+          matters={matters}
+          activeMatterId={matter.id}
+          onSelect={(id) => onNavigate("messages", id)}
+        />
+      ) : null}
       <div className={styles.messagesGrid}>
         <section className={styles.messageHistory} aria-labelledby="message-history-title">
           <p className={styles.eyebrow}>{matter.reference}</p>
@@ -233,6 +243,7 @@ export default function CabinetClient({
   const [messageFeedback, setMessageFeedback] = useState({ tone: "neutral", text: "" });
   const [isSending, setIsSending] = useState(false);
   const [headerPanel, setHeaderPanel] = useState(null);
+  const [pendingNavigation, setPendingNavigation] = useState(null);
   const mainRef = useRef(null);
   const messageIdRef = useRef(null);
   const activeMatterIdRef = useRef(activeMatterId);
@@ -279,8 +290,25 @@ export default function CabinetClient({
     window.requestAnimationFrame(() => mainRef.current?.focus({ preventScroll: true }));
   };
 
-  const selectMatter = (matterId) => {
-    selectView(activeView, matterId);
+  const requestNavigation = (view, matterId = activeMatterId) => {
+    if (view === activeView && matterId === activeMatterId) {
+      return;
+    }
+    if (activeView === "messages" && draft.trim()) {
+      setPendingNavigation({ view, matterId });
+      return;
+    }
+    selectView(view, matterId);
+  };
+
+  const discardDraftAndContinue = () => {
+    const next = pendingNavigation;
+    setPendingNavigation(null);
+    setDraft("");
+    messageIdRef.current = null;
+    if (next) {
+      selectView(next.view, next.matterId);
+    }
   };
 
   const handleFileChange = async (event) => {
@@ -450,8 +478,8 @@ export default function CabinetClient({
         headerPanel={headerPanel}
         notifications={initialNotifications}
         onHeaderPanelChange={setHeaderPanel}
-        onNotificationOpen={(notification) => selectView(notification.targetView, notification.matterId)}
-        onSelectView={selectView}
+        onNotificationOpen={(notification) => requestNavigation(notification.targetView, notification.matterId)}
+        onSelectView={requestNavigation}
         staffHref={staffHref}
       />
 
@@ -466,15 +494,15 @@ export default function CabinetClient({
               documentFeedback={documentFeedback}
               downloadingId={downloadingId}
               onDownload={handleDocumentDownload}
-              onNavigate={selectView}
+              onNavigate={requestNavigation}
             />
           )}
-          {matter && activeView === "matters" && <MattersView matters={matters} matter={matter} onMatterSelect={selectMatter} />}
+          {matter && activeView === "matters" && <MattersView matters={matters} matter={matter} onNavigate={requestNavigation} />}
           {matter && activeView === "documents" && (
             <DocumentsView
               matters={matters}
               matter={matter}
-              onMatterSelect={selectMatter}
+              onNavigate={requestNavigation}
               uploadFeedback={uploadFeedback}
               documentFeedback={documentFeedback}
               downloadingId={downloadingId}
@@ -487,7 +515,7 @@ export default function CabinetClient({
             <MessagesView
               matters={matters}
               matter={matter}
-              onMatterSelect={selectMatter}
+              onNavigate={requestNavigation}
               draft={draft}
               onDraftChange={handleDraftChange}
               feedback={messageFeedback}
@@ -497,6 +525,11 @@ export default function CabinetClient({
           )}
         </main>
       </div>
+      <UnsavedMessageDialog
+        open={pendingNavigation !== null}
+        onContinue={() => setPendingNavigation(null)}
+        onDiscard={discardDraftAndContinue}
+      />
     </div>
   );
 }

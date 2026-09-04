@@ -1,8 +1,25 @@
 import styles from "./cabinet.module.css";
 
-export function MatterSwitch({ matters, activeMatterId, onSelect }) {
+export function CaseHeader({ matter, sectionTitle, onBack }) {
   return (
-    <div className={styles.matterSwitch} aria-label="Выбор дела">
+    <header className={styles.caseHeader}>
+      <button className={styles.backAction} type="button" onClick={onBack}>
+        Назад на главную
+      </button>
+      <p className={styles.eyebrow}>{matter.reference}</p>
+      <h1 className={`${styles.caseTitle} ${styles.userTitle}`}>{matter.title}</h1>
+      <span className={styles.statusText}>{matter.stateLabel}</span>
+      <p className={styles.caseSection}>{sectionTitle}</p>
+    </header>
+  );
+}
+
+export function MatterSwitch({ matters, activeMatterId, onSelect, compact = false }) {
+  return (
+    <div
+      className={`${styles.matterSwitch}${compact ? ` ${styles.matterSwitchCompact}` : ""}`}
+      aria-label="Выбор дела"
+    >
       {matters.map((matter) => {
         const active = matter.id === activeMatterId;
         return (
@@ -14,7 +31,7 @@ export function MatterSwitch({ matters, activeMatterId, onSelect }) {
             onClick={() => onSelect(matter.id)}
           >
             <span>{matter.index}</span>
-            <strong>{matter.title}</strong>
+            <strong className={styles.userTitle}>{matter.title}</strong>
             <small>{matter.stateLabel}</small>
           </button>
         );
@@ -74,7 +91,7 @@ export function UploadControl({ matter, feedback, isUploading, onFileChange, onO
   return (
     <section className={styles.actionPanel} aria-labelledby="next-action-title">
       <p className={styles.eyebrow}>Ваш следующий шаг</p>
-      <h2 id="next-action-title">{matter.nextAction.title}</h2>
+      <h2 className={styles.userTitle} id="next-action-title">{matter.nextAction.title}</h2>
       <p className={styles.actionDeadline}>{matter.nextAction.deadline}</p>
       <p className={styles.actionDescription}>{matter.nextAction.description}</p>
       <label className={styles.actionButton} aria-disabled={isUploading}>
@@ -129,7 +146,7 @@ export function DocumentRegister({
             aria-label={`Скачать ${document.name}`}
             onClick={() => onDownload(document)}
           >
-            <strong>{document.name}</strong>
+            <strong className={styles.userTitle}>{document.name}</strong>
             <small>{downloadingId === document.id ? "Загрузка…" : "Скачать"}</small>
           </button>
           <span>{document.status}</span>
@@ -145,6 +162,38 @@ export function DocumentRegister({
           {feedback.text}
         </p>
       )}
+    </div>
+  );
+}
+
+export function UnsavedMessageDialog({ open, onContinue, onDiscard }) {
+  if (!open) {
+    return null;
+  }
+
+  return (
+    <div className={styles.dialogBackdrop}>
+      <section
+        className={styles.confirmationDialog}
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="unsaved-message-title"
+        aria-describedby="unsaved-message-description"
+      >
+        <p className={styles.eyebrow}>Черновик сообщения</p>
+        <h2 id="unsaved-message-title">Несохранённое сообщение</h2>
+        <p id="unsaved-message-description">
+          Если перейти в другой раздел или дело, текст сообщения будет удалён.
+        </p>
+        <div className={styles.dialogActions}>
+          <button className={styles.dialogPrimary} type="button" autoFocus onClick={onContinue}>
+            Продолжить писать
+          </button>
+          <button className={styles.dialogSecondary} type="button" onClick={onDiscard}>
+            Не сохранять
+          </button>
+        </div>
+      </section>
     </div>
   );
 }

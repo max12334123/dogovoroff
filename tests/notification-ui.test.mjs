@@ -18,7 +18,7 @@ test("client and staff views receive the same privacy-safe notification feed", (
   assert.match(staffPageSource, /buildNotificationFeed/);
   assert.match(cabinetNavigationSource, /<NotificationCenter/);
   assert.match(staffClientSource, /<NotificationCenter/);
-  assert.match(cabinetClientSource, /selectView\(notification\.targetView, notification\.matterId\)/);
+  assert.match(cabinetClientSource, /requestNavigation\(notification\.targetView, notification\.matterId\)/);
   assert.match(staffClientSource, /openNotification/);
 });
 

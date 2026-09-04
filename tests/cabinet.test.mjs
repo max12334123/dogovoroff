@@ -90,6 +90,32 @@ test("cabinet keeps requested files distinct from ordinary documents", () => {
   assert.match(componentSource, /Других документов пока нет\./);
 });
 
+test("client views avoid duplicate full registries and preserve protected actions", () => {
+  assert.match(componentSource, /Мои дела/);
+  assert.match(componentSource, /Материалы дела/);
+  assert.match(componentSource, /Связь по делу/);
+  assert.match(componentSource, /ClientDocumentRequests/);
+  assert.match(componentSource, /sendMatterMessage/);
+  assert.match(componentSource, /Несохранённое сообщение/);
+  assert.match(clientSource, /<h2 className=\{styles\.userTitle\} id="matter-details-title">\{matter\.title\}<\/h2>/);
+  assert.doesNotMatch(componentSource, /overviewGrid/);
+});
+
+test("client navigation protects a non-empty message draft before changing view or matter", () => {
+  assert.match(clientSource, /const \[pendingNavigation, setPendingNavigation\] = useState\(null\)/);
+  assert.match(clientSource, /const requestNavigation = \(view, matterId = activeMatterId\) =>/);
+  assert.match(clientSource, /if \(view === activeView && matterId === activeMatterId\) \{\s*return;\s*\}/);
+  assert.match(clientSource, /activeView === "messages" && draft\.trim\(\)/);
+  assert.match(clientSource, /setPendingNavigation\(\{ view, matterId \}\)/);
+  assert.match(clientSource, /const discardDraftAndContinue = \(\) =>/);
+  assert.match(clientSource, /setDraft\(""\)[\s\S]*selectView\(next\.view, next\.matterId\)/);
+  assert.match(clientSource, /<UnsavedMessageDialog/);
+  assert.match(clientSource, /onNavigate=\{requestNavigation\}/);
+  assert.match(clientSource, /onSelectView=\{requestNavigation\}/);
+  assert.match(clientSource, /focus\(\{ preventScroll: true \}\)/);
+  assert.doesNotMatch(clientSource, /scrollIntoView/);
+});
+
 test("private cabinet route is excluded from search and linked from the public navigation", () => {
   assert.match(pageSource, /index:\s*false/);
   assert.match(pageSource, /follow:\s*false/);
