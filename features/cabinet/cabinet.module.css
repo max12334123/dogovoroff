@@ -1052,11 +1052,14 @@
 }
 
 .primaryButton {
-  width: min(100%, 360px);
-  margin-top: 34px;
   border: 1px solid var(--cabinet-black);
   color: var(--cabinet-paper);
   background: var(--cabinet-black);
+}
+
+.primaryActionPanel .primaryButton {
+  width: min(100%, 360px);
+  margin-top: 34px;
 }
 
 .primaryButton:hover,
@@ -1801,7 +1804,10 @@
 @media (prefers-reduced-motion: reduce) {
   .shell *,
   .shell *::before,
-  .shell *::after {
+  .shell *::after,
+  .stateShell *,
+  .stateShell *::before,
+  .stateShell *::after {
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;

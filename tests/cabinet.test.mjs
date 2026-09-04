@@ -172,6 +172,23 @@ test("cabinet controls use one readable hierarchy", () => {
   assert.doesNotMatch(cssSource, /\.shell button,\s*\n\.shell input/);
 });
 
+test("shared cabinet controls do not carry overview layout into error actions", () => {
+  const primaryButtonBlock = cssSource.match(/\.primaryButton\s*\{([^}]*)\}/)?.[1] ?? "";
+
+  assert.doesNotMatch(primaryButtonBlock, /(?:width|margin-top)\s*:/);
+  assert.match(
+    cssSource,
+    /\.primaryActionPanel \.primaryButton\s*\{[^}]*width:\s*min\(100%, 360px\)[^}]*margin-top:\s*34px/,
+  );
+});
+
+test("reduced motion also covers cabinet error controls", () => {
+  assert.match(
+    cssSource,
+    /\.stateShell \*,\s*\.stateShell \*::before,\s*\.stateShell \*::after\s*\{[\s\S]*transition-duration:\s*0\.01ms[\s\S]*animation-duration:\s*0\.01ms/,
+  );
+});
+
 test("cabinet navigation uses allowlisted URL state and keeps AI in the header", () => {
   assert.match(componentSource, /parseCabinetLocation/);
   assert.match(componentSource, /popstate/);
