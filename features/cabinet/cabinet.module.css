@@ -796,12 +796,19 @@
   color: var(--cabinet-paper);
 }
 
-.timeline .stage_current strong {
+.timeline .stage_current strong,
+.timeline .isCurrentStage strong {
   font-weight: 700;
 }
 
-.timeline .stage_current small {
+.timeline .stage_current small,
+.timeline .isCurrentStage small {
   color: var(--cabinet-ice);
+}
+
+.timeline li small span {
+  display: block;
+  margin-top: 3px;
 }
 
 .timelineCondensed {
@@ -1295,6 +1302,15 @@
 
 .documentsGrid {
   grid-template-columns: minmax(0, 1.5fr) minmax(0, 0.7fr);
+}
+
+.documentsGridSingle {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.documentsGridSingle .documentsMain {
+  padding-right: 0;
+  border-right: 0;
 }
 
 .quietPanel p:last-child {

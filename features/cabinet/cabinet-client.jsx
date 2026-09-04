@@ -16,7 +16,17 @@ import {
 import CabinetNavigation from "./cabinet-navigation";
 import CabinetOverview from "./cabinet-overview";
 import { EMPTY_CABINET_STEPS, getMatterById } from "./cabinet-data.mjs";
-import { buildCabinetHref, parseCabinetLocation } from "./cabinet-navigation-domain.mjs";
+import {
+  buildCabinetHref,
+  buildCabinetHistoryState,
+  getCabinetHistoryIndex,
+  getCanonicalCabinetLocation,
+  getHistoryNavigationDecision,
+  parseCabinetLocation,
+  registerBeforeUnloadGuard,
+  resolvePendingHistoryNavigation,
+} from "./cabinet-navigation-domain.mjs";
+import { getDocumentsSideAction } from "./cabinet-view-domain.mjs";
 import {
   buildDocumentStoragePath,
   DOCUMENT_BUCKET,
@@ -44,7 +54,7 @@ function MattersView({ matters, matter, onNavigate }) {
           <h2 className={styles.userTitle} id="matter-details-title">{matter.title}</h2>
           <p className={styles.matterSummary}>{matter.summary}</p>
           <div className={styles.sectionLabel}>Этапы</div>
-          <Timeline matter={matter} condensed />
+          <Timeline matter={matter} />
         </section>
         <section className={styles.updatesPanel} aria-labelledby="updates-title">
           <p className={styles.eyebrow}>Хронология</p>
@@ -74,6 +84,8 @@ function DocumentsView({
   onDownload,
   onFileChange,
 }) {
+  const documentsSideAction = getDocumentsSideAction(matter);
+
   return (
     <>
       <CaseHeader matter={matter} sectionTitle="Материалы дела" onBack={() => onNavigate("overview", matter.id)} />
@@ -85,7 +97,10 @@ function DocumentsView({
           onSelect={(id) => onNavigate("documents", id)}
         />
       ) : null}
-      <div className={styles.documentsGrid} id="documents">
+      <div
+        className={`${styles.documentsGrid}${documentsSideAction === "managed_request" ? ` ${styles.documentsGridSingle}` : ""}`}
+        id="documents"
+      >
         <section className={styles.documentsMain} aria-labelledby="requested-documents-title">
           <p className={styles.eyebrow}>{matter.reference}</p>
           <h2 id="requested-documents-title">Запрошено</h2>
@@ -105,20 +120,20 @@ function DocumentsView({
             onDownload={onDownload}
           />
         </section>
-        {matter.nextAction ? (
+        {documentsSideAction === "generic_upload" ? (
           <UploadControl
             matter={matter}
             feedback={uploadFeedback}
             isUploading={isUploading}
             onFileChange={onFileChange}
           />
-        ) : (
+        ) : documentsSideAction === "quiet" ? (
           <section className={styles.quietPanel}>
             <p className={styles.eyebrow}>Статус</p>
             <h2>Комплект документов сформирован.</h2>
             <p>Новых материалов по этому делу сейчас не требуется.</p>
           </section>
-        )}
+        ) : null}
       </div>
     </>
   );
@@ -247,6 +262,10 @@ export default function CabinetClient({
   const mainRef = useRef(null);
   const messageIdRef = useRef(null);
   const activeMatterIdRef = useRef(activeMatterId);
+  const activeLocationRef = useRef({ view: "overview", matterId: activeMatterId });
+  const draftRef = useRef("");
+  const historyIndexRef = useRef(0);
+  const historyTransitionRef = useRef(null);
   const matter = useMemo(() => getMatterById(activeMatterId, matters), [activeMatterId, matters]);
   const hasUnreadMessage = initialNotifications.some((notification) => (
     notification.matterId === matter?.id
@@ -260,41 +279,111 @@ export default function CabinetClient({
   const applyCabinetLocation = (next) => {
     if (next.matterId !== activeMatterIdRef.current) {
       setDraft("");
+      draftRef.current = "";
       messageIdRef.current = null;
       setMessageFeedback({ tone: "neutral", text: "" });
       setDocumentFeedback({ tone: "neutral", text: "" });
     }
     setPendingNavigation(null);
     activeMatterIdRef.current = next.matterId;
+    activeLocationRef.current = { view: next.view, matterId: next.matterId };
     setActiveView(next.view);
     setActiveMatterId(next.matterId);
   };
 
   useEffect(() => {
-    const applyLocation = () => {
-      const next = parseCabinetLocation(window.location.search, matters);
-      applyCabinetLocation(next);
+    const replaceHistoryLocation = (location, state, index) => {
+      window.history.replaceState(
+        buildCabinetHistoryState(state, index),
+        "",
+        location.href ?? buildCabinetHref(location),
+      );
     };
-    const handlePopState = () => {
-      const next = parseCabinetLocation(window.location.search, matters);
-      applyCabinetLocation(next);
+
+    const canonicalizeCurrentEntry = (location, state, index) => {
+      const visibleHref = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+      if (visibleHref !== location.href || getCabinetHistoryIndex(state) !== index) {
+        replaceHistoryLocation(location, state, index);
+      }
+    };
+
+    const handlePopState = (event) => {
+      const requested = getCanonicalCabinetLocation(window.location.search, matters);
+      const requestedIndex = getCabinetHistoryIndex(event.state);
+      const canonicalIndex = requestedIndex ?? historyIndexRef.current;
+      canonicalizeCurrentEntry(requested, event.state, canonicalIndex);
+
+      const transition = historyTransitionRef.current;
+      if (transition?.kind === "restore") {
+        if (canonicalIndex === transition.pending.sourceIndex) {
+          historyTransitionRef.current = null;
+          historyIndexRef.current = transition.pending.sourceIndex;
+          setPendingNavigation(transition.pending);
+        }
+        return;
+      }
+
+      if (transition?.kind === "apply") {
+        historyTransitionRef.current = null;
+        historyIndexRef.current = canonicalIndex;
+        applyCabinetLocation(requested);
+        scheduleMainFocus();
+        return;
+      }
+
+      const decision = getHistoryNavigationDecision({
+        current: activeLocationRef.current,
+        requested,
+        hasDraft: draftRef.current.trim().length > 0,
+        currentIndex: historyIndexRef.current,
+        requestedIndex,
+      });
+      if (decision.kind === "restore_then_prompt") {
+        historyTransitionRef.current = { kind: "restore", pending: decision.pending };
+        window.history.go(decision.returnDelta);
+        return;
+      }
+      if (decision.kind === "replace_then_prompt") {
+        const current = activeLocationRef.current;
+        replaceHistoryLocation(current, window.history.state, historyIndexRef.current);
+        setPendingNavigation(decision.pending);
+        return;
+      }
+
+      historyIndexRef.current = canonicalIndex;
+      applyCabinetLocation(requested);
       scheduleMainFocus();
     };
-    applyLocation();
+
+    const initial = getCanonicalCabinetLocation(window.location.search, matters);
+    const initialIndex = getCabinetHistoryIndex(window.history.state) ?? 0;
+    canonicalizeCurrentEntry(initial, window.history.state, initialIndex);
+    historyIndexRef.current = initialIndex;
+    applyCabinetLocation(initial);
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
   }, [matters]);
+
+  useEffect(() => {
+    if (!draft.trim()) {
+      return undefined;
+    }
+    return registerBeforeUnloadGuard(window);
+  }, [draft]);
 
   const selectView = (view, matterId = activeMatterId, { replace = false } = {}) => {
     const next = parseCabinetLocation(
       buildCabinetHref({ view, matterId }).split("?")[1] || "",
       matters,
     );
+    const nextIndex = replace ? historyIndexRef.current : historyIndexRef.current + 1;
+    const historyState = buildCabinetHistoryState(window.history.state, nextIndex);
     if (replace) {
-      window.history.replaceState(null, "", buildCabinetHref(next));
+      window.history.replaceState(historyState, "", buildCabinetHref(next));
     } else {
-      window.history.pushState(null, "", buildCabinetHref(next));
+      window.history.pushState(historyState, "", buildCabinetHref(next));
     }
+    historyIndexRef.current = nextIndex;
     applyCabinetLocation(next);
     setHeaderPanel(null);
     scheduleMainFocus();
@@ -315,10 +404,24 @@ export default function CabinetClient({
     const next = pendingNavigation;
     setPendingNavigation(null);
     setDraft("");
+    draftRef.current = "";
     messageIdRef.current = null;
-    if (next) {
-      selectView(next.view, next.matterId);
+    if (!next) {
+      return;
     }
+
+    if (next.kind === "history" || next.kind === "history_replace") {
+      const resolution = resolvePendingHistoryNavigation(next, "discard");
+      if (resolution.kind === "go") {
+        historyTransitionRef.current = { kind: "apply" };
+        window.history.go(resolution.delta);
+      } else if (resolution.kind === "replace") {
+        selectView(resolution.location.view, resolution.location.matterId, { replace: true });
+      }
+      return;
+    }
+
+    selectView(next.view, next.matterId);
   };
 
   const handleFileChange = async (event) => {
@@ -461,6 +564,7 @@ export default function CabinetClient({
       }
 
       setDraft("");
+      draftRef.current = "";
       messageIdRef.current = null;
       setMessageFeedback({ tone: "success", text: result.message });
       router.refresh();
@@ -475,6 +579,7 @@ export default function CabinetClient({
     if (messageIdRef.current && value !== draft) {
       messageIdRef.current = null;
     }
+    draftRef.current = value;
     setDraft(value);
   };
 

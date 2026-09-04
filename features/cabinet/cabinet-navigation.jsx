@@ -80,6 +80,7 @@ export default function CabinetNavigation({
             <span>Подтверждённый аккаунт</span>
             {staffHref ? <a href={staffHref}>Рабочая панель</a> : null}
             <a href="/">Вернуться на сайт</a>
+            <a href="/privacy">Конфиденциальность</a>
             <form action="/auth/signout" method="post"><button type="submit">Выйти</button></form>
           </div>
         </details>

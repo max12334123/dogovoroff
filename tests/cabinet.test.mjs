@@ -116,12 +116,17 @@ test("client navigation protects a non-empty message draft before changing view 
   assert.doesNotMatch(clientSource, /scrollIntoView/);
 });
 
-test("history navigation focuses the main landmark and clears a stale pending destination", () => {
+test("history navigation shares the draft decision and restores URL consistency before prompting", () => {
   assert.match(clientSource, /const scheduleMainFocus = \(\) =>/);
-  assert.match(clientSource, /setPendingNavigation\(null\)[\s\S]*setActiveMatterId\(next\.matterId\)/);
+  assert.match(clientSource, /getHistoryNavigationDecision/);
+  assert.match(clientSource, /history\.go\(decision\.returnDelta\)/);
+  assert.match(clientSource, /resolvePendingHistoryNavigation/);
   assert.match(clientSource, /window\.addEventListener\("popstate", handlePopState\)/);
-  assert.match(clientSource, /applyCabinetLocation\(next\);\s*scheduleMainFocus\(\);/);
-  assert.equal((clientSource.match(/scheduleMainFocus\(\);/g) ?? []).length, 2);
+  assert.match(clientSource, /registerBeforeUnloadGuard/);
+  assert.match(clientSource, /return registerBeforeUnloadGuard\(window\)/);
+  assert.match(clientSource, /window\.history\.replaceState/);
+  assert.match(clientSource, /canonicalizeCurrentEntry\(requested, event\.state, canonicalIndex\)/);
+  assert.match(clientSource, /canonicalizeCurrentEntry\(initial, window\.history\.state, initialIndex\)/);
 });
 
 test("private cabinet route is excluded from search and linked from the public navigation", () => {
@@ -204,12 +209,15 @@ test("mobile profile keeps the account name accessible without crowding the head
   assert.match(navigationSource, /className=\{styles\.profileName\}>\{displayName\}<\/span>/);
   assert.match(navigationSource, /className=\{styles\.profileMobileLabel\} aria-hidden="true">Профиль<\/span>/);
   assert.match(navigationSource, /className=\{styles\.profileAccountName\}>\{displayName\}<\/strong>/);
+  assert.match(navigationSource, /href="\/privacy">Конфиденциальность<\/a>/);
 });
 
 test("cabinet location transitions clear matter-scoped feedback through selection and history paths", () => {
   assert.match(componentSource, /const activeMatterIdRef = useRef\(/);
   assert.match(componentSource, /const applyCabinetLocation = \(next\) =>/);
-  assert.equal((componentSource.match(/applyCabinetLocation\(next\);/g) ?? []).length, 3);
+  assert.match(componentSource, /applyCabinetLocation\(initial\)/);
+  assert.match(componentSource, /applyCabinetLocation\(requested\)/);
+  assert.match(componentSource, /applyCabinetLocation\(next\)/);
   assert.match(componentSource, /setDraft\(""\)[\s\S]*setDocumentFeedback\(\{ tone: "neutral", text: "" \}\)/);
 });
 
@@ -243,15 +251,16 @@ test("client overview promotes only actually unread message notifications", () =
   );
 });
 
-test("condensed timeline renders only the current matter stage", () => {
+test("My Matters renders full stage history while overview remains compact", () => {
   assert.match(
-    matterComponentsSource,
-    /const visibleStages = condensed\s*\? \[matter\.stages\[matter\.currentStage\]\]\.filter\(Boolean\)\s*:\s*matter\.stages/,
+    clientSource,
+    /sectionTitle="Мои дела"[\s\S]*?<Timeline matter=\{matter\} \/>/,
   );
-  assert.match(matterComponentsSource, /visibleStages\.map\(\(stage, index\) =>/);
+  assert.match(overviewSource, /<Timeline matter=\{matter\} condensed \/>/);
+  assert.match(matterComponentsSource, /getVisibleTimelineStages\(matter, \{ condensed \}\)/);
 });
 
-test("single condensed stage uses the available timeline width", () => {
+test("overview compact stage uses the available timeline width", () => {
   assert.match(
     cssSource,
     /\.timelineCondensed\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/,

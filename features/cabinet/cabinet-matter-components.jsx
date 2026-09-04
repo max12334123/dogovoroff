@@ -1,4 +1,8 @@
 import { useEffect, useRef } from "react";
+import {
+  getTimelineStagePresentation,
+  getVisibleTimelineStages,
+} from "./cabinet-view-domain.mjs";
 import styles from "./cabinet.module.css";
 
 export function CaseHeader({ matter, sectionTitle, onBack }) {
@@ -42,9 +46,7 @@ export function MatterSwitch({ matters, activeMatterId, onSelect, compact = fals
 }
 
 export function Timeline({ matter, condensed = false }) {
-  const visibleStages = condensed
-    ? [matter.stages[matter.currentStage]].filter(Boolean)
-    : matter.stages;
+  const visibleStages = getVisibleTimelineStages(matter, { condensed });
 
   if (!visibleStages.length) {
     return <p className={styles.emptyList}>Этапы появятся после принятия дела в работу.</p>;
@@ -52,17 +54,26 @@ export function Timeline({ matter, condensed = false }) {
 
   return (
     <ol className={`${styles.timeline}${condensed ? ` ${styles.timelineCondensed}` : ""}`}>
-      {visibleStages.map((stage, index) => (
-        <li key={stage.id ?? `${stage.title}-${index}`} className={styles[`stage_${stage.status}`]}>
-          <span className={styles.stageMarker} aria-hidden="true">
-            {(condensed ? matter.currentStage : index) + 1}
-          </span>
-          <div>
-            <strong>{stage.title}</strong>
-            <small>{stage.detail}</small>
-          </div>
-        </li>
-      ))}
+      {visibleStages.map((stage, index) => {
+        const stageIndex = condensed ? matter.currentStage : index;
+        const isCurrent = stageIndex === matter.currentStage;
+        const presentation = getTimelineStagePresentation(stage, { isCurrent });
+        return (
+          <li
+            key={stage.id ?? `${stage.title}-${index}`}
+            className={`${styles[`stage_${stage.status}`]}${isCurrent ? ` ${styles.isCurrentStage}` : ""}`}
+          >
+            <span className={styles.stageMarker} aria-hidden="true">{stageIndex + 1}</span>
+            <div>
+              <strong>{stage.title}</strong>
+              <small>
+                {presentation.statusLabel}
+                {presentation.detail ? <span>{presentation.detail}</span> : null}
+              </small>
+            </div>
+          </li>
+        );
+      })}
     </ol>
   );
 }

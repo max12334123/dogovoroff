@@ -1,5 +1,6 @@
 export const CLIENT_VIEW_IDS = Object.freeze(["overview", "matters", "documents", "messages"]);
 const CLIENT_VIEW_SET = new Set(CLIENT_VIEW_IDS);
+export const CABINET_HISTORY_INDEX_KEY = "__dogovoroffCabinetIndex";
 
 function firstMatterId(matters) {
   return Array.isArray(matters) ? matters.find((matter) => typeof matter?.id === "string")?.id ?? null : null;
@@ -19,6 +20,84 @@ export function buildCabinetHref({ view = "overview", matterId = null } = {}) {
   if (typeof matterId === "string" && matterId) params.set("matter", matterId);
   const query = params.toString();
   return query ? `/cabinet?${query}` : "/cabinet";
+}
+
+export function getCanonicalCabinetLocation(search, matters = []) {
+  const location = parseCabinetLocation(search, matters);
+  return { ...location, href: buildCabinetHref(location) };
+}
+
+export function buildCabinetHistoryState(state, index) {
+  const currentState = state && typeof state === "object" && !Array.isArray(state) ? state : {};
+  return { ...currentState, [CABINET_HISTORY_INDEX_KEY]: index };
+}
+
+export function getCabinetHistoryIndex(state) {
+  const index = state?.[CABINET_HISTORY_INDEX_KEY];
+  return Number.isInteger(index) ? index : null;
+}
+
+function isSameCabinetLocation(left, right) {
+  return left?.view === right?.view && left?.matterId === right?.matterId;
+}
+
+export function getHistoryNavigationDecision({
+  current,
+  requested,
+  hasDraft = false,
+  currentIndex = null,
+  requestedIndex = null,
+} = {}) {
+  if (!hasDraft || isSameCabinetLocation(current, requested)) {
+    return { kind: "apply" };
+  }
+
+  const indexedHistory = Number.isInteger(currentIndex)
+    && Number.isInteger(requestedIndex)
+    && currentIndex !== requestedIndex;
+  const pending = {
+    kind: indexedHistory ? "history" : "history_replace",
+    view: requested.view,
+    matterId: requested.matterId,
+    sourceIndex: currentIndex,
+    targetIndex: requestedIndex,
+  };
+
+  return indexedHistory
+    ? { kind: "restore_then_prompt", returnDelta: currentIndex - requestedIndex, pending }
+    : { kind: "replace_then_prompt", pending };
+}
+
+export function resolvePendingHistoryNavigation(pending, outcome) {
+  if (!pending || outcome !== "discard") {
+    return { kind: "stay" };
+  }
+
+  const location = { view: pending.view, matterId: pending.matterId };
+  if (
+    pending.kind === "history"
+    && Number.isInteger(pending.sourceIndex)
+    && Number.isInteger(pending.targetIndex)
+  ) {
+    return {
+      kind: "go",
+      delta: pending.targetIndex - pending.sourceIndex,
+      location,
+    };
+  }
+
+  return { kind: "replace", location };
+}
+
+export function registerBeforeUnloadGuard(target) {
+  const handleBeforeUnload = (event) => {
+    event.preventDefault();
+    event.returnValue = "";
+    return "";
+  };
+
+  target.addEventListener("beforeunload", handleBeforeUnload);
+  return () => target.removeEventListener("beforeunload", handleBeforeUnload);
 }
 
 export function getClientPrimaryAction(matter, { hasUnreadMessage = false } = {}) {

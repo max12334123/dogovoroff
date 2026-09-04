@@ -51,6 +51,8 @@ test("cabinet renders requests ahead of the generic next action without removing
   assert.match(cabinetSource, /Другие документы/);
   assert.match(cabinetSource, /Других документов пока нет/);
   assert.match(cabinetSource, /DocumentRegister/);
+  assert.match(cabinetSource, /getDocumentsSideAction/);
+  assert.match(cabinetSource, /documentsSideAction === "managed_request"/);
 });
 
 test("staff request controls create, review, cancel, and keep private text out of navigation", () => {
