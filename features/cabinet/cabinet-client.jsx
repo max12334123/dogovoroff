@@ -253,6 +253,10 @@ export default function CabinetClient({
       && notification.type === "message.created" && notification.unread === true
   ));
 
+  const scheduleMainFocus = () => {
+    window.requestAnimationFrame(() => mainRef.current?.focus({ preventScroll: true }));
+  };
+
   const applyCabinetLocation = (next) => {
     if (next.matterId !== activeMatterIdRef.current) {
       setDraft("");
@@ -260,6 +264,7 @@ export default function CabinetClient({
       setMessageFeedback({ tone: "neutral", text: "" });
       setDocumentFeedback({ tone: "neutral", text: "" });
     }
+    setPendingNavigation(null);
     activeMatterIdRef.current = next.matterId;
     setActiveView(next.view);
     setActiveMatterId(next.matterId);
@@ -270,9 +275,14 @@ export default function CabinetClient({
       const next = parseCabinetLocation(window.location.search, matters);
       applyCabinetLocation(next);
     };
+    const handlePopState = () => {
+      const next = parseCabinetLocation(window.location.search, matters);
+      applyCabinetLocation(next);
+      scheduleMainFocus();
+    };
     applyLocation();
-    window.addEventListener("popstate", applyLocation);
-    return () => window.removeEventListener("popstate", applyLocation);
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
   }, [matters]);
 
   const selectView = (view, matterId = activeMatterId, { replace = false } = {}) => {
@@ -287,7 +297,7 @@ export default function CabinetClient({
     }
     applyCabinetLocation(next);
     setHeaderPanel(null);
-    window.requestAnimationFrame(() => mainRef.current?.focus({ preventScroll: true }));
+    scheduleMainFocus();
   };
 
   const requestNavigation = (view, matterId = activeMatterId) => {

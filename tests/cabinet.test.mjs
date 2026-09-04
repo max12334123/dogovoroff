@@ -116,6 +116,14 @@ test("client navigation protects a non-empty message draft before changing view 
   assert.doesNotMatch(clientSource, /scrollIntoView/);
 });
 
+test("history navigation focuses the main landmark and clears a stale pending destination", () => {
+  assert.match(clientSource, /const scheduleMainFocus = \(\) =>/);
+  assert.match(clientSource, /setPendingNavigation\(null\)[\s\S]*setActiveMatterId\(next\.matterId\)/);
+  assert.match(clientSource, /window\.addEventListener\("popstate", handlePopState\)/);
+  assert.match(clientSource, /applyCabinetLocation\(next\);\s*scheduleMainFocus\(\);/);
+  assert.equal((clientSource.match(/scheduleMainFocus\(\);/g) ?? []).length, 2);
+});
+
 test("private cabinet route is excluded from search and linked from the public navigation", () => {
   assert.match(pageSource, /index:\s*false/);
   assert.match(pageSource, /follow:\s*false/);
@@ -168,10 +176,10 @@ test("cabinet navigation uses allowlisted URL state and keeps AI in the header",
   assert.doesNotMatch(navigationSource, /localStorage|sessionStorage/);
 });
 
-test("cabinet history transitions clear matter-scoped feedback through one selection path", () => {
+test("cabinet location transitions clear matter-scoped feedback through selection and history paths", () => {
   assert.match(componentSource, /const activeMatterIdRef = useRef\(/);
   assert.match(componentSource, /const applyCabinetLocation = \(next\) =>/);
-  assert.equal((componentSource.match(/applyCabinetLocation\(next\);/g) ?? []).length, 2);
+  assert.equal((componentSource.match(/applyCabinetLocation\(next\);/g) ?? []).length, 3);
   assert.match(componentSource, /setDraft\(""\)[\s\S]*setDocumentFeedback\(\{ tone: "neutral", text: "" \}\)/);
 });
 
