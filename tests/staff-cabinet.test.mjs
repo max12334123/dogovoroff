@@ -50,23 +50,42 @@ test("staff route verifies claims and membership before loading matters", () => 
   assert.match(serverSource, /export async function loadStaffData/);
 });
 
-test("staff UI can respond by matter without exposing privileged credentials", () => {
+test("staff UI can respond by matter without exposing privileged credentials", async () => {
+  const [workspaceSource, workflowSource] = await Promise.all([
+    readFile(new URL("../features/staff/staff-matter-workspace.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../features/staff/staff-workflow-form.jsx", import.meta.url), "utf8"),
+  ]);
   assert.match(clientSource, /sendMatterMessage/);
-  assert.match(clientSource, /Сообщение клиенту/);
-  assert.match(clientSource, /role="status"/);
+  assert.match(workspaceSource, /Сообщение клиенту/);
+  assert.match(workspaceSource, /role="status"/);
   assert.match(clientSource, /updateMatterWorkflow/);
-  assert.match(clientSource, /Сохранить рабочий статус/);
-  assert.match(clientSource, /Скачать/);
+  assert.match(workflowSource, /Сохранить изменения/);
+  assert.match(workspaceSource, /Скачать/);
   assert.doesNotMatch(clientSource, /service_role|SUPABASE_SERVICE|localStorage|sessionStorage/);
 });
 
-test("staff detail separates managed requests from other documents without exposing audit text", () => {
-  assert.match(clientSource, /StaffDocumentRequests/);
+test("staff workspace is split into focused modules", async () => {
+  const [navigation, workspace, workflow] = await Promise.all([
+    readFile(new URL("../features/staff/staff-navigation.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../features/staff/staff-matter-workspace.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../features/staff/staff-workflow-form.jsx", import.meta.url), "utf8"),
+  ]);
+  assert.match(navigation, /Сегодня/);
+  assert.match(navigation, /Ещё/);
+  assert.match(workspace, /StaffDocumentRequests/);
+  assert.match(workspace, /Написать клиенту/);
+  assert.match(workflow, /updateMatterWorkflow|onSubmit/);
+  assert.doesNotMatch(navigation + workspace + workflow, /service_role|SUPABASE_SERVICE/);
+});
+
+test("staff detail separates managed requests from other documents without exposing audit text", async () => {
+  const workspaceSource = await readFile(new URL("../features/staff/staff-matter-workspace.jsx", import.meta.url), "utf8");
+  assert.match(workspaceSource, /StaffDocumentRequests/);
   assert.match(clientSource, /document_request\.created/);
   assert.match(clientSource, /document_request\.accepted/);
-  assert.match(clientSource, /Другие документы/);
-  assert.match(clientSource, /requestId === null/);
-  assert.doesNotMatch(clientSource, /lastReviewNote.*AUDIT_COPY|originalName.*AUDIT_COPY/);
+  assert.match(workspaceSource, /Другие документы/);
+  assert.match(workspaceSource, /requestId === null/);
+  assert.doesNotMatch(workspaceSource, /lastReviewNote.*AUDIT_COPY|originalName.*AUDIT_COPY/);
 });
 
 test("staff controls keep explicit typography roles on desktop and mobile", () => {
@@ -191,8 +210,9 @@ test("staff workflow draft refreshes when the selected matter data changes", () 
   assert.match(clientSource, /\}, \[matter\]\);/);
 });
 
-test("staff stages keep stable keys even when fallback fixture titles repeat", () => {
-  assert.match(clientSource, /key=\{stage\.id \?\? `\$\{stage\.title\}-\$\{index\}`\}/);
+test("staff stages keep stable keys even when fallback fixture titles repeat", async () => {
+  const workspaceSource = await readFile(new URL("../features/staff/staff-matter-workspace.jsx", import.meta.url), "utf8");
+  assert.match(workspaceSource, /key=\{stage\.id \?\? `\$\{stage\.title\}-\$\{index\}`\}/);
 });
 
 test("reopening a matter chooses an available stage instead of leaving an empty current stage", () => {

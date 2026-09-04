@@ -8,10 +8,11 @@ import { sendMatterMessage } from "../cabinet/cabinet-actions";
 import { getMatterById } from "../cabinet/cabinet-data.mjs";
 import { validateMatterMessage } from "../cabinet/cabinet-write-domain.mjs";
 import NotificationCenter from "../notifications/notification-center";
-import StaffDocumentRequests from "../document-requests/staff-document-requests";
 import StaffAssignmentForm from "./staff-assignment-form";
 import StaffIntakePanel from "./staff-intake-panel";
+import StaffMatterWorkspace from "./staff-matter-workspace";
 import StaffMatterDetailsForm from "./staff-matter-details-form";
+import StaffNavigation from "./staff-navigation";
 import { filterStaffAuditEvents, filterStaffMatters, filterStaffNavigation, getStaffMatterQueue } from "./staff-domain.mjs";
 import { updateMatterWorkflow } from "./staff-actions";
 import { validateMatterWorkflow } from "./staff-workflow-domain.mjs";
@@ -43,13 +44,6 @@ const REGISTER_FILTERS = [
   { id: "waiting", label: "Ожидают клиента" },
   { id: "paused", label: "Приостановлены" },
   { id: "archive", label: "Архив" },
-];
-
-const MATTER_STATUS_OPTIONS = [
-  { value: "active", label: "Активное дело" },
-  { value: "paused", label: "Приостановлено" },
-  { value: "completed", label: "Завершено" },
-  { value: "archived", label: "В архиве" },
 ];
 
 const AUDIT_DATE_FORMATTER = new Intl.DateTimeFormat("ru-RU", {
@@ -172,46 +166,7 @@ function QueueSection({ title, matters, activeMatterId, onSelect, queueId = "act
   );
 }
 
-function MatterStages({ matter }) {
-  if (!matter.stages.length) {
-    return <p className={styles.muted}>Этапы по делу ещё не добавлены.</p>;
-  }
-
-  return (
-    <ol className={styles.stageList}>
-      {matter.stages.map((stage, index) => (
-        <li className={styles[`stage_${stage.status}`]} key={stage.id ?? `${stage.title}-${index}`}>
-          <span>{String(index + 1).padStart(2, "0")}</span>
-          <div>
-            <strong>{stage.title}</strong>
-            <small>{stage.detail}</small>
-          </div>
-        </li>
-      ))}
-    </ol>
-  );
-}
-
-function MessageHistory({ messages }) {
-  if (!messages.length) {
-    return <p className={styles.muted}>Сообщений по делу пока нет.</p>;
-  }
-
-  return (
-    <ol className={styles.messageList}>
-      {messages.map((message) => (
-        <li key={message.id}>
-          <div>
-            <strong>{message.sender}</strong>
-            <time>{message.date}</time>
-          </div>
-          <p>{message.text}</p>
-        </li>
-      ))}
-    </ol>
-  );
-}
-
+/*
 function MatterDetail({
   matter,
   organizationLabel,
@@ -439,6 +394,7 @@ function MatterDetail({
     </aside>
   );
 }
+*/
 
 function RegisterList({ matters, activeMatterId, onSelect }) {
   if (!matters.length) {
@@ -619,6 +575,8 @@ export default function StaffClient({
   const canEditDetails = assignmentOrganizations.some((organization) => organization.id === matter?.organizationId);
   const viewCopy = VIEW_COPY[activeView];
   const navigation = filterStaffNavigation(NAVIGATION, { canViewAudit, intakeEnabled });
+  const navigationItems = navigation.filter((item) => ["today", "inbox", "matters", "clients"].includes(item.id));
+  const moreNavigationItems = navigation.filter((item) => !["today", "inbox", "matters", "clients"].includes(item.id));
   const openIntakeCount = initialIntakeRequests.filter((request) => (
     request.status === "new" || request.status === "reviewing" || request.status === "contacted"
   )).length;
@@ -779,6 +737,11 @@ export default function StaffClient({
     }
   };
 
+  const closeWorkflow = () => {
+    setWorkflowDraft(getWorkflowDraft(matter));
+    setWorkflowFeedback({ tone: "neutral", text: "" });
+  };
+
   const handleDocumentDownload = async (document) => {
     if (!document?.storagePath || downloadingId) {
       return;
@@ -859,7 +822,7 @@ export default function StaffClient({
   };
 
   const showDetail = () => (
-    <MatterDetail
+    <StaffMatterWorkspace
       matter={matter}
       organizationLabel={organizationLabel}
       assignmentStaff={assignmentStaff}
@@ -870,6 +833,7 @@ export default function StaffClient({
       documentFeedback={documentFeedback}
       onWorkflowChange={handleWorkflowChange}
       onAssignmentChange={handleAssignmentChange}
+      onWorkflowClose={closeWorkflow}
       onWorkflowSubmit={handleWorkflowSubmit}
       onDownload={handleDocumentDownload}
       documentsRef={documentsRef}
@@ -891,26 +855,13 @@ export default function StaffClient({
 
   return (
     <div className={styles.workspace}>
-      <aside className={styles.rail} aria-label="Разделы рабочей панели">
-        <nav>
-          {navigation.map((item) => {
-            const active = activeView === item.id;
-            return (
-              <button
-                className={`${styles.railButton}${active ? ` ${styles.isActive}` : ""}`}
-                type="button"
-                key={item.id}
-                aria-current={active ? "page" : undefined}
-                onClick={() => selectView(item.id)}
-              >
-                <span>{item.label}</span>
-                {navCounts[item.id] !== null ? <small>{navCounts[item.id]}</small> : null}
-              </button>
-            );
-          })}
-        </nav>
-        <a className={styles.railCabinetLink} href="/cabinet">Личный кабинет</a>
-      </aside>
+      <StaffNavigation
+        activeView={activeView}
+        counts={navCounts}
+        items={navigationItems}
+        moreItems={moreNavigationItems}
+        onSelect={selectView}
+      />
 
       <section className={styles.content}>
         <header className={styles.contentHeader}>
