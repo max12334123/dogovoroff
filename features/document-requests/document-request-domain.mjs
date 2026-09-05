@@ -205,6 +205,18 @@ export function getClientPrimaryDocumentRequest(requests = []) {
     })[0] || null;
 }
 
+export function getClientPrimaryDocumentRequestAction(requests = []) {
+  const request = getClientPrimaryDocumentRequest(requests);
+  if (!request) return null;
+
+  const hasActiveFiles = (request.documents ?? [])
+    .some((document) => document.statusValue !== "archived");
+  return {
+    requestId: request.id,
+    action: hasActiveFiles ? "submit" : "add_file",
+  };
+}
+
 export function getDocumentRequestErrorMessage(error) {
   if (error?.code === "42501") {
     return "У вас нет прав выполнить это действие.";

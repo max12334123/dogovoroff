@@ -35,6 +35,17 @@ test("failed registrations stay independently retryable and file selection keeps
   assert.match(cssSource, /\.secondaryButton:focus-within/);
 });
 
+test("client request cards wire the prioritized domain action to exactly one primary control", () => {
+  assert.match(clientSource, /getClientPrimaryDocumentRequestAction/);
+  assert.match(clientSource, /primaryAction\?\.requestId === request\.id/);
+  assert.match(clientSource, /primaryAction\?\.action === "add_file"/);
+  assert.match(clientSource, /primaryAction\?\.action === "submit"/);
+  assert.match(clientSource, /isPrimaryAddFileAction \? styles\.primaryButton : styles\.secondaryButton/);
+  assert.match(clientSource, /isPrimarySubmitAction \? styles\.primaryButton : styles\.secondaryButton/);
+  assert.match(cssSource, /\.primaryButton:focus-within/);
+  assert.match(cssSource, /\.primaryButton\[aria-disabled="true"\]/);
+});
+
 test("request layout is touch-safe, wraps long text, and stays card-based on mobile", () => {
   assert.match(
     cssSource,

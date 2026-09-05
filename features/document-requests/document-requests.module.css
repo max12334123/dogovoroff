@@ -16,6 +16,7 @@
 .card:focus-visible,
 .feedback:focus-visible,
 .primaryButton:focus-visible,
+.primaryButton:focus-within,
 .secondaryButton:focus-visible,
 .secondaryButton:focus-within,
 .textButton:focus-visible,
@@ -176,6 +177,7 @@
 }
 
 .primaryButton:disabled,
+.primaryButton[aria-disabled="true"],
 .secondaryButton[aria-disabled="true"],
 .secondaryButton:disabled,
 .textButton:disabled,
