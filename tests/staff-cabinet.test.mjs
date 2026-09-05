@@ -13,7 +13,7 @@ import {
 } from "../features/staff/staff-domain.mjs";
 import { validateMatterWorkflow } from "../features/staff/staff-workflow-domain.mjs";
 
-const [pageSource, clientSource, assignmentFormSource, detailsFormSource, serverSource, actionsSource, middlewareSource, supabaseMiddlewareSource, cssSource] = await Promise.all([
+const [pageSource, clientSource, assignmentFormSource, detailsFormSource, serverSource, actionsSource, middlewareSource, supabaseMiddlewareSource, cssSource, navigationSource, workspaceSource, workflowSource] = await Promise.all([
   readFile(new URL("../app/staff/page.jsx", import.meta.url), "utf8"),
   readFile(new URL("../features/staff/staff-client.jsx", import.meta.url), "utf8"),
   readFile(new URL("../features/staff/staff-assignment-form.jsx", import.meta.url), "utf8"),
@@ -23,7 +23,21 @@ const [pageSource, clientSource, assignmentFormSource, detailsFormSource, server
   readFile(new URL("../middleware.js", import.meta.url), "utf8"),
   readFile(new URL("../lib/supabase/middleware.js", import.meta.url), "utf8"),
   readFile(new URL("../features/staff/staff.module.css", import.meta.url), "utf8"),
+  readFile(new URL("../features/staff/staff-navigation.jsx", import.meta.url), "utf8"),
+  readFile(new URL("../features/staff/staff-matter-workspace.jsx", import.meta.url), "utf8"),
+  readFile(new URL("../features/staff/staff-workflow-form.jsx", import.meta.url), "utf8"),
 ]);
+
+function withoutComments(source) {
+  return source
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/^\s*\/\/.*$/gm, "");
+}
+
+const activeClientSource = withoutComments(clientSource);
+const activeNavigationSource = withoutComments(navigationSource);
+const activeWorkspaceSource = withoutComments(workspaceSource);
+const activeWorkflowSource = withoutComments(workflowSource);
 
 test("staff access is limited to organization lawyers and administrators", () => {
   assert.equal(hasStaffAccess([]), false);
@@ -65,17 +79,43 @@ test("staff UI can respond by matter without exposing privileged credentials", a
 });
 
 test("staff workspace is split into focused modules", async () => {
-  const [navigation, workspace, workflow] = await Promise.all([
-    readFile(new URL("../features/staff/staff-navigation.jsx", import.meta.url), "utf8"),
-    readFile(new URL("../features/staff/staff-matter-workspace.jsx", import.meta.url), "utf8"),
-    readFile(new URL("../features/staff/staff-workflow-form.jsx", import.meta.url), "utf8"),
-  ]);
-  assert.match(navigation, /Сегодня/);
-  assert.match(navigation, /Ещё/);
-  assert.match(workspace, /StaffDocumentRequests/);
-  assert.match(workspace, /Написать клиенту/);
-  assert.match(workflow, /updateMatterWorkflow|onSubmit/);
-  assert.doesNotMatch(navigation + workspace + workflow, /service_role|SUPABASE_SERVICE/);
+  assert.match(activeNavigationSource, /Сегодня/);
+  assert.match(activeNavigationSource, /Ещё/);
+  assert.match(activeWorkspaceSource, /StaffDocumentRequests/);
+  assert.match(activeWorkspaceSource, /Написать клиенту/);
+  assert.match(activeWorkflowSource, /onSubmit/);
+  assert.doesNotMatch(activeNavigationSource + activeWorkspaceSource + activeWorkflowSource, /service_role|SUPABASE_SERVICE/);
+});
+
+test("extracted navigation preserves count and current-page behavior in the more menu", () => {
+  assert.match(activeNavigationSource, /moreItems\.map\(\(item\) =>/);
+  assert.equal(activeNavigationSource.match(/counts\[item\.id\] > 0 \? <small>\{counts\[item\.id\]\}<\/small> : null/g)?.length, 2);
+  assert.equal(activeNavigationSource.match(/className=\{`\$\{styles\.railButton\}\$\{activeView === item\.id \? ` \$\{styles\.isActive\}` : ""\}`\}/g)?.length, 2);
+  assert.equal(activeNavigationSource.match(/aria-current=\{activeView === item\.id \? "page" : undefined\}/g)?.length, 2);
+  assert.match(cssSource, /\.moreNavigation\s*>\s*summary\s*\{/);
+  assert.match(cssSource, /\.moreNavigationMenu\s*\{/);
+});
+
+test("embedded workflow form is a labelled non-modal section", () => {
+  assert.match(activeWorkflowSource, /<section[^>]*aria-labelledby="staff-workflow-title"/);
+  assert.match(activeWorkflowSource, /id="staff-workflow-title"/);
+  assert.doesNotMatch(activeWorkflowSource, /role="dialog"|aria-modal=/);
+});
+
+test("extracted matter workspace preserves metadata authorization and callback wiring", () => {
+  assert.match(activeClientSource, /<StaffMatterWorkspace[\s\S]*canEditDetails=\{canEditDetails\}/);
+  assert.match(activeWorkspaceSource, /\{canEditDetails \? <button[^>]*onClick=\{onOpenDetails\}/);
+  assert.match(activeWorkspaceSource, /<StaffWorkflowForm[\s\S]*onChange=\{onWorkflowChange\}[\s\S]*onClose=\{onWorkflowClose\}[\s\S]*onSubmit=\{onWorkflowSubmit\}/);
+  assert.match(activeWorkspaceSource, /<StaffDocumentRequests[\s\S]*onDownload=\{onDownload\}/);
+  assert.match(activeWorkspaceSource, /onClick=\{onOpenDocuments\}/);
+  assert.match(activeWorkspaceSource, /onClick=\{onOpenComposer\}/);
+  assert.match(activeWorkspaceSource, /onClick=\{onOpenCard\}/);
+});
+
+test("extracted presentational components import no server authority", () => {
+  const extractedSources = activeNavigationSource + activeWorkspaceSource + activeWorkflowSource;
+  assert.doesNotMatch(extractedSources, /from\s+["'][^"']*(?:actions?|server|supabase|credentials?)[^"']*["']/i);
+  assert.doesNotMatch(extractedSources, /service_role|SUPABASE_SERVICE|createClient|process\.env/i);
 });
 
 test("staff detail separates managed requests from other documents without exposing audit text", async () => {
@@ -103,9 +143,10 @@ test("staff controls keep explicit typography roles on desktop and mobile", () =
 test("only administrators receive the matter metadata editor", () => {
   assert.match(serverSource, /includeOrganizationId: true/);
   assert.match(serverSource, /assignmentOrganizations/);
-  assert.match(clientSource, /StaffMatterDetailsForm/);
-  assert.match(clientSource, /Редактировать реквизиты/);
-  assert.match(clientSource, /canEditDetails/);
+  assert.match(activeClientSource, /StaffMatterDetailsForm/);
+  assert.match(activeWorkspaceSource, /Редактировать реквизиты/);
+  assert.match(activeWorkspaceSource, /\{canEditDetails \? <button[^>]*onClick=\{onOpenDetails\}/);
+  assert.match(activeClientSource, /canEditDetails=\{canEditDetails\}/);
   assert.match(actionsSource, /validateMatterDetails/);
   assert.match(actionsSource, /\.rpc\("update_matter_details"/);
   assert.match(detailsFormSource, /role="dialog"/);

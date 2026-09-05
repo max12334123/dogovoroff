@@ -24,7 +24,20 @@ export default function StaffNavigation({
         ))}
         <details className={styles.moreNavigation} open={activeView === "more" || moreItems.some((item) => item.id === activeView)}>
           <summary>Ещё</summary>
-          <div>{moreItems.map((item) => <button type="button" key={item.id} onClick={() => onSelect(item.id)}>{item.label}</button>)}</div>
+          <div className={styles.moreNavigationMenu}>
+            {moreItems.map((item) => (
+              <button
+                className={`${styles.railButton}${activeView === item.id ? ` ${styles.isActive}` : ""}`}
+                type="button"
+                key={item.id}
+                aria-current={activeView === item.id ? "page" : undefined}
+                onClick={() => onSelect(item.id)}
+              >
+                <span>{item.label}</span>
+                {counts[item.id] > 0 ? <small>{counts[item.id]}</small> : null}
+              </button>
+            ))}
+          </div>
         </details>
       </nav>
       <a className={styles.railCabinetLink} href="/cabinet">Личный кабинет</a>

@@ -19,7 +19,7 @@ export default function StaffWorkflowForm({
   onSubmit,
 }) {
   return (
-    <section className={styles.workflowSection} role="dialog" aria-modal="true" aria-labelledby="staff-workflow-title">
+    <section className={styles.workflowSection} aria-labelledby="staff-workflow-title">
       <div className={styles.sectionHeading}>
         <div>
           <p className={styles.eyebrow}>Управление</p>

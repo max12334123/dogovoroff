@@ -304,6 +304,56 @@
   color: var(--staff-ice);
 }
 
+.moreNavigation {
+  position: relative;
+}
+
+.moreNavigation > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 52px;
+  padding: 0 18px;
+  border: 1px solid transparent;
+  color: #b6b8b9;
+  background: transparent;
+  cursor: pointer;
+  font-size: 14px;
+  list-style: none;
+  transition: color 220ms ease, background 220ms ease, border-color 220ms ease;
+}
+
+.moreNavigation > summary::-webkit-details-marker {
+  display: none;
+}
+
+.moreNavigation > summary::after {
+  content: "+";
+  color: var(--staff-muted);
+  font-size: 16px;
+  transition: color 220ms ease, transform 220ms ease;
+}
+
+.moreNavigation > summary:hover,
+.moreNavigation[open] > summary {
+  color: var(--staff-paper);
+  border-color: var(--staff-soft-line);
+  background: #111315;
+}
+
+.moreNavigation[open] > summary::after {
+  color: var(--staff-ice);
+  transform: rotate(45deg);
+}
+
+.moreNavigationMenu {
+  display: grid;
+  gap: 7px;
+  margin: 7px 0 0 12px;
+  padding-left: 7px;
+  border-left: 1px solid var(--staff-soft-line);
+}
+
 .railCabinetLink {
   display: flex;
   min-height: 52px;
@@ -1870,6 +1920,28 @@
     background: transparent;
   }
 
+  .moreNavigation {
+    flex: 0 0 auto;
+  }
+
+  .moreNavigation > summary {
+    min-height: 52px;
+    padding: 0 18px;
+    border: 0;
+    border-bottom: 2px solid transparent;
+  }
+
+  .moreNavigation[open] > summary {
+    border-bottom-color: var(--staff-ice);
+    background: transparent;
+  }
+
+  .moreNavigationMenu {
+    margin: 0;
+    padding: 0 0 7px;
+    border-left: 0;
+  }
+
   .railCabinetLink {
     display: none;
   }
@@ -1949,6 +2021,12 @@
   }
 
   .railButton span {
+    font-size: 12px;
+  }
+
+  .moreNavigation > summary {
+    min-height: 50px;
+    padding-inline: 12px;
     font-size: 12px;
   }
 
