@@ -48,3 +48,12 @@ export function buildStaffHref({ view = "today", matterId = null, tab = "overvie
   const query = params.toString();
   return query ? `/staff?${query}` : "/staff";
 }
+
+export function getStaffMatterLocation(current, matterId, tab = "overview", matters = [], capabilities = {}) {
+  return parseStaffLocation(buildStaffHref({
+    view: "matter",
+    matterId,
+    tab,
+    from: current.view === "matter" ? current.from : current.view,
+  }).split("?")[1], matters, capabilities);
+}

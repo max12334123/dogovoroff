@@ -1,14 +1,7 @@
 import StaffDocumentRequests from "../document-requests/staff-document-requests";
 import StaffWorkflowForm from "./staff-workflow-form";
+import { getMatterTask } from "./staff-domain.mjs";
 import styles from "./staff.module.css";
-
-function getMatterTask(matter) {
-  const requests = matter.documentRequests ?? [];
-  if (requests.some((request) => request.status === "submitted")) return "Проверить комплект документов";
-  if (requests.some((request) => request.status === "requested" || request.status === "changes_requested")) return "Ожидаем документы от клиента";
-  if (matter.nextAction) return matter.nextAction.title;
-  return matter.stages[matter.currentStage]?.title || "Продолжить работу по делу";
-}
 
 function MatterStages({ matter }) {
   if (!matter.stages.length) return <p className={styles.muted}>Этапы по делу ещё не добавлены.</p>;
@@ -66,13 +59,13 @@ export default function StaffMatterWorkspace({
       </dl>
       <section className={styles.detailSection} aria-labelledby="staff-stages-title"><p className={styles.eyebrow} id="staff-stages-title">Этапы дела</p><MatterStages matter={matter} /></section>
       {matter.nextAction ? <section className={styles.nextAction} aria-labelledby="staff-next-action-title"><p className={styles.eyebrow}>Ожидаем от клиента</p><h3 id="staff-next-action-title">{matter.nextAction.title}</h3><p>{matter.nextAction.description}</p>{matter.nextAction.deadline ? <small>{matter.nextAction.deadline}</small> : null}</section> : null}
-      <section className={styles.documentRequestSection} aria-label="Запросы документов"><StaffDocumentRequests matter={matter} downloadingId={downloadingId} downloadFeedback={documentFeedback} onDownload={onDownload} /></section>
+      <section className={styles.documentRequestSection} ref={documentsRef} tabIndex="-1" aria-label="Запросы документов"><StaffDocumentRequests matter={matter} downloadingId={downloadingId} downloadFeedback={documentFeedback} onDownload={onDownload} /></section>
       <StaffWorkflowForm assignmentStaff={assignmentStaff} draft={workflowDraft} feedback={workflowFeedback} isSubmitting={isUpdatingWorkflow} matter={matter} onAssignmentChange={onAssignmentChange} onChange={onWorkflowChange} onClose={onWorkflowClose} onSubmit={onWorkflowSubmit} />
       <div className={styles.detailActions}>
         <button className={styles.primaryButton} type="button" onClick={onOpenDocuments}>Открыть документы</button><button className={styles.textButton} type="button" onClick={onOpenComposer}>Написать клиенту</button><button className={styles.textButton} type="button" onClick={onOpenCard}>Открыть карточку дела</button>
         {canEditDetails ? <button className={styles.textButton} ref={detailsButtonRef} type="button" onClick={onOpenDetails}>Редактировать реквизиты</button> : null}
       </div>
-      <section className={styles.documentSection} ref={documentsRef} tabIndex="-1" aria-labelledby="staff-documents-title">
+      <section className={styles.documentSection} aria-labelledby="staff-documents-title">
         <div className={styles.sectionHeading}><p className={styles.eyebrow}>Другие документы</p><span>{otherDocuments.length}</span></div><h3 className={styles.visuallyHidden} id="staff-documents-title">Другие документы по делу</h3>
         {otherDocuments.length ? <ul className={styles.documentList}>{otherDocuments.map((document) => <li key={document.id}><button className={styles.documentDownload} type="button" disabled={downloadingId === document.id} onClick={() => onDownload(document)}><span>{document.name}</span><small>{downloadingId === document.id ? "Загрузка…" : "Скачать"}</small></button><small>{document.status} · {document.updated}</small></li>)}</ul> : <p className={styles.muted}>Других документов пока нет.</p>}
       </section>

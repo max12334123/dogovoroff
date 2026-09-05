@@ -56,6 +56,13 @@ export function filterStaffNavigation(items, { canViewAudit = false, intakeEnabl
   });
 }
 
+export function getMatterTask(matter) {
+  const requests = matter.documentRequests ?? [];
+  if (requests.some((request) => request.status === "submitted")) return "Проверить комплект документов";
+  if (requests.some((request) => request.status === "requested" || request.status === "changes_requested")) return "Ожидаем документы от клиента";
+  return matter.nextAction?.title || matter.stages?.[matter.currentStage]?.title || "Продолжить работу по делу";
+}
+
 export function getStaffMatterQueue(matter) {
   if (!matter || matter.trashedAt) return "trash";
 

@@ -8,6 +8,24 @@ import {
 
 const matters = [{ id: "matter-a" }, { id: "matter-b" }];
 
+test("opening matters retains the original allowed list and validates every target", async () => {
+  const domain = await import("../features/staff/staff-navigation-domain.mjs");
+  assert.equal(typeof domain.getStaffMatterLocation, "function");
+  const current = { view: "matter", matterId: "matter-a", tab: "overview", from: "messages" };
+  assert.deepEqual(domain.getStaffMatterLocation(current, "matter-b", "documents", matters), {
+    view: "matter", matterId: "matter-b", tab: "documents", from: "messages",
+  });
+  assert.deepEqual(domain.getStaffMatterLocation({ view: "inbox" }, "matter-b", "messages", matters, { intakeEnabled: true }), {
+    view: "matter", matterId: "matter-b", tab: "messages", from: "inbox",
+  });
+  assert.deepEqual(domain.getStaffMatterLocation({ ...current, from: "audit" }, "matter-b", "delete", matters), {
+    view: "matter", matterId: "matter-b", tab: "overview", from: "today",
+  });
+  assert.deepEqual(domain.getStaffMatterLocation(current, "matter-foreign", "messages", matters), {
+    view: "today", matterId: null, tab: "overview", from: "today",
+  });
+});
+
 test("staff navigation groups daily and rare work", () => {
   assert.deepEqual(
     getStaffNavigation({ intakeEnabled: true, canViewAudit: true, canManageTrash: true }),

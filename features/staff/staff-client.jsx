@@ -5,7 +5,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createUuidV4 } from "../../lib/submission-id.mjs";
 import { DOCUMENT_BUCKET } from "../cabinet/cabinet-write-domain.mjs";
 import { sendMatterMessage } from "../cabinet/cabinet-actions";
-import { getMatterById } from "../cabinet/cabinet-data.mjs";
 import { validateMatterMessage } from "../cabinet/cabinet-write-domain.mjs";
 import NotificationCenter from "../notifications/notification-center";
 import StaffAssignmentForm from "./staff-assignment-form";
@@ -13,6 +12,8 @@ import StaffIntakePanel from "./staff-intake-panel";
 import StaffMatterWorkspace from "./staff-matter-workspace";
 import StaffMatterDetailsForm from "./staff-matter-details-form";
 import StaffNavigation from "./staff-navigation";
+import StaffTaskList from "./staff-task-list";
+import { buildStaffHref, getStaffMatterLocation, parseStaffLocation } from "./staff-navigation-domain.mjs";
 import { filterStaffAuditEvents, filterStaffMatters, filterStaffNavigation, getStaffMatterQueue } from "./staff-domain.mjs";
 import { updateMatterWorkflow } from "./staff-actions";
 import { validateMatterWorkflow } from "./staff-workflow-domain.mjs";
@@ -36,6 +37,7 @@ const VIEW_COPY = {
   documents: { title: "Документы", eyebrow: "Материалы по делам" },
   messages: { title: "Сообщения", eyebrow: "Связь с клиентами" },
   audit: { title: "Журнал действий", eyebrow: "Контроль организации" },
+  matter: { title: "Карточка дела", eyebrow: "Работа по делу" },
 };
 
 const REGISTER_FILTERS = [
@@ -103,21 +105,6 @@ function getWorkflowDraft(matter) {
   };
 }
 
-function getMatterTask(matter) {
-  const requests = matter.documentRequests ?? [];
-  if (requests.some((request) => request.status === "submitted")) {
-    return "Проверить комплект документов";
-  }
-  if (requests.some((request) => request.status === "requested" || request.status === "changes_requested")) {
-    return "Ожидаем документы от клиента";
-  }
-  if (matter.nextAction) {
-    return matter.nextAction.title;
-  }
-
-  return matter.stages[matter.currentStage]?.title || "Продолжить работу по делу";
-}
-
 function getPreferredScrollBehavior() {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
 }
@@ -132,41 +119,7 @@ function EmptyState({ title, text }) {
   );
 }
 
-function QueueSection({ title, matters, activeMatterId, onSelect, queueId = "action", waiting = false }) {
-  if (!matters.length) return null;
-
-  return (
-    <section className={styles.queueSection} aria-labelledby={`queue-${queueId}`}>
-      <h2 id={`queue-${queueId}`}>
-        {title} <span>· {matters.length}</span>
-      </h2>
-      <div className={styles.queueList}>
-        {matters.map((matter, index) => {
-          const active = matter.id === activeMatterId;
-          return (
-            <button
-              className={`${styles.queueRow}${active ? ` ${styles.isActive}` : ""}`}
-              key={matter.id}
-              type="button"
-              aria-pressed={active}
-              onClick={() => onSelect(matter.id)}
-            >
-              <span className={styles.queueIndex}>{String(index + 1).padStart(2, "0")}</span>
-              <span className={styles.queueMatter}>
-                <strong>{matter.title}</strong>
-                <small>{matter.reference}</small>
-              </span>
-              <span className={styles.queueTask}>{getMatterTask(matter)}</span>
-              <span className={styles.queueDue}>{waiting ? matter.nextAction?.deadline || matter.responseBy : matter.responseBy}</span>
-            </button>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
-
-function RegisterList({ matters, activeMatterId, onSelect }) {
+function RegisterList({ matters, onSelect }) {
   if (!matters.length) {
     return <EmptyState title="Ничего не найдено" text="Измените запрос или фильтр реестра." />;
   }
@@ -180,10 +133,9 @@ function RegisterList({ matters, activeMatterId, onSelect }) {
         const queue = getStaffMatterQueue(matter);
         return (
           <button
-            className={`${styles.registerRow}${matter.id === activeMatterId ? ` ${styles.isActive}` : ""}`}
+            className={styles.registerRow}
             type="button"
             key={matter.id}
-            aria-pressed={matter.id === activeMatterId}
             onClick={() => onSelect(matter.id)}
           >
             <span className={styles.registerMatter}>
@@ -199,7 +151,7 @@ function RegisterList({ matters, activeMatterId, onSelect }) {
   );
 }
 
-function CollectionList({ type, matters, activeMatterId, onSelect }) {
+function CollectionList({ type, matters, onSelect }) {
   if (type === "documents") {
     const rows = matters.flatMap((matter) => matter.documents.map((document) => ({ matter, document })));
     if (!rows.length) return <EmptyState title="Документов пока нет" text="Загруженные материалы появятся здесь и в карточке дела." />;
@@ -221,7 +173,7 @@ function CollectionList({ type, matters, activeMatterId, onSelect }) {
     return (
       <div className={styles.collectionList}>
         {rows.map((matter) => (
-          <button className={matter.id === activeMatterId ? styles.isActive : ""} type="button" key={matter.id} onClick={() => onSelect(matter.id)}>
+          <button type="button" key={matter.id} onClick={() => onSelect(matter.id)}>
             <span><strong>{matter.title}</strong><small>{matter.reference}</small></span>
             <span>{matter.messages.length} сообщ.<small>{matter.messages[0]?.date}</small></span>
           </button>
@@ -234,7 +186,7 @@ function CollectionList({ type, matters, activeMatterId, onSelect }) {
   return (
     <div className={styles.collectionList}>
       {matters.map((matter) => (
-        <button className={matter.id === activeMatterId ? styles.isActive : ""} type="button" key={matter.id} onClick={() => onSelect(matter.id)}>
+        <button type="button" key={matter.id} onClick={() => onSelect(matter.id)}>
           <span><strong>Клиент по делу {matter.reference}</strong><small>{matter.title}</small></span>
           <span>{matter.stateLabel}<small>{matter.responseBy}</small></span>
         </button>
@@ -297,16 +249,17 @@ export default function StaffClient({
   const documentsRef = useRef(null);
   const messageInputRef = useRef(null);
   const messageIdRef = useRef(null);
-  const [activeView, setActiveView] = useState("today");
-  const [activeMatterId, setActiveMatterId] = useState(
-    initialMatters.find((item) => item.state === "active")?.id ?? initialMatters[0]?.id ?? null,
-  );
+  const mainRef = useRef(null);
+  const backButtonRef = useRef(null);
+  const [location, setLocation] = useState(() => parseStaffLocation("", initialMatters, { canViewAudit, intakeEnabled }));
+  const [pendingCreatedMatter, setPendingCreatedMatter] = useState(null);
+  const activeView = location.view;
   const [searchQuery, setSearchQuery] = useState("");
   const [registerFilter, setRegisterFilter] = useState("all");
   const [assignmentOpen, setAssignmentOpen] = useState(false);
   const [assignmentIntakeRequest, setAssignmentIntakeRequest] = useState(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
-  const [composerOpen, setComposerOpen] = useState(false);
+  const composerOpen = activeView === "matter" && location.tab === "messages";
   const [draft, setDraft] = useState("");
   const [feedback, setFeedback] = useState({ tone: "neutral", text: "" });
   const [workflowFeedback, setWorkflowFeedback] = useState({ tone: "neutral", text: "" });
@@ -317,10 +270,7 @@ export default function StaffClient({
   const [toast, setToast] = useState("");
   const [isSending, setIsSending] = useState(false);
 
-  const resolvedMatterId = initialMatters.some((item) => item.id === activeMatterId)
-    ? activeMatterId
-    : initialMatters[0]?.id ?? null;
-  const matter = useMemo(() => getMatterById(resolvedMatterId, initialMatters), [resolvedMatterId, initialMatters]);
+  const matter = initialMatters.find((item) => item.id === location.matterId) ?? null;
   const searchedMatters = useMemo(
     () => filterStaffMatters(initialMatters, searchQuery, "all"),
     [initialMatters, searchQuery],
@@ -378,28 +328,58 @@ export default function StaffClient({
     return () => window.clearTimeout(timeoutId);
   }, [toast]);
 
-  const selectView = (viewId) => {
-    setActiveView(viewId);
-    if (viewId === "today" && getStaffMatterQueue(matter) === "archive") {
-      setActiveMatterId(initialMatters.find((item) => getStaffMatterQueue(item) !== "archive")?.id ?? null);
-    }
-  };
+  useEffect(() => {
+    const readLocation = () => {
+      const next = parseStaffLocation(window.location.search, initialMatters, { canViewAudit, intakeEnabled });
+      window.history.replaceState(window.history.state, "", buildStaffHref(next));
+      setLocation(next);
+    };
+    readLocation();
+    window.addEventListener("popstate", readLocation);
+    return () => window.removeEventListener("popstate", readLocation);
+  }, [initialMatters, canViewAudit, intakeEnabled]);
 
-  const selectMatter = (matterId) => {
-    setActiveMatterId(matterId);
+  useEffect(() => {
     setDraft("");
-    setComposerOpen(false);
-    setDetailsOpen(false);
     messageIdRef.current = null;
     setFeedback({ tone: "neutral", text: "" });
+    setDetailsOpen(false);
+  }, [location.matterId]);
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      (location.view === "matter" ? backButtonRef : mainRef).current?.focus({ preventScroll: true });
+      const target = location.tab === "documents" ? documentsRef.current
+        : location.tab === "messages" ? messageInputRef.current : null;
+      if (target) target.scrollIntoView({ behavior: getPreferredScrollBehavior(), block: "start" });
+      else window.scrollTo({ top: 0, behavior: getPreferredScrollBehavior() });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [location.view, location.matterId, location.tab]);
+
+  const navigate = (requested) => {
+    setPendingCreatedMatter(null);
+    const next = parseStaffLocation(buildStaffHref(requested).split("?")[1], initialMatters, { canViewAudit, intakeEnabled });
+    window.history.pushState(window.history.state, "", buildStaffHref(next));
+    setLocation(next);
   };
 
+  const selectView = (viewId) => navigate({ view: viewId });
+  const openMatter = (matterId, tab = "overview") => navigate(
+    getStaffMatterLocation(location, matterId, tab, initialMatters, { canViewAudit, intakeEnabled }),
+  );
+  const closeMatter = () => navigate({ view: location.from });
+
+  useEffect(() => {
+    if (!pendingCreatedMatter || !initialMatters.some((item) => item.id === pendingCreatedMatter.matterId)) return;
+    const next = getStaffMatterLocation(pendingCreatedMatter.origin, pendingCreatedMatter.matterId, "overview", initialMatters, { canViewAudit, intakeEnabled });
+    window.history.pushState(window.history.state, "", buildStaffHref(next));
+    setLocation(next);
+    setPendingCreatedMatter(null);
+  }, [pendingCreatedMatter, initialMatters, canViewAudit, intakeEnabled]);
+
   const selectCollectionMatter = (matterId) => {
-    selectMatter(matterId);
-    if (activeView === "messages") {
-      setComposerOpen(true);
-      requestAnimationFrame(() => messageInputRef.current?.focus());
-    }
+    openMatter(matterId, activeView === "messages" || activeView === "documents" ? activeView : "overview");
   };
 
   const handleDraftChange = (value) => {
@@ -560,18 +540,15 @@ export default function StaffClient({
   };
 
   const openDocuments = () => {
-    documentsRef.current?.scrollIntoView({ behavior: getPreferredScrollBehavior(), block: "start" });
-    documentsRef.current?.focus({ preventScroll: true });
+    openMatter(matter.id, "documents");
   };
 
   const openComposer = () => {
-    setComposerOpen(true);
-    requestAnimationFrame(() => messageInputRef.current?.focus());
+    openMatter(matter.id, "messages");
   };
 
   const openMatterCard = () => {
-    setActiveView("matters");
-    window.scrollTo({ top: 0, behavior: getPreferredScrollBehavior() });
+    openMatter(matter.id);
   };
 
   const openIntakeAssignment = (request) => {
@@ -580,66 +557,30 @@ export default function StaffClient({
   };
 
   const openConvertedMatter = (matterId) => {
-    setActiveMatterId(matterId);
-    setActiveView("matters");
-    window.scrollTo({ top: 0, behavior: getPreferredScrollBehavior() });
+    openMatter(matterId);
   };
 
   const openNotification = (notification) => {
-    selectMatter(notification.matterId);
-    setActiveView(notification.targetView === "overview" ? "matters" : notification.targetView);
-    window.scrollTo({ top: 0, behavior: getPreferredScrollBehavior() });
+    openMatter(notification.matterId, notification.targetView);
   };
-
-  const showDetail = () => (
-    <StaffMatterWorkspace
-      matter={matter}
-      organizationLabel={organizationLabel}
-      assignmentStaff={assignmentStaff}
-      workflowDraft={workflowDraft}
-      workflowFeedback={workflowFeedback}
-      isUpdatingWorkflow={isUpdatingWorkflow}
-      downloadingId={downloadingId}
-      documentFeedback={documentFeedback}
-      onWorkflowChange={handleWorkflowChange}
-      onAssignmentChange={handleAssignmentChange}
-      onWorkflowClose={closeWorkflow}
-      onWorkflowSubmit={handleWorkflowSubmit}
-      onDownload={handleDocumentDownload}
-      documentsRef={documentsRef}
-      messageInputRef={messageInputRef}
-      composerOpen={composerOpen}
-      draft={draft}
-      feedback={feedback}
-      isSending={isSending}
-      onDraftChange={handleDraftChange}
-      onSubmit={handleSubmit}
-      onOpenDocuments={openDocuments}
-      onOpenComposer={openComposer}
-      onOpenCard={openMatterCard}
-      canEditDetails={canEditDetails}
-      detailsButtonRef={detailsButtonRef}
-      onOpenDetails={() => setDetailsOpen(true)}
-    />
-  );
 
   return (
     <div className={styles.workspace}>
       <StaffNavigation
-        activeView={activeView}
+        activeView={activeView === "matter" ? location.from : activeView}
         counts={navCounts}
         items={navigationItems}
         moreItems={moreNavigationItems}
         onSelect={selectView}
       />
 
-      <section className={styles.content}>
+      <section className={styles.content} ref={mainRef} tabIndex={-1} aria-label={viewCopy.title}>
         <header className={styles.contentHeader}>
           <div>
             <p className={styles.eyebrow}>{viewCopy.eyebrow}</p>
             <h1>{viewCopy.title}</h1>
             <p className={styles.todayLabel}>
-              {activeView === "today"
+              {activeView === "matter" ? matter?.reference : activeView === "today"
                 ? todayLabel
                 : activeView === "inbox"
                   ? `${initialIntakeRequests.length} заявок в журнале`
@@ -648,7 +589,7 @@ export default function StaffClient({
           </div>
           <div className={styles.headerTools}>
             <NotificationCenter notifications={initialNotifications} onOpen={openNotification} />
-            <label className={styles.searchField}>
+            {activeView !== "matter" ? <label className={styles.searchField}>
               <span className={styles.visuallyHidden}>{activeView === "inbox" ? "Поиск по заявкам" : "Поиск по делам"}</span>
               <input
                 type="search"
@@ -656,10 +597,10 @@ export default function StaffClient({
                 placeholder={activeView === "inbox" ? "Поиск по имени, телефону или запросу" : "Поиск по делу или номеру"}
                 onChange={(event) => setSearchQuery(event.target.value)}
               />
-            </label>
+            </label> : null}
             {assignmentOrganizations.length ? (
               <button
-                className={styles.newMatterButton}
+                className={activeView === "matter" ? styles.secondaryButton : styles.newMatterButton}
                 ref={newMatterButtonRef}
                 type="button"
                 onClick={() => {
@@ -673,20 +614,50 @@ export default function StaffClient({
           </div>
         </header>
 
+        {activeView === "matter" ? (
+          <div className={styles.matterWorkspace}>
+            <button ref={backButtonRef} className={styles.backButton} type="button" onClick={closeMatter}>Назад</button>
+            <StaffMatterWorkspace
+              matter={matter}
+              organizationLabel={organizationLabel}
+              assignmentStaff={assignmentStaff}
+              workflowDraft={workflowDraft}
+              workflowFeedback={workflowFeedback}
+              isUpdatingWorkflow={isUpdatingWorkflow}
+              downloadingId={downloadingId}
+              documentFeedback={documentFeedback}
+              onWorkflowChange={handleWorkflowChange}
+              onAssignmentChange={handleAssignmentChange}
+              onWorkflowClose={closeWorkflow}
+              onWorkflowSubmit={handleWorkflowSubmit}
+              onDownload={handleDocumentDownload}
+              documentsRef={documentsRef}
+              messageInputRef={messageInputRef}
+              composerOpen={composerOpen}
+              draft={draft}
+              feedback={feedback}
+              isSending={isSending}
+              onDraftChange={handleDraftChange}
+              onSubmit={handleSubmit}
+              onOpenDocuments={openDocuments}
+              onOpenComposer={openComposer}
+              onOpenCard={openMatterCard}
+              canEditDetails={canEditDetails}
+              detailsButtonRef={detailsButtonRef}
+              onOpenDetails={() => setDetailsOpen(true)}
+            />
+          </div>
+        ) : null}
+
         {activeView === "today" ? (
           <div className={styles.dashboardGrid}>
             <div className={styles.queuePanel}>
               {actionMatters.length || waitingMatters.length || pausedMatters.length ? (
-                <>
-                  <QueueSection queueId="action" title="Требуют вашего действия" matters={actionMatters} activeMatterId={resolvedMatterId} onSelect={selectMatter} />
-                  <QueueSection queueId="waiting" title="Ожидают клиента" matters={waitingMatters} activeMatterId={resolvedMatterId} onSelect={selectMatter} waiting />
-                  <QueueSection queueId="paused" title="Приостановлены" matters={pausedMatters} activeMatterId={resolvedMatterId} onSelect={selectMatter} />
-                </>
+                <StaffTaskList action={actionMatters} waiting={waitingMatters} paused={pausedMatters} onOpenMatter={openMatter} />
               ) : (
                 <EmptyState title="На сегодня задач нет" text={searchQuery ? "По вашему запросу активные дела не найдены." : "Новые задачи появятся здесь автоматически."} />
               )}
             </div>
-            {showDetail()}
           </div>
         ) : null}
 
@@ -716,8 +687,7 @@ export default function StaffClient({
               ))}
             </div>
             <div className={styles.registryGrid}>
-              <RegisterList matters={registerMatters} activeMatterId={resolvedMatterId} onSelect={selectMatter} />
-              {showDetail()}
+              <RegisterList matters={registerMatters} onSelect={openMatter} />
             </div>
           </>
         ) : null}
@@ -731,18 +701,15 @@ export default function StaffClient({
               <CollectionList
                 type={activeView}
                 matters={searchedMatters}
-                activeMatterId={resolvedMatterId}
                 onSelect={selectCollectionMatter}
               />
             </div>
-            {showDetail()}
           </div>
         ) : null}
 
         {activeView === "audit" ? (
           <div className={styles.registryGrid}>
             <AuditList events={auditEvents} matters={initialMatters} />
-            {showDetail()}
           </div>
         ) : null}
       </section>
@@ -754,8 +721,7 @@ export default function StaffClient({
           intakeRequest={assignmentIntakeRequest}
           onClose={closeAssignment}
           onCreated={(matterId, message) => {
-            setActiveMatterId(matterId);
-            setActiveView("today");
+            setPendingCreatedMatter({ matterId, origin: location });
             setToast(message);
             router.refresh();
           }}

@@ -468,13 +468,68 @@
 .dashboardGrid,
 .registryGrid {
   display: grid;
-  grid-template-columns: minmax(520px, 1.28fr) minmax(420px, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   align-items: flex-start;
 }
 
 .queuePanel {
   min-height: calc(100vh - 232px);
   padding: 30px 20px 70px;
+}
+
+.taskGroups {
+  min-width: 0;
+}
+
+.taskList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--staff-soft-line);
+}
+
+.taskRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 20px;
+  width: 100%;
+  min-height: 96px;
+  padding: 18px;
+  border: 1px solid transparent;
+  border-bottom-color: var(--staff-soft-line);
+  background: #08090a;
+  color: var(--staff-paper);
+  text-align: left;
+}
+
+.taskRow:hover {
+  border-color: rgba(121, 200, 243, 0.38);
+  background: #0c0e10;
+}
+
+.taskDue {
+  color: var(--staff-muted);
+  font-size: 12px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.matterWorkspace {
+  width: 100%;
+  max-width: 1120px;
+  margin-inline: auto;
+  min-width: 0;
+}
+
+.backButton {
+  min-height: 44px;
+  min-width: 44px;
+  margin: 16px 30px 0;
+  padding: 10px 16px;
+  border: 1px solid var(--staff-line);
+  color: var(--staff-ice);
+  background: transparent;
 }
 
 .queueSection + .queueSection {
@@ -575,7 +630,7 @@
 .detailPanel {
   min-height: calc(100vh - 232px);
   padding: 31px 30px 80px;
-  border-left: 1px solid var(--staff-line);
+  border-left: 0;
   background: #060607;
 }
 
@@ -1355,7 +1410,7 @@
 }
 
 .registryGrid {
-  grid-template-columns: minmax(520px, 1.25fr) minmax(390px, 0.85fr);
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .registerList,
@@ -1855,8 +1910,6 @@
     padding-inline: 24px;
   }
 
-  .dashboardGrid,
-  .registryGrid,
   .intakeGrid {
     grid-template-columns: minmax(430px, 1.25fr) minmax(340px, 0.9fr);
   }
@@ -1950,8 +2003,6 @@
     min-height: 176px;
   }
 
-  .dashboardGrid,
-  .registryGrid,
   .intakeGrid {
     grid-template-columns: 1fr;
   }
@@ -2067,6 +2118,16 @@
 
   .queuePanel {
     padding: 24px 12px 40px;
+  }
+
+  .taskRow {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+    padding: 16px 12px;
+  }
+
+  .backButton {
+    margin-inline: 20px;
   }
 
   .queueSection h2 {

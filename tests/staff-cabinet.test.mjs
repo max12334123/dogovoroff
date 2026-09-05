@@ -39,6 +39,64 @@ const activeNavigationSource = withoutComments(navigationSource);
 const activeWorkspaceSource = withoutComments(workspaceSource);
 const activeWorkflowSource = withoutComments(workflowSource);
 
+test("staff lists open a separate matter workspace", async () => {
+  assert.doesNotMatch(activeClientSource, /dashboardGrid[\s\S]*showDetail\(\)/);
+  assert.doesNotMatch(activeClientSource, /registryGrid[\s\S]*showDetail\(\)/);
+  const taskList = await readFile(new URL("../features/staff/staff-task-list.jsx", import.meta.url), "utf8");
+  assert.match(taskList, /Требуют вашего действия/);
+  assert.match(taskList, /Ожидают клиента/);
+  assert.match(taskList, /Приостановлены/);
+  assert.match(taskList, /<strong>\{getMatterTask\(matter\)\}<\/strong>/);
+  assert.match(activeClientSource, /activeView === "matter" \? \([\s\S]*<StaffMatterWorkspace/);
+  assert.equal(activeClientSource.match(/<StaffMatterWorkspace/g)?.length, 1);
+  assert.match(activeClientSource, /buildStaffHref/);
+});
+
+test("staff task description uses request precedence and safe stage fallbacks", async () => {
+  const domain = await import("../features/staff/staff-domain.mjs");
+  assert.equal(typeof domain.getMatterTask, "function");
+  const cases = [
+    [{ documentRequests: [{ status: "requested" }, { status: "submitted" }], nextAction: { title: "Позвонить" } }, "Проверить комплект документов"],
+    [{ documentRequests: [{ status: "changes_requested" }], nextAction: { title: "Позвонить" } }, "Ожидаем документы от клиента"],
+    [{ nextAction: { title: "Позвонить" } }, "Позвонить"],
+    [{ stages: [{ title: "Проверить договор" }], currentStage: 0 }, "Проверить договор"],
+    [{ stages: [], currentStage: 4 }, "Продолжить работу по делу"],
+    [{}, "Продолжить работу по делу"],
+  ];
+  for (const [matter, expected] of cases) assert.equal(domain.getMatterTask(matter), expected);
+  assert.doesNotMatch(activeClientSource + activeWorkspaceSource, /function getMatterTask/);
+});
+
+test("staff navigation preserves framework history and focuses a separate workspace", () => {
+  assert.match(activeClientSource, /history\.pushState\(window\.history\.state, "", buildStaffHref\(next\)\)/);
+  assert.match(activeClientSource, /history\.replaceState\(window\.history\.state, "", buildStaffHref\(next\)\)/);
+  assert.match(activeClientSource, /parseStaffLocation\(window\.location\.search, initialMatters, \{ canViewAudit, intakeEnabled \}\)/);
+  assert.match(activeClientSource, /addEventListener\("popstate", readLocation\)/);
+  assert.match(activeClientSource, /removeEventListener\("popstate", readLocation\)/);
+  assert.match(activeClientSource, /onClick=\{closeMatter\}>Назад/);
+  assert.match(activeClientSource, /backButtonRef : mainRef\)\.current\?\.focus/);
+  assert.match(activeClientSource, /openMatter\(notification\.matterId, notification\.targetView\)/);
+  assert.match(activeClientSource, /activeView === "messages" \|\| activeView === "documents" \? activeView : "overview"/);
+  assert.match(activeClientSource, /initialMatters\.some\(\(item\) => item\.id === pendingCreatedMatter\.matterId\)/);
+  assert.match(activeClientSource, /activeView === "matter" \? styles\.secondaryButton : styles\.newMatterButton/);
+  assert.doesNotMatch(activeClientSource, /pushState\(null|replaceState\(null|localStorage|sessionStorage/);
+});
+
+test("staff list grids remain single column with readable task targets", () => {
+  const listRules = [...cssSource.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+    .filter(([, selector]) => /\.(dashboardGrid|registryGrid)\b/.test(selector));
+  for (const [, , declarations] of listRules) {
+    const columns = declarations.match(/grid-template-columns:\s*([^;]+)/)?.[1];
+    if (columns) assert.equal(columns.trim(), "minmax(0, 1fr)");
+  }
+  assert.match(cssSource, /\.taskRow\s*\{[^}]*min-height:\s*(?:[4-9]\d|\d{3,})px/);
+  assert.match(cssSource, /\.matterWorkspace\s*\{[^}]*max-width:/);
+});
+
+test("document navigation lands at managed requests rather than skipping them", () => {
+  assert.match(activeWorkspaceSource, /className=\{styles\.documentRequestSection\} ref=\{documentsRef\}/);
+});
+
 test("staff access is limited to organization lawyers and administrators", () => {
   assert.equal(hasStaffAccess([]), false);
   assert.equal(hasStaffAccess([{ role: "client" }]), false);
@@ -198,10 +256,9 @@ test("staff dashboard separates team actions, client waiting, and archive withou
   assert.deepEqual(filterStaffMatters(matters, "", "all"), matters.slice(0, 7));
   assert.deepEqual(filterStaffMatters(matters, "", "trash"), [matters[7]]);
   assert.match(clientSource, /Сегодня в работе/);
-  assert.match(clientSource, /Требуют вашего действия/);
   assert.match(clientSource, /Ожидают клиента/);
   assert.match(clientSource, /Приостановлены/);
-  assert.match(clientSource, /queueId="paused"/);
+  assert.match(clientSource, /paused=\{pausedMatters\}/);
   assert.doesNotMatch(serverSource, /auth\.users|client_email/);
 });
 
