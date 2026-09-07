@@ -12,6 +12,7 @@ import {
   hasStaffAccess,
 } from "../features/staff/staff-domain.mjs";
 import { validateMatterWorkflow } from "../features/staff/staff-workflow-domain.mjs";
+import { buildStaffHref, getStaffMatterLocation, parseStaffLocation } from "../features/staff/staff-navigation-domain.mjs";
 
 const [pageSource, clientSource, assignmentFormSource, detailsFormSource, serverSource, actionsSource, middlewareSource, supabaseMiddlewareSource, cssSource, navigationSource, workspaceSource, workflowSource] = await Promise.all([
   readFile(new URL("../app/staff/page.jsx", import.meta.url), "utf8"),
@@ -71,8 +72,8 @@ test("staff navigation preserves framework history and focuses a separate worksp
   assert.match(activeClientSource, /history\.pushState\(window\.history\.state, "", buildStaffHref\(next\)\)/);
   assert.match(activeClientSource, /history\.replaceState\(window\.history\.state, "", buildStaffHref\(next\)\)/);
   assert.match(activeClientSource, /parseStaffLocation\(window\.location\.search, initialMatters, \{ canViewAudit, intakeEnabled \}\)/);
-  assert.match(activeClientSource, /addEventListener\("popstate", readLocation\)/);
-  assert.match(activeClientSource, /removeEventListener\("popstate", readLocation\)/);
+  assert.match(activeClientSource, /addEventListener\("popstate", handlePopState\)/);
+  assert.match(activeClientSource, /removeEventListener\("popstate", handlePopState\)/);
   assert.match(activeClientSource, /onClick=\{closeMatter\}>Назад/);
   assert.match(activeClientSource, /backButtonRef : mainRef\)\.current\?\.focus/);
   assert.match(activeClientSource, /openMatter\(notification\.matterId, notification\.targetView\)/);
@@ -91,6 +92,77 @@ test("staff list grids remain single column with readable task targets", () => {
   }
   assert.match(cssSource, /\.taskRow\s*\{[^}]*min-height:\s*(?:[4-9]\d|\d{3,})px/);
   assert.match(cssSource, /\.matterWorkspace\s*\{[^}]*max-width:/);
+});
+
+test("creation then Back keeps the history destination after a delayed authorized refresh", () => {
+  // Execute the actual controller effects without mounting unrelated forms or server actions.
+  const effects = [...activeClientSource.matchAll(/  useEffect\(\(\) => \{([\s\S]*?)\n  \}, \[[^\]]*\]\);/g)].map((match) => match[1]);
+  const historyEffect = effects.find((body) => body.includes('addEventListener("popstate"'));
+  const creationEffect = effects.find((body) => body.includes("if (!pendingCreatedMatter"));
+  assert.ok(historyEffect);
+  assert.ok(creationEffect);
+
+  for (const traverseBack of [true, false]) {
+    const frameworkState = { __NA: true, tree: ["staff"] };
+    const entries = ["/staff?view=clients", "/staff?view=matters"];
+    let cursor = 1;
+    const events = new EventTarget();
+    const environment = {
+      initialMatters: [{ id: "matter-existing" }],
+      canViewAudit: false,
+      intakeEnabled: false,
+      pendingCreatedMatter: null,
+      parseStaffLocation,
+      buildStaffHref,
+      getStaffMatterLocation,
+      setLocation(next) { environment.location = next; },
+      setPendingCreatedMatter(next) { environment.pendingCreatedMatter = next; },
+      window: {
+        location: { search: "?view=matters" },
+        history: {
+          state: frameworkState,
+          replaceState(state, title, href) {
+            assert.equal(state, frameworkState);
+            entries[cursor] = href;
+          },
+          pushState(state, title, href) {
+            assert.equal(state, frameworkState);
+            entries.splice(++cursor, entries.length, href);
+          },
+        },
+        addEventListener: events.addEventListener.bind(events),
+        removeEventListener: events.removeEventListener.bind(events),
+      },
+    };
+    const runEffect = (body) => new Function(...Object.keys(environment), body)(...Object.values(environment));
+    let cleanup = runEffect(historyEffect);
+    // Successful creation starts waiting for a server-authorized collection.
+    environment.setPendingCreatedMatter({ matterId: "matter-new", origin: environment.location });
+    runEffect(creationEffect);
+    assert.equal(entries.length, 2, "unknown matter must not open before refresh");
+    if (traverseBack) {
+      cursor = 0;
+      environment.window.location.search = "?view=clients";
+      events.dispatchEvent(new Event("popstate"));
+    }
+    cleanup();
+    environment.initialMatters = [...environment.initialMatters, { id: "matter-new" }];
+    cleanup = runEffect(historyEffect);
+    runEffect(creationEffect);
+    if (traverseBack) {
+      assert.equal(environment.location.view, "clients", "delayed refresh must not override Back");
+      assert.equal(cursor, 0);
+      assert.deepEqual(entries, ["/staff?view=clients", "/staff?view=matters"], "Forward branch must survive");
+      cursor = 1;
+      environment.window.location.search = "?view=matters";
+      events.dispatchEvent(new Event("popstate"));
+      assert.equal(environment.location.view, "matters");
+    } else {
+      assert.equal(environment.location.matterId, "matter-new", "ordinary revalidation must keep automatic navigation");
+      assert.equal(entries[2], "/staff?view=matter&matter=matter-new&from=matters");
+    }
+    cleanup();
+  }
 });
 
 test("document navigation lands at managed requests rather than skipping them", () => {

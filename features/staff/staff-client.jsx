@@ -335,8 +335,12 @@ export default function StaffClient({
       setLocation(next);
     };
     readLocation();
-    window.addEventListener("popstate", readLocation);
-    return () => window.removeEventListener("popstate", readLocation);
+    const handlePopState = () => {
+      setPendingCreatedMatter(null);
+      readLocation();
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
   }, [initialMatters, canViewAudit, intakeEnabled]);
 
   useEffect(() => {
