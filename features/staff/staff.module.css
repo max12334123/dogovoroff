@@ -304,6 +304,82 @@
   color: var(--staff-ice);
 }
 
+.pageShell [hidden] {
+  display: none !important;
+}
+
+.navigationSurface {
+  display: contents;
+}
+
+.workspaceTabs {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  margin: 24px 0;
+  border-bottom: 1px solid var(--staff-line);
+}
+
+.workspaceTabs button {
+  flex-shrink: 0;
+  min-width: 44px;
+  min-height: 48px;
+  padding: 12px 16px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: var(--staff-muted);
+  background: transparent;
+}
+
+.workspaceTabs button[aria-selected="true"] {
+  border-bottom-color: var(--staff-ice);
+  color: var(--staff-paper);
+}
+
+.workspaceTabs button:focus-visible,
+.managementActions button:focus-visible,
+.draftConfirmation button:focus-visible {
+  outline: 2px solid var(--staff-ice);
+  outline-offset: -3px;
+}
+
+.managementActions,
+.draftConfirmation {
+  display: grid;
+  gap: 16px;
+}
+
+.managementActions button {
+  min-height: 44px;
+  text-align: left;
+}
+
+.draftConfirmation,
+.assignmentDrawer .workflowSection {
+  margin: 0;
+  padding: 24px clamp(20px, 5vw, 42px);
+}
+
+.assignmentDrawer .workflowSection {
+  --staff-muted: #53595d;
+  --staff-paper: #080808;
+  --staff-line: rgba(5, 5, 5, 0.2);
+}
+
+.assignmentDrawer .workflowForm :is(input, select, textarea) {
+  color: #080808;
+  background: #fff;
+  font-size: 16px;
+}
+
+.assignmentDrawer .textButton {
+  color: #232526;
+}
+
+.contentHeader .secondaryButton {
+  color: var(--staff-paper);
+}
+
 .moreNavigation {
   position: relative;
 }

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
+import { useDialogFocus, useDraftRegistration } from "./staff-workspace-ui";
 import { updateMatterDetails } from "./staff-actions";
 import {
   MAX_MATTER_REFERENCE_LENGTH,
@@ -24,22 +25,16 @@ function getInitialForm(matter) {
   };
 }
 
-export default function StaffMatterDetailsForm({ matter, onSaved, onClose }) {
+export default function StaffMatterDetailsForm({ matter, onSaved, onClose, draftRegistry, confirmation, returnFocusRef }) {
   const dialogRef = useRef(null);
   const referenceRef = useRef(null);
   const [form, setForm] = useState(() => getInitialForm(matter));
   const [feedback, setFeedback] = useState({ tone: "neutral", text: "" });
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  useEffect(() => {
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    referenceRef.current?.focus();
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, []);
+  const initialForm = useRef(form).current;
+  const dirty = JSON.stringify(form) !== JSON.stringify(initialForm);
+  useDialogFocus(dialogRef, () => { if (!isSubmitting) onClose(); }, returnFocusRef);
+  useDraftRegistration(draftRegistry, "details", dirty, isSubmitting);
 
   const updateField = (field, value) => {
     setForm((current) => ({ ...current, [field]: value }));
@@ -76,31 +71,6 @@ export default function StaffMatterDetailsForm({ matter, onSaved, onClose }) {
     }
   };
 
-  const handleDialogKeyDown = (event) => {
-    if (event.key === "Escape" && !isSubmitting) {
-      event.preventDefault();
-      onClose?.();
-      return;
-    }
-
-    if (event.key !== "Tab") return;
-
-    const focusable = dialogRef.current?.querySelectorAll(
-      'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), summary, [href]',
-    );
-    if (!focusable?.length) return;
-
-    const first = focusable[0];
-    const last = focusable[focusable.length - 1];
-    if (event.shiftKey && document.activeElement === first) {
-      event.preventDefault();
-      last.focus();
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault();
-      first.focus();
-    }
-  };
-
   return (
     <div className={styles.drawerBackdrop}>
       <section
@@ -109,7 +79,7 @@ export default function StaffMatterDetailsForm({ matter, onSaved, onClose }) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="staff-matter-details-title"
-        onKeyDown={handleDialogKeyDown}
+        tabIndex={-1}
       >
         <header className={styles.drawerHeader}>
           <div>
@@ -121,7 +91,8 @@ export default function StaffMatterDetailsForm({ matter, onSaved, onClose }) {
           </button>
         </header>
 
-        <form className={styles.assignmentForm} onSubmit={handleSubmit}>
+        {confirmation}
+        <form className={styles.assignmentForm} onSubmit={handleSubmit} hidden={Boolean(confirmation)}>
           <p className={styles.detailsHint}>
             Доступно только администраторам организации. Изменение реквизитов не меняет статус, этапы, документы и сообщения дела.
           </p>
@@ -182,7 +153,7 @@ export default function StaffMatterDetailsForm({ matter, onSaved, onClose }) {
             <button className={styles.secondaryButton} type="button" onClick={onClose} disabled={isSubmitting}>
               Отмена
             </button>
-            <button className={styles.primaryButton} type="submit" disabled={isSubmitting}>
+            <button className={styles.primaryButton} type="submit" disabled={isSubmitting || !dirty}>
               {isSubmitting ? "Сохраняем…" : "Сохранить реквизиты"}
             </button>
           </footer>

@@ -88,3 +88,14 @@ test("staff request completion waits for a refreshed request card before returni
   assert.match(staffSource, /cardRefs\.current\.get\(pendingFocusRequestId\)\?\.focus/);
   assert.match(staffSource, /setPendingFocusRequestId\(null\);/);
 });
+
+test("staff document create, edit, review and confirmations share one progressive surface", () => {
+  assert.match(staffSource, /const \[activeEditor, setActiveEditor\] = useState\(null\)/);
+  assert.match(staffSource, /activeEditor === "create" \? <form/);
+  assert.match(staffSource, /activeEditor === `review:\$\{request.id\}` \? <div/);
+  assert.match(staffSource, /activeEditor === `accept:\$\{request.id\}`/);
+  assert.match(staffSource, /activeEditor === `cancel:\$\{request.id\}`/);
+  assert.doesNotMatch(staffSource, /\[editingId|\[acceptingId|\[cancellingId/);
+  assert.match(staffSource, /useDraftRegistration\(draftRegistry, "documents", dirty/);
+  assert.match(staffSource, /requestTransition\(\(\) =>/);
+});

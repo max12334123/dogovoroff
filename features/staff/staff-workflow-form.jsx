@@ -9,9 +9,11 @@ const MATTER_STATUS_OPTIONS = [
 
 export default function StaffWorkflowForm({
   assignmentStaff,
+  canAssign = false,
   draft,
   feedback,
   isSubmitting,
+  isDirty = true,
   matter,
   onAssignmentChange,
   onChange,
@@ -53,7 +55,7 @@ export default function StaffWorkflowForm({
           <span>Срок следующего шага</span>
           <input type="date" value={draft.nextActionDueAt} disabled={isSubmitting} onChange={(event) => onChange("nextActionDueAt", event.target.value)} />
         </label>
-        {assignmentStaff.length ? (
+        {canAssign ? (
           <label>
             <span>Ответственный сотрудник</span>
             <select value={draft.assignmentTouched ? (draft.assignedLawyerId || "__none__") : "__keep__"} disabled={isSubmitting} onChange={(event) => onAssignmentChange(event.target.value)}>
@@ -66,7 +68,7 @@ export default function StaffWorkflowForm({
         ) : null}
         <div className={styles.detailActions}>
           <button className={styles.textButton} type="button" onClick={onClose} disabled={isSubmitting}>Отмена</button>
-          <button className={styles.primaryButton} type="submit" disabled={isSubmitting}>{isSubmitting ? "Сохраняем…" : "Сохранить изменения"}</button>
+          <button className={styles.primaryButton} type="submit" disabled={isSubmitting || !isDirty}>{isSubmitting ? "Сохраняем…" : "Сохранить изменения"}</button>
         </div>
         <p className={`${styles.feedback}${feedback.tone === "error" ? ` ${styles.feedbackError}` : ""}`} role="status" aria-live="polite">{feedback.text}</p>
       </form>

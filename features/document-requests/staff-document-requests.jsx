@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useDraftRegistration } from "../staff/staff-workspace-ui";
 import {
   cancelDocumentRequest,
   createDocumentRequest,
@@ -39,22 +40,55 @@ export default function StaffDocumentRequests({
   downloadingId = null,
   downloadFeedback = { tone: "neutral", text: "" },
   onDownload,
+  draftRegistry,
+  requestTransition = (action) => action(),
 }) {
   const router = useRouter();
   const statusRef = useRef(null);
   const cardRefs = useRef(new Map());
   const [createDraft, setCreateDraft] = useState(EMPTY_DRAFT);
   const [editDrafts, setEditDrafts] = useState({});
-  const [editingId, setEditingId] = useState(null);
+  const [activeEditor, setActiveEditor] = useState(null);
   const [reviewNotes, setReviewNotes] = useState({});
-  const [acceptingId, setAcceptingId] = useState(null);
-  const [cancellingId, setCancellingId] = useState(null);
+  const editorRef = useRef(null);
+  const editorTriggerRef = useRef(null);
+  const initialEditRef = useRef(null);
   const [pendingRequests, setPendingRequests] = useState({});
   const [pendingFocusRequestId, setPendingFocusRequestId] = useState(null);
   const [feedback, setFeedback] = useState({ tone: "neutral", text: "" });
 
   const requests = matter?.documentRequests ?? [];
   const visibleFeedback = feedback.text ? feedback : downloadFeedback;
+  const primaryRequestId = requests.find((request) => request.status === "submitted")?.id;
+  const editId = activeEditor?.startsWith("edit:") ? activeEditor.slice(5) : null;
+  const reviewId = activeEditor?.startsWith("review:") ? activeEditor.slice(7) : null;
+  const dirty = activeEditor === "create" ? JSON.stringify(createDraft) !== JSON.stringify(EMPTY_DRAFT)
+    : editId ? JSON.stringify(editDrafts[editId]) !== JSON.stringify(initialEditRef.current)
+      : reviewId ? Boolean(reviewNotes[reviewId]) : false;
+  const resetEditor = () => {
+    setActiveEditor(null);
+    setCreateDraft(EMPTY_DRAFT);
+    setEditDrafts({});
+    setReviewNotes({});
+  };
+  useDraftRegistration(draftRegistry, "documents", dirty, Object.values(pendingRequests).some(Boolean), resetEditor);
+  const openEditor = (editor, initialize) => {
+    const trigger = document.activeElement;
+    requestTransition(() => {
+      editorTriggerRef.current = trigger;
+      resetEditor();
+      initialize?.();
+      setActiveEditor(editor);
+    });
+  };
+  const closeEditor = () => requestTransition(() => {
+    resetEditor();
+    requestAnimationFrame(() => editorTriggerRef.current?.focus());
+  });
+  useEffect(() => {
+    if (!activeEditor) return;
+    editorRef.current?.querySelector("input, textarea, button")?.focus();
+  }, [activeEditor]);
 
   const focusStatus = () => {
     statusRef.current?.focus({ preventScroll: true });
@@ -81,6 +115,7 @@ export default function StaffDocumentRequests({
   };
 
   const completeMutation = (requestId, message) => {
+    resetEditor();
     setFeedback({ tone: "success", text: message });
     setPendingFocusRequestId(requestId);
     router.refresh();
@@ -137,7 +172,6 @@ export default function StaffDocumentRequests({
       fallback: "Не удалось обновить запрос документов. Попробуйте ещё раз.",
     });
     if (result) {
-      setEditingId(null);
       completeMutation(request.id, result.message);
     }
   };
@@ -151,7 +185,6 @@ export default function StaffDocumentRequests({
       fallback: "Не удалось обновить запрос документов. Попробуйте ещё раз.",
     });
     if (result) {
-      setAcceptingId(null);
       completeMutation(request.id, result.message);
     }
   };
@@ -164,14 +197,15 @@ export default function StaffDocumentRequests({
       fallback: "Не удалось отменить запрос документов. Попробуйте ещё раз.",
     });
     if (result) {
-      setCancellingId(null);
       completeMutation(request.id, result.message);
     }
   };
 
   const openEdit = (request) => {
-    setEditDrafts((current) => ({ ...current, [request.id]: getRequestDraft(request) }));
-    setEditingId(request.id);
+    openEditor(`edit:${request.id}`, () => {
+      initialEditRef.current = getRequestDraft(request);
+      setEditDrafts({ [request.id]: initialEditRef.current });
+    });
   };
 
   const updateDraft = (requestId, field, value) => {
@@ -227,7 +261,8 @@ export default function StaffDocumentRequests({
             <h2 id="staff-document-requests-title">Запросить документы</h2>
           </div>
         </div>
-        <form className={styles.actions} onSubmit={handleCreate}>
+        {activeEditor !== "create" ? <button className={!activeEditor && !primaryRequestId ? styles.primaryButton : styles.secondaryButton} type="button" onClick={() => openEditor("create")}>Запросить документы</button> : null}
+        {activeEditor === "create" ? <form ref={editorRef} className={styles.actions} onSubmit={handleCreate}>
           {renderDraftFields(
             createDraft,
             (field, value) => setCreateDraft((current) => ({ ...current, [field]: value })),
@@ -238,7 +273,8 @@ export default function StaffDocumentRequests({
           <button className={styles.primaryButton} type="submit" disabled={pendingRequests.create}>
             {pendingRequests.create ? "Создаём…" : "Запросить документы"}
           </button>
-        </form>
+          <button className={styles.textButton} type="button" disabled={pendingRequests.create} onClick={closeEditor}>Отмена</button>
+        </form> : null}
       </div>
 
       <p
@@ -258,7 +294,7 @@ export default function StaffDocumentRequests({
         const canEdit = request.status === "requested" && activeDocumentCount === 0;
         const canCancel = ["requested", "submitted", "changes_requested"].includes(request.status);
         const busy = Boolean(pendingRequests[request.id]);
-        const editing = editingId === request.id;
+        const editing = activeEditor === `edit:${request.id}`;
         const changesNote = reviewNotes[request.id] || "";
 
         return (
@@ -309,7 +345,7 @@ export default function StaffDocumentRequests({
             ) : null}
 
             {canEdit && editing ? (
-              <form className={styles.actions} onSubmit={(event) => handleUpdate(event, request)}>
+              <form ref={editorRef} className={styles.actions} onSubmit={(event) => handleUpdate(event, request)}>
                 {renderDraftFields(
                   editDrafts[request.id] || getRequestDraft(request),
                   (field, value) => updateDraft(request.id, field, value),
@@ -317,21 +353,23 @@ export default function StaffDocumentRequests({
                   `document-request-${request.id}`,
                   true,
                 )}
-                <button className={styles.primaryButton} type="submit" disabled={busy}>{busy ? "Сохраняем…" : "Сохранить запрос"}</button>
-                <button className={styles.textButton} type="button" disabled={busy} onClick={() => setEditingId(null)}>Не изменять</button>
+                <button className={styles.primaryButton} type="submit" disabled={busy || !dirty}>{busy ? "Сохраняем…" : "Сохранить запрос"}</button>
+                <button className={styles.textButton} type="button" disabled={busy} onClick={closeEditor}>Не изменять</button>
               </form>
             ) : null}
 
             {request.status === "submitted" ? (
               <div className={styles.actions}>
-                {acceptingId === request.id ? (
-                  <span className={styles.confirmation}>
+                {activeEditor === `accept:${request.id}` ? (
+                  <span className={styles.confirmation} ref={editorRef}>
                     <button className={styles.primaryButton} type="button" disabled={busy} onClick={() => handleReview(request, "accepted")}>Подтвердить принятие</button>
-                    <button className={styles.textButton} type="button" disabled={busy} onClick={() => setAcceptingId(null)}>Оставить на проверке</button>
+                    <button className={styles.textButton} type="button" disabled={busy} onClick={closeEditor}>Оставить на проверке</button>
                   </span>
                 ) : (
-                  <button className={styles.primaryButton} type="button" disabled={busy} onClick={() => setAcceptingId(request.id)}>Принять комплект</button>
+                  <button className={!activeEditor && primaryRequestId === request.id ? styles.primaryButton : styles.secondaryButton} type="button" disabled={busy} onClick={() => openEditor(`accept:${request.id}`)}>Принять комплект</button>
                 )}
+                {activeEditor !== `review:${request.id}` ? <button className={styles.secondaryButton} type="button" disabled={busy} onClick={() => openEditor(`review:${request.id}`)}>Вернуть на исправление</button> : null}
+                {activeEditor === `review:${request.id}` ? <div ref={editorRef}>
                 <label>
                   <span>Что нужно исправить</span>
                   <textarea
@@ -342,19 +380,21 @@ export default function StaffDocumentRequests({
                     onChange={(event) => setReviewNotes((current) => ({ ...current, [request.id]: event.target.value }))}
                   />
                 </label>
-                <button className={styles.secondaryButton} type="button" disabled={busy || !changesNote.trim()} onClick={() => handleReview(request, "changes_requested")}>Вернуть на исправление</button>
+                <button className={styles.primaryButton} type="button" disabled={busy || !changesNote.trim()} onClick={() => handleReview(request, "changes_requested")}>Вернуть на исправление</button>
+                <button className={styles.textButton} type="button" disabled={busy} onClick={closeEditor}>Продолжить проверку позже</button>
+                </div> : null}
               </div>
             ) : null}
 
             {canCancel ? (
               <div className={styles.actions}>
-                {cancellingId === request.id ? (
-                  <span className={styles.confirmation}>
-                    <button className={styles.secondaryButton} type="button" disabled={busy} onClick={() => handleCancel(request)}>Подтвердить отмену</button>
-                    <button className={styles.textButton} type="button" disabled={busy} onClick={() => setCancellingId(null)}>Оставить</button>
+                {activeEditor === `cancel:${request.id}` ? (
+                  <span className={styles.confirmation} ref={editorRef}>
+                    <button className={styles.primaryButton} type="button" disabled={busy} onClick={() => handleCancel(request)}>Подтвердить отмену</button>
+                    <button className={styles.textButton} type="button" disabled={busy} onClick={closeEditor}>Оставить</button>
                   </span>
                 ) : (
-                  <button className={styles.textButton} type="button" disabled={busy} onClick={() => setCancellingId(request.id)}>Отменить запрос</button>
+                  <button className={styles.textButton} type="button" disabled={busy} onClick={() => openEditor(`cancel:${request.id}`)}>Отменить запрос</button>
                 )}
               </div>
             ) : null}

@@ -13,6 +13,8 @@ import {
 } from "../features/staff/staff-domain.mjs";
 import { validateMatterWorkflow } from "../features/staff/staff-workflow-domain.mjs";
 import { buildStaffHref, getStaffMatterLocation, parseStaffLocation } from "../features/staff/staff-navigation-domain.mjs";
+import { createDraftRegistry, createStaffHistory } from "../features/staff/staff-workspace-ui-domain.mjs";
+import { validateMatterMessage } from "../features/cabinet/cabinet-write-domain.mjs";
 
 const [pageSource, clientSource, assignmentFormSource, detailsFormSource, serverSource, actionsSource, middlewareSource, supabaseMiddlewareSource, cssSource, navigationSource, workspaceSource, workflowSource] = await Promise.all([
   readFile(new URL("../app/staff/page.jsx", import.meta.url), "utf8"),
@@ -72,14 +74,14 @@ test("staff navigation preserves framework history and focuses a separate worksp
   assert.match(activeClientSource, /history\.pushState\(window\.history\.state, "", buildStaffHref\(next\)\)/);
   assert.match(activeClientSource, /history\.replaceState\(window\.history\.state, "", buildStaffHref\(next\)\)/);
   assert.match(activeClientSource, /parseStaffLocation\(window\.location\.search, initialMatters, \{ canViewAudit, intakeEnabled \}\)/);
-  assert.match(activeClientSource, /addEventListener\("popstate", handlePopState\)/);
-  assert.match(activeClientSource, /removeEventListener\("popstate", handlePopState\)/);
+  assert.match(activeClientSource, /addEventListener\("popstate", handlePopState, true\)/);
+  assert.match(activeClientSource, /removeEventListener\("popstate", handlePopState, true\)/);
   assert.match(activeClientSource, /onClick=\{closeMatter\}>Назад/);
   assert.match(activeClientSource, /backButtonRef : mainRef\)\.current\?\.focus/);
   assert.match(activeClientSource, /openMatter\(notification\.matterId, notification\.targetView\)/);
   assert.match(activeClientSource, /activeView === "messages" \|\| activeView === "documents" \? activeView : "overview"/);
   assert.match(activeClientSource, /initialMatters\.some\(\(item\) => item\.id === pendingCreatedMatter\.matterId\)/);
-  assert.match(activeClientSource, /activeView === "matter" \? styles\.secondaryButton : styles\.newMatterButton/);
+  assert.match(activeClientSource, /activeView === "matter" \|\| activePanel \|\| pendingTransition \? styles\.secondaryButton : styles\.newMatterButton/);
   assert.doesNotMatch(activeClientSource, /pushState\(null|replaceState\(null|localStorage|sessionStorage/);
 });
 
@@ -115,19 +117,30 @@ test("creation then Back keeps the history destination after a delayed authorize
       parseStaffLocation,
       buildStaffHref,
       getStaffMatterLocation,
+      createStaffHistory,
+      historyRef: { current: null },
+      transitionRef: { current: (action) => action() },
+      draftRegistry: createDraftRegistry(),
+      normalizeManagementLocation: (next) => next,
+      setActivePanel() {},
       setLocation(next) { environment.location = next; },
       setPendingCreatedMatter(next) { environment.pendingCreatedMatter = next; },
       window: {
-        location: { search: "?view=matters" },
+        location: { pathname: "/staff", search: "?view=matters", get href() { return `/staff${this.search}`; } },
         history: {
           state: frameworkState,
           replaceState(state, title, href) {
-            assert.equal(state, frameworkState);
+            assert.equal(state.tree, frameworkState.tree);
+            assert.equal(state.__NA, true);
+            this.state = state;
             entries[cursor] = href;
           },
           pushState(state, title, href) {
-            assert.equal(state, frameworkState);
+            assert.equal(state.tree, frameworkState.tree);
+            assert.equal(state.__NA, true);
+            this.state = state;
             entries.splice(++cursor, entries.length, href);
+            environment.window.location.search = href.includes("?") ? href.slice(href.indexOf("?")) : "";
           },
         },
         addEventListener: events.addEventListener.bind(events),
@@ -226,10 +239,21 @@ test("extracted navigation preserves count and current-page behavior in the more
   assert.match(cssSource, /\.moreNavigationMenu\s*\{/);
 });
 
-test("embedded workflow form is a labelled non-modal section", () => {
+test("workflow contents remain labelled inside their contextual dialog", () => {
   assert.match(activeWorkflowSource, /<section[^>]*aria-labelledby="staff-workflow-title"/);
   assert.match(activeWorkflowSource, /id="staff-workflow-title"/);
   assert.doesNotMatch(activeWorkflowSource, /role="dialog"|aria-modal=/);
+});
+
+test("matter workspace exposes real tabs and contextual administration", () => {
+  for (const label of ["Обзор", "Документы", "Сообщения", "Управление"]) assert.ok(activeWorkspaceSource.includes(label));
+  assert.match(activeWorkspaceSource, /role="tablist"/);
+  assert.match(activeWorkspaceSource, /role="tabpanel"/);
+  assert.match(activeWorkspaceSource, /aria-controls=/);
+  assert.match(activeWorkspaceSource, /onKeyDown=/);
+  assert.match(activeWorkspaceSource, /activePanel/);
+  assert.match(activeClientSource, /const \[activePanel, setActivePanel\] = useState\(null\)/);
+  assert.doesNotMatch(activeClientSource, /\[assignmentOpen|\[detailsOpen/);
 });
 
 test("extracted matter workspace preserves metadata authorization and callback wiring", () => {
@@ -239,7 +263,7 @@ test("extracted matter workspace preserves metadata authorization and callback w
   assert.match(activeWorkspaceSource, /<StaffDocumentRequests[\s\S]*onDownload=\{onDownload\}/);
   assert.match(activeWorkspaceSource, /onClick=\{onOpenDocuments\}/);
   assert.match(activeWorkspaceSource, /onClick=\{onOpenComposer\}/);
-  assert.match(activeWorkspaceSource, /onClick=\{onOpenCard\}/);
+  assert.match(activeWorkspaceSource, /onOpenPanel\("workflow"\)/);
 });
 
 test("extracted presentational components import no server authority", () => {
@@ -375,9 +399,57 @@ test("staff workflow action validates the payload before calling the protected R
   assert.match(actionsSource, /revalidatePath\("\/staff"\)/);
 });
 
-test("staff workflow draft refreshes when the selected matter data changes", () => {
+test("staff refresh keeps an open workflow draft instead of overwriting it", () => {
   assert.match(clientSource, /setWorkflowDraft\(getWorkflowDraft\(matter\)\)/);
+  assert.match(clientSource, /if \(activePanel !== "workflow" && activePanel !== "assignment"\)/);
+  assert.doesNotMatch(clientSource, /setDetailsOpen/);
   assert.match(clientSource, /\}, \[matter\]\);/);
+});
+
+test("workflow refresh changes idle data but preserves drafts for both workflow entry points", () => {
+  const body = [...activeClientSource.matchAll(/  useEffect\(\(\) => \{([\s\S]*?)\n  \}, \[[^\]]*\]\);/g)]
+    .map((match) => match[1]).find((effect) => effect.includes('if (activePanel !== "workflow"'));
+  assert.ok(body);
+  for (const activePanel of ["workflow", "assignment", null]) {
+    let changed = false;
+    new Function("matter", "activePanel", "getWorkflowDraft", "setWorkflowDraft", "setWorkflowFeedback", "setDocumentFeedback", body)(
+      { id: "same-matter-new-object" }, activePanel, () => ({}), () => { changed = true; }, () => {}, () => {},
+    );
+    assert.equal(changed, activePanel === null);
+  }
+});
+
+test("failed message requests preserve the text and retry id until success", async () => {
+  const body = activeClientSource.match(/const handleSubmit = async \(event\) => \{([\s\S]*?)\n  \};/)?.[1];
+  assert.ok(body);
+  const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+  const sent = [];
+  const environment = {
+    matter: { id: "a1111111-1111-4111-8111-111111111111" },
+    isSending: false,
+    draft: "Тестовый ответ",
+    validateMatterMessage,
+    messageIdRef: { current: null },
+    createUuidV4: () => "b1111111-1111-4111-8111-111111111111",
+    window: { crypto: {} },
+    router: { refresh() {} },
+    setDraft(value) { environment.draft = value; },
+    setFeedback(value) { environment.feedback = value; },
+    setIsSending(value) { environment.isSending = value; },
+    async sendMatterMessage(value) {
+      sent.push(value);
+      if (sent.length === 1) return { ok: false, message: "Ошибка" };
+      if (sent.length === 2) throw new Error("offline");
+      return { ok: true, message: "Отправлено" };
+    },
+  };
+  for (let attempt = 0; attempt < 3; attempt++) {
+    await new AsyncFunction(...Object.keys(environment), "event", body)(...Object.values(environment), { preventDefault() {} });
+    assert.equal(environment.draft, attempt < 2 ? "Тестовый ответ" : "");
+    assert.equal(environment.isSending, false);
+    assert.equal(environment.messageIdRef.current, attempt < 2 ? "b1111111-1111-4111-8111-111111111111" : null);
+  }
+  assert.equal(new Set(sent.map((message) => message.id)).size, 1);
 });
 
 test("staff stages keep stable keys even when fallback fixture titles repeat", async () => {

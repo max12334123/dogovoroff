@@ -13,6 +13,8 @@ import StaffMatterWorkspace from "./staff-matter-workspace";
 import StaffMatterDetailsForm from "./staff-matter-details-form";
 import StaffNavigation from "./staff-navigation";
 import StaffTaskList from "./staff-task-list";
+import { createDraftRegistry, createStaffHistory } from "./staff-workspace-ui-domain.mjs";
+import { DraftConfirmation, StaffDialog, useDraftRegistration } from "./staff-workspace-ui";
 import { buildStaffHref, getStaffMatterLocation, parseStaffLocation } from "./staff-navigation-domain.mjs";
 import { filterStaffAuditEvents, filterStaffMatters, filterStaffNavigation, getStaffMatterQueue } from "./staff-domain.mjs";
 import { updateMatterWorkflow } from "./staff-actions";
@@ -256,10 +258,15 @@ export default function StaffClient({
   const activeView = location.view;
   const [searchQuery, setSearchQuery] = useState("");
   const [registerFilter, setRegisterFilter] = useState("all");
-  const [assignmentOpen, setAssignmentOpen] = useState(false);
+  const [activePanel, setActivePanel] = useState(null);
   const [assignmentIntakeRequest, setAssignmentIntakeRequest] = useState(null);
-  const [detailsOpen, setDetailsOpen] = useState(false);
-  const composerOpen = activeView === "matter" && location.tab === "messages";
+  const [pendingTransition, setPendingTransition] = useState(null);
+  const draftRegistry = useRef(createDraftRegistry()).current;
+  const historyRef = useRef(null);
+  const transitionRef = useRef(null);
+  const tabFocusRef = useRef(false);
+  const workflowInitialRef = useRef(null);
+  const panelTriggerRef = useRef(null);
   const [draft, setDraft] = useState("");
   const [feedback, setFeedback] = useState({ tone: "neutral", text: "" });
   const [workflowFeedback, setWorkflowFeedback] = useState({ tone: "neutral", text: "" });
@@ -271,6 +278,38 @@ export default function StaffClient({
   const [isSending, setIsSending] = useState(false);
 
   const matter = initialMatters.find((item) => item.id === location.matterId) ?? null;
+  const workflowDirty = (activePanel === "workflow" || activePanel === "assignment") && JSON.stringify(workflowDraft) !== JSON.stringify(workflowInitialRef.current);
+  useDraftRegistration(draftRegistry, "message", Boolean(draft), isSending, () => {
+    setDraft("");
+    messageIdRef.current = null;
+  });
+  useDraftRegistration(draftRegistry, "workflow", workflowDirty, isUpdatingWorkflow, () => {
+    setWorkflowDraft(getWorkflowDraft(matter));
+  });
+  const requestTransition = (action) => {
+    if (draftRegistry.busy() || pendingTransition) return;
+    if (draftRegistry.dirty()) {
+      setPendingTransition({ action, focus: document.activeElement });
+    } else {
+      draftRegistry.discard();
+      action();
+    }
+  };
+  transitionRef.current = requestTransition;
+  const continueEditing = () => {
+    const target = pendingTransition?.focus;
+    setPendingTransition(null);
+    requestAnimationFrame(() => target?.isConnected && target.focus());
+  };
+  const discardChanges = () => {
+    const action = pendingTransition?.action;
+    setPendingTransition(null);
+    draftRegistry.discard();
+    action?.();
+  };
+  const confirmation = pendingTransition ? <DraftConfirmation onContinue={continueEditing} onDiscard={discardChanges} /> : null;
+  const normalizeManagementLocation = (next) => next.tab === "management" && !assignmentOrganizations.some((organization) => organization.id === initialMatters.find((item) => item.id === next.matterId)?.organizationId)
+    ? { ...next, tab: "overview" } : next;
   const searchedMatters = useMemo(
     () => filterStaffMatters(initialMatters, searchQuery, "all"),
     [initialMatters, searchQuery],
@@ -316,10 +355,11 @@ export default function StaffClient({
       return;
     }
 
-    setWorkflowDraft(getWorkflowDraft(matter));
-    setWorkflowFeedback({ tone: "neutral", text: "" });
+    if (activePanel !== "workflow" && activePanel !== "assignment") {
+      setWorkflowDraft(getWorkflowDraft(matter));
+      setWorkflowFeedback({ tone: "neutral", text: "" });
+    }
     setDocumentFeedback({ tone: "neutral", text: "" });
-    setDetailsOpen(false);
   }, [matter]);
 
   useEffect(() => {
@@ -330,43 +370,75 @@ export default function StaffClient({
 
   useEffect(() => {
     const readLocation = () => {
-      const next = parseStaffLocation(window.location.search, initialMatters, { canViewAudit, intakeEnabled });
+      const next = normalizeManagementLocation(parseStaffLocation(window.location.search, initialMatters, { canViewAudit, intakeEnabled }));
       window.history.replaceState(window.history.state, "", buildStaffHref(next));
       setLocation(next);
     };
+    if (!historyRef.current) {
+      historyRef.current = createStaffHistory(window);
+      historyRef.current.mark();
+    }
     readLocation();
-    const handlePopState = () => {
+    const handlePopState = (event) => {
       setPendingCreatedMatter(null);
+      if (historyRef.current.pop(event, draftRegistry.dirty() || draftRegistry.busy(), (action) => transitionRef.current(action))) {
+        event.stopImmediatePropagation();
+        return;
+      }
+      draftRegistry.discard();
+      setActivePanel(null);
+      if (window.location.pathname !== "/staff") return;
       readLocation();
     };
-    window.addEventListener("popstate", handlePopState);
-    return () => window.removeEventListener("popstate", handlePopState);
-  }, [initialMatters, canViewAudit, intakeEnabled]);
+    window.addEventListener("popstate", handlePopState, true);
+    return () => window.removeEventListener("popstate", handlePopState, true);
+  }, [initialMatters, canViewAudit, intakeEnabled, assignmentOrganizations]);
+
+  useEffect(() => {
+    const beforeUnload = (event) => {
+      if (!draftRegistry.dirty() && !draftRegistry.busy()) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", beforeUnload);
+    return () => window.removeEventListener("beforeunload", beforeUnload);
+  }, [draftRegistry]);
 
   useEffect(() => {
     setDraft("");
     messageIdRef.current = null;
     setFeedback({ tone: "neutral", text: "" });
-    setDetailsOpen(false);
+    setActivePanel(null);
   }, [location.matterId]);
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
+      if (tabFocusRef.current) {
+        tabFocusRef.current = false;
+        document.getElementById(`staff-tab-${location.tab}`)?.focus({ preventScroll: true });
+        return;
+      }
       (location.view === "matter" ? backButtonRef : mainRef).current?.focus({ preventScroll: true });
       const target = location.tab === "documents" ? documentsRef.current
         : location.tab === "messages" ? messageInputRef.current : null;
-      if (target) target.scrollIntoView({ behavior: getPreferredScrollBehavior(), block: "start" });
+      if (target) {
+        target.focus({ preventScroll: true });
+        target.scrollIntoView({ behavior: getPreferredScrollBehavior(), block: "start" });
+      }
       else window.scrollTo({ top: 0, behavior: getPreferredScrollBehavior() });
     });
     return () => window.cancelAnimationFrame(frame);
   }, [location.view, location.matterId, location.tab]);
 
-  const navigate = (requested) => {
+  const navigate = (requested, focusTab = false) => requestTransition(() => {
     setPendingCreatedMatter(null);
-    const next = parseStaffLocation(buildStaffHref(requested).split("?")[1], initialMatters, { canViewAudit, intakeEnabled });
+    const next = normalizeManagementLocation(parseStaffLocation(buildStaffHref(requested).split("?")[1], initialMatters, { canViewAudit, intakeEnabled }));
+    tabFocusRef.current = focusTab;
+    setActivePanel(null);
     window.history.pushState(window.history.state, "", buildStaffHref(next));
+    historyRef.current?.pushed();
     setLocation(next);
-  };
+  });
 
   const selectView = (viewId) => navigate({ view: viewId });
   const openMatter = (matterId, tab = "overview") => navigate(
@@ -378,6 +450,7 @@ export default function StaffClient({
     if (!pendingCreatedMatter || !initialMatters.some((item) => item.id === pendingCreatedMatter.matterId)) return;
     const next = getStaffMatterLocation(pendingCreatedMatter.origin, pendingCreatedMatter.matterId, "overview", initialMatters, { canViewAudit, intakeEnabled });
     window.history.pushState(window.history.state, "", buildStaffHref(next));
+    historyRef.current?.pushed();
     setLocation(next);
     setPendingCreatedMatter(null);
   }, [pendingCreatedMatter, initialMatters, canViewAudit, intakeEnabled]);
@@ -483,6 +556,9 @@ export default function StaffClient({
       }
 
       setWorkflowFeedback({ tone: "success", text: result.message });
+      setToast(result.message);
+      draftRegistry.delete("workflow");
+      setActivePanel(null);
       router.refresh();
     } catch {
       setWorkflowFeedback({ tone: "error", text: "Не удалось обновить дело. Попробуйте ещё раз." });
@@ -491,9 +567,26 @@ export default function StaffClient({
     }
   };
 
-  const closeWorkflow = () => {
+  const closeWorkflow = () => pendingTransition ? continueEditing() : requestTransition(() => {
     setWorkflowDraft(getWorkflowDraft(matter));
     setWorkflowFeedback({ tone: "neutral", text: "" });
+    setActivePanel(null);
+  });
+
+  const openPanel = (panel) => {
+    const trigger = document.activeElement;
+    requestTransition(() => {
+      if (!["workflow", "details", "assignment"].includes(panel)) return;
+      if (["details", "assignment"].includes(panel) && !canEditDetails) return;
+      if (panel === "workflow" || panel === "assignment") {
+        const initial = getWorkflowDraft(matter);
+        workflowInitialRef.current = initial;
+        setWorkflowDraft(initial);
+        setWorkflowFeedback({ tone: "neutral", text: "" });
+      }
+      panelTriggerRef.current = trigger;
+      setActivePanel(panel);
+    });
   };
 
   const handleDocumentDownload = async (document) => {
@@ -533,31 +626,33 @@ export default function StaffClient({
   };
 
   const closeAssignment = () => {
-    setAssignmentOpen(false);
+    setActivePanel(null);
     setAssignmentIntakeRequest(null);
-    requestAnimationFrame(() => newMatterButtonRef.current?.focus());
   };
 
   const closeDetails = () => {
-    setDetailsOpen(false);
-    requestAnimationFrame(() => detailsButtonRef.current?.focus());
+    setActivePanel(null);
   };
 
-  const openDocuments = () => {
-    openMatter(matter.id, "documents");
+  const changeTab = (tab, focusTab = false) => {
+    if (location.tab === tab) {
+      const target = focusTab ? document.getElementById(`staff-tab-${tab}`) : tab === "documents" ? documentsRef.current : messageInputRef.current;
+      target?.focus({ preventScroll: true });
+      target?.scrollIntoView({ behavior: getPreferredScrollBehavior(), block: "start" });
+      return;
+    }
+    navigate({ ...location, tab }, focusTab);
   };
-
-  const openComposer = () => {
-    openMatter(matter.id, "messages");
-  };
-
-  const openMatterCard = () => {
-    openMatter(matter.id);
-  };
+  const openDocuments = () => changeTab("documents");
+  const openComposer = () => changeTab("messages");
 
   const openIntakeAssignment = (request) => {
-    setAssignmentIntakeRequest(request);
-    setAssignmentOpen(true);
+    const trigger = document.activeElement;
+    requestTransition(() => {
+      panelTriggerRef.current = trigger;
+      setAssignmentIntakeRequest(request);
+      setActivePanel("new-matter");
+    });
   };
 
   const openConvertedMatter = (matterId) => {
@@ -570,16 +665,16 @@ export default function StaffClient({
 
   return (
     <div className={styles.workspace}>
-      <StaffNavigation
+      <div className={styles.navigationSurface} inert={activePanel || pendingTransition ? true : undefined}><StaffNavigation
         activeView={activeView === "matter" ? location.from : activeView}
         counts={navCounts}
         items={navigationItems}
         moreItems={moreNavigationItems}
         onSelect={selectView}
-      />
+      /></div>
 
       <section className={styles.content} ref={mainRef} tabIndex={-1} aria-label={viewCopy.title}>
-        <header className={styles.contentHeader}>
+        <header className={styles.contentHeader} inert={activePanel || pendingTransition ? true : undefined}>
           <div>
             <p className={styles.eyebrow}>{viewCopy.eyebrow}</p>
             <h1>{viewCopy.title}</h1>
@@ -604,12 +699,11 @@ export default function StaffClient({
             </label> : null}
             {assignmentOrganizations.length ? (
               <button
-                className={activeView === "matter" ? styles.secondaryButton : styles.newMatterButton}
+                className={activeView === "matter" || activePanel || pendingTransition ? styles.secondaryButton : styles.newMatterButton}
                 ref={newMatterButtonRef}
                 type="button"
                 onClick={() => {
-                  setAssignmentIntakeRequest(null);
-                  setAssignmentOpen(true);
+                  openIntakeAssignment(null);
                 }}
               >
                 Новое дело
@@ -620,12 +714,13 @@ export default function StaffClient({
 
         {activeView === "matter" ? (
           <div className={styles.matterWorkspace}>
-            <button ref={backButtonRef} className={styles.backButton} type="button" onClick={closeMatter}>Назад</button>
+            <button ref={backButtonRef} className={styles.backButton} type="button" inert={activePanel || pendingTransition ? true : undefined} onClick={closeMatter}>Назад</button>
             <StaffMatterWorkspace
               matter={matter}
               organizationLabel={organizationLabel}
               assignmentStaff={assignmentStaff}
               workflowDraft={workflowDraft}
+              workflowDirty={workflowDirty}
               workflowFeedback={workflowFeedback}
               isUpdatingWorkflow={isUpdatingWorkflow}
               downloadingId={downloadingId}
@@ -637,7 +732,14 @@ export default function StaffClient({
               onDownload={handleDocumentDownload}
               documentsRef={documentsRef}
               messageInputRef={messageInputRef}
-              composerOpen={composerOpen}
+              tab={location.tab}
+              onTabChange={changeTab}
+              activePanel={activePanel}
+              onOpenPanel={openPanel}
+              draftRegistry={draftRegistry}
+              requestTransition={requestTransition}
+              confirmation={confirmation}
+              panelTriggerRef={panelTriggerRef}
               draft={draft}
               feedback={feedback}
               isSending={isSending}
@@ -645,10 +747,9 @@ export default function StaffClient({
               onSubmit={handleSubmit}
               onOpenDocuments={openDocuments}
               onOpenComposer={openComposer}
-              onOpenCard={openMatterCard}
               canEditDetails={canEditDetails}
               detailsButtonRef={detailsButtonRef}
-              onOpenDetails={() => setDetailsOpen(true)}
+              onOpenDetails={() => openPanel("details")}
             />
           </div>
         ) : null}
@@ -718,12 +819,16 @@ export default function StaffClient({
         ) : null}
       </section>
 
-      {assignmentOpen ? (
+      {activePanel === "new-matter" ? (
         <StaffAssignmentForm
           key={assignmentIntakeRequest?.id ?? "manual-assignment"}
           organizations={assignmentOrganizations}
           intakeRequest={assignmentIntakeRequest}
-          onClose={closeAssignment}
+          draftRegistry={draftRegistry}
+          confirmation={confirmation}
+          returnFocusRef={panelTriggerRef}
+          onClose={() => pendingTransition ? continueEditing() : requestTransition(closeAssignment)}
+          onComplete={closeAssignment}
           onCreated={(matterId, message) => {
             setPendingCreatedMatter({ matterId, origin: location });
             setToast(message);
@@ -732,11 +837,14 @@ export default function StaffClient({
         />
       ) : null}
 
-      {detailsOpen && matter && canEditDetails ? (
+      {activePanel === "details" && matter && canEditDetails ? (
         <StaffMatterDetailsForm
           key={matter.id}
           matter={matter}
-          onClose={closeDetails}
+          draftRegistry={draftRegistry}
+          confirmation={confirmation}
+          returnFocusRef={panelTriggerRef}
+          onClose={() => pendingTransition ? continueEditing() : requestTransition(closeDetails)}
           onSaved={(message) => {
             closeDetails();
             setToast(message);
@@ -744,6 +852,8 @@ export default function StaffClient({
           }}
         />
       ) : null}
+
+      {pendingTransition && !activePanel ? <StaffDialog title="Несохранённые изменения" id="staff-discard-title" onClose={continueEditing} returnFocusRef={{ current: pendingTransition.focus }}>{confirmation}</StaffDialog> : null}
 
       <p className={`${styles.toast}${toast ? ` ${styles.toastVisible}` : ""}`} role="status" aria-live="polite">
         {toast}
