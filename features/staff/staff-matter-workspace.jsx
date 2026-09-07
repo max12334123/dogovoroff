@@ -2,7 +2,7 @@ import StaffDocumentRequests from "../document-requests/staff-document-requests"
 import StaffWorkflowForm from "./staff-workflow-form";
 import { StaffDialog } from "./staff-workspace-ui";
 import { getWorkspaceTabs, getTabAfterKey } from "./staff-workspace-ui-domain.mjs";
-import { getMatterTask } from "./staff-domain.mjs";
+import { getMatterTask, getStaffAssignmentLabel } from "./staff-domain.mjs";
 import styles from "./staff.module.css";
 
 const TAB_LABELS = { overview: "Обзор", documents: "Документы", messages: "Сообщения", management: "Управление" };
@@ -61,7 +61,7 @@ export default function StaffMatterWorkspace({
           <section className={styles.nextAction}><p className={styles.eyebrow}>Текущая задача</p><h3>{task}</h3></section>
           <dl className={styles.matterMeta}>
             <div><dt>Статус</dt><dd>{matter.stateLabel}</dd></div><div><dt>Срок ответа</dt><dd>{matter.responseBy}</dd></div>
-            <div><dt>Организация</dt><dd>{organizationLabel}</dd></div><div><dt>Ответственный</dt><dd>{matter.assignedLawyerName || "Назначение не указано в данных дела"}</dd></div>
+            <div><dt>Организация</dt><dd>{organizationLabel}</dd></div><div><dt>Ответственный</dt><dd>{getStaffAssignmentLabel(matter)}</dd></div>
           </dl>
           <section className={styles.detailSection} aria-labelledby="staff-stages-title"><h3 id="staff-stages-title">Этапы дела</h3><MatterStages matter={matter} /></section>
           {matter.nextAction ? <section className={styles.nextAction}><p className={styles.eyebrow}>Ожидаем от клиента</p><h3>{matter.nextAction.title}</h3><p>{matter.nextAction.description}</p>{matter.nextAction.deadline ? <small>{matter.nextAction.deadline}</small> : null}</section> : null}

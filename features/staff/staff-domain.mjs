@@ -109,6 +109,12 @@ export function filterStaffMatters(matters, query = "", queue = "all") {
   });
 }
 
+export function getStaffAssignmentLabel(matter) {
+  if (matter?.assignmentStatus === "assigned" && matter.assignedLawyerName) return matter.assignedLawyerName;
+  if (matter?.assignmentStatus === "unassigned") return "Сотрудник не назначен";
+  return "Данные о назначении временно недоступны";
+}
+
 export function filterStaffAuditEvents(events, matters, query = "") {
   if (!Array.isArray(events)) {
     return [];
