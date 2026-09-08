@@ -88,3 +88,16 @@ test("staff mobile navigation and controls stay readable without page overflow",
   assert.match(mobileStyles, /\.searchField input\s*\{[\s\S]*font-size:\s*var\(--staff-body-size\)/);
   assert.match(staffNavigationSource, /items\.filter\(\(item\) => item\.id !== "more"\)/);
 });
+
+test("staff mobile form controls keep the readable input size", () => {
+  const mobileStyles = extractCssBlock(staffStylesSource, "@media (max-width: 680px)");
+
+  for (const selector of [
+    "\\.documentRequestSection :is\\(input, textarea\\)",
+    "\\.workflowForm :is\\(input, select, textarea\\)",
+    "\\.composer textarea",
+    "\\.drawerField :is\\(input, select, textarea\\)",
+  ]) {
+    assert.match(mobileStyles, new RegExp(`${selector}[\\s\\S]*font-size:\\s*var\\(--staff-body-size\\)`));
+  }
+});

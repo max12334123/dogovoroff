@@ -215,8 +215,9 @@
 
 .headerNav a,
 .headerNav button {
-  min-height: 40px;
-  padding: 0;
+  min-width: var(--staff-control-height);
+  min-height: var(--staff-control-height);
+  padding: 0 10px;
   color: #d7d7d3;
   background: transparent;
   font-size: var(--cabinet-control-font-size);
@@ -523,6 +524,7 @@
 
 .primaryButton,
 .secondaryButton,
+.textButton,
 .textAction,
 .dangerButton {
   min-height: var(--staff-control-height);
@@ -1722,8 +1724,9 @@
 }
 
 .drawerClose {
-  min-height: 40px;
-  padding: 0 0 0 16px;
+  min-width: var(--staff-control-height);
+  min-height: var(--staff-control-height);
+  padding: 0 12px;
   color: #343638;
   background: transparent;
   font-size: 12px;
@@ -2178,6 +2181,24 @@
     font-size: 12px;
   }
 
+  .moreNavigation[open] {
+    display: contents;
+  }
+
+  .moreNavigation[open] .moreNavigationMenu {
+    display: flex;
+    width: max-content;
+    gap: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  .moreNavigation[open] .moreNavigationMenu .railButton {
+    width: auto;
+    flex: 0 0 auto;
+  }
+
   .moreNavigation > summary {
     min-height: var(--staff-control-height);
     padding-inline: 12px;
@@ -2222,6 +2243,13 @@
   }
 
   .searchField input {
+    font-size: var(--staff-body-size);
+  }
+
+  .documentRequestSection :is(input, textarea),
+  .workflowForm :is(input, select, textarea),
+  .composer textarea,
+  .drawerField :is(input, select, textarea) {
     font-size: var(--staff-body-size);
   }
 

@@ -203,9 +203,9 @@ function CollectionList({ type, matters, onSelect, onReset }) {
   );
 }
 
-function AuditList({ events, matters }) {
+function AuditList({ events, matters, onReset }) {
   if (!events.length) {
-    return <EmptyState title="Записей пока нет" text="Изменения по делам появятся здесь после первого действия команды." />;
+    return <EmptyState title="Записей пока нет" text="Изменения по делам появятся здесь после первого действия команды." onReset={onReset} />;
   }
 
   const matterById = new Map(matters.map((matter) => [matter.id, matter]));
@@ -451,8 +451,9 @@ export default function StaffClient({
     getStaffMatterLocation(location, matterId, tab, initialMatters, { canViewAudit, intakeEnabled }),
   );
   const closeMatter = () => navigate({ view: location.from });
+  const resetSearch = () => setSearchQuery("");
   const resetFilters = () => {
-    setSearchQuery("");
+    resetSearch();
     setRegisterFilter("all");
   };
 
@@ -709,7 +710,7 @@ export default function StaffClient({
             </label> : null}
             {assignmentOrganizations.length ? (
               <button
-                className={activeView === "matter" || activePanel || pendingTransition ? styles.secondaryButton : `${styles.primaryButton} ${styles.newMatterButton}`}
+                className={activeView === "matter" || activeView === "inbox" || activePanel || pendingTransition ? styles.secondaryButton : `${styles.primaryButton} ${styles.newMatterButton}`}
                 ref={newMatterButtonRef}
                 type="button"
                 onClick={() => {
@@ -783,6 +784,7 @@ export default function StaffClient({
             assignmentOrganizations={assignmentOrganizations}
             onCreateMatter={openIntakeAssignment}
             onOpenMatter={openConvertedMatter}
+            onResetSearch={resetSearch}
           />
         ) : null}
 
@@ -825,7 +827,7 @@ export default function StaffClient({
 
         {activeView === "audit" ? (
           <div className={styles.registryGrid}>
-            <AuditList events={auditEvents} matters={initialMatters} />
+            <AuditList events={auditEvents} matters={initialMatters} onReset={searchQuery ? resetSearch : undefined} />
           </div>
         ) : null}
       </section>

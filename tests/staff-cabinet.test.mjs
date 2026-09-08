@@ -81,7 +81,7 @@ test("staff navigation preserves framework history and focuses a separate worksp
   assert.match(activeClientSource, /openMatter\(notification\.matterId, notification\.targetView\)/);
   assert.match(activeClientSource, /activeView === "messages" \|\| activeView === "documents" \? activeView : "overview"/);
   assert.match(activeClientSource, /initialMatters\.some\(\(item\) => item\.id === pendingCreatedMatter\.matterId\)/);
-  assert.match(activeClientSource, /activeView === "matter" \|\| activePanel \|\| pendingTransition \? styles\.secondaryButton :/);
+  assert.match(activeClientSource, /activeView === "matter" \|\| activeView === "inbox" \|\| activePanel \|\| pendingTransition \? styles\.secondaryButton :/);
   assert.match(activeClientSource, /styles\.primaryButton\} \$\{styles\.newMatterButton/);
   assert.doesNotMatch(activeClientSource, /pushState\(null|replaceState\(null|localStorage|sessionStorage/);
 });
@@ -292,7 +292,7 @@ test("staff controls use one approved hierarchy", () => {
   for (const role of ["primaryButton", "secondaryButton", "textAction", "dangerButton"]) {
     assert.match(cssSource, new RegExp(`\\.${role}\\s*\\{`));
   }
-  assert.match(cssSource, /\.primaryButton,\s*\.secondaryButton,\s*\.textAction,\s*\.dangerButton\s*\{[\s\S]*min-height:\s*var\(--staff-control-height\)/);
+  assert.match(cssSource, /\.primaryButton,\s*\.secondaryButton,\s*\.textButton,\s*\.textAction,\s*\.dangerButton\s*\{[\s\S]*min-height:\s*var\(--staff-control-height\)/);
   assert.match(cssSource, /\.searchField input\s*\{[\s\S]*font-size:\s*var\(--staff-body-size\)/);
 });
 
@@ -301,6 +301,31 @@ test("staff more views keep their approved cross-matter labels without a dead tr
   assert.match(activeClientSource, /activeView === "messages" \|\| activeView === "documents" \? activeView : "overview"/);
   assert.match(activeClientSource, /canViewAudit/);
   assert.doesNotMatch(activeNavigationSource, /Корзина/);
+});
+
+test("staff controls keep concrete touch targets and share text-action typography", () => {
+  assert.match(cssSource, /\.headerNav a,\s*\.headerNav button\s*\{[\s\S]*min-width:\s*var\(--staff-control-height\)[\s\S]*min-height:\s*var\(--staff-control-height\)/);
+  assert.match(cssSource, /\.drawerClose\s*\{[\s\S]*min-width:\s*var\(--staff-control-height\)[\s\S]*min-height:\s*var\(--staff-control-height\)/);
+  assert.match(cssSource, /\.primaryButton,\s*\.secondaryButton,\s*\.textButton,\s*\.textAction,\s*\.dangerButton\s*\{/);
+});
+
+test("inbox owns its contextual primary action and clears every active empty filter", async () => {
+  const intakeSource = await readFile(new URL("../features/staff/staff-intake-panel.jsx", import.meta.url), "utf8");
+
+  assert.match(activeClientSource, /activeView === "matter" \|\| activeView === "inbox" \|\| activePanel \|\| pendingTransition \? styles\.secondaryButton/);
+  assert.match(intakeSource, /className=\{styles\.intakePrimaryAction\}[\s\S]*Принять и создать дело/);
+  assert.match(activeClientSource, /<StaffIntakePanel[\s\S]*onResetSearch=\{resetSearch\}/);
+  assert.match(activeClientSource, /<AuditList events=\{auditEvents\} matters=\{initialMatters\} onReset=\{searchQuery \? resetSearch : undefined\}/);
+  assert.match(intakeSource, /function IntakeEmpty\(\{ filtered, onReset \}\)/);
+  assert.match(intakeSource, /const resetFilters = \(\) => \{[\s\S]*setFilter\("open"\);[\s\S]*onResetSearch\?\.\(\)/);
+  assert.match(intakeSource, /onReset=\{filtered \? resetFilters : undefined\}/);
+});
+
+test("opened mobile more menu remains in the horizontal navigation strip", () => {
+  const mobileStyles = cssSource.slice(cssSource.indexOf("@media (max-width: 680px)"));
+  assert.match(activeNavigationSource, /<details[\s\S]*aria-label="Ещё разделы"[\s\S]*<summary>Ещё<\/summary>/);
+  assert.match(mobileStyles, /\.moreNavigation\[open\]\s*\{\s*display:\s*contents/);
+  assert.match(mobileStyles, /\.moreNavigation\[open\] \.moreNavigationMenu\s*\{[\s\S]*display:\s*flex[\s\S]*width:\s*max-content/);
 });
 
 test("only administrators receive the matter metadata editor", () => {
