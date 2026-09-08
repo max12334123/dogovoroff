@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import test from "node:test";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { transform } from "next/dist/build/swc/index.js";
 import * as staffDomain from "../features/staff/staff-domain.mjs";
+import * as workspaceDomain from "../features/staff/staff-workspace-ui-domain.mjs";
 
 // Resolve Next's extensionless imports while executing the real server loader in Node.
 const serverUrl = new URL("../features/staff/staff-server.js", import.meta.url);
@@ -23,6 +28,43 @@ test("overview distinguishes a named employee, no assignment, and unavailable da
   assert.equal(staffDomain.getStaffAssignmentLabel({ assignmentStatus: "unassigned" }), "Сотрудник не назначен");
   assert.equal(staffDomain.getStaffAssignmentLabel({ assignmentStatus: "unavailable" }), "Данные о назначении временно недоступны");
   assert.equal(staffDomain.getStaffAssignmentLabel({}), "Данные о назначении временно недоступны");
+});
+
+test("visible workspace overview renders the responsible employee read-model states", async () => {
+  const filename = new URL("../features/staff/staff-matter-workspace.jsx", import.meta.url);
+  const { code } = await transform(await readFile(filename, "utf8"), {
+    filename: filename.pathname,
+    jsc: { parser: { syntax: "ecmascript", jsx: true }, transform: { react: { runtime: "automatic" } } },
+    module: { type: "commonjs" },
+  });
+  const nativeRequire = createRequire(import.meta.url);
+  const module = { exports: {} };
+  // Node has no CSS/JSX loader. Compile the actual workspace with installed Next SWC;
+  // only inactive tabs/dialogs are isolated, and fail if accidentally rendered.
+  const inactiveSurface = () => { throw new Error("Overview unexpectedly rendered an inactive form"); };
+  const requireWorkspaceDependency = (name) => {
+    if (name === "./staff.module.css") return {};
+    if (name === "./staff-domain.mjs") return staffDomain;
+    if (name === "./staff-workspace-ui-domain.mjs") return workspaceDomain;
+    if (name === "../document-requests/staff-document-requests" || name === "./staff-workflow-form") return inactiveSurface;
+    if (name === "./staff-workspace-ui") return { StaffDialog: inactiveSurface };
+    return nativeRequire(name);
+  };
+  new Function("require", "module", "exports", code)(requireWorkspaceDependency, module, module.exports);
+
+  for (const [assignment, expected] of [
+    [{ assignmentStatus: "assigned", assignedLawyerName: "Сотрудник А" }, "Сотрудник А"],
+    [{ assignmentStatus: "unassigned", assignedLawyerName: null }, "Сотрудник не назначен"],
+    [{ assignmentStatus: "unavailable", assignedLawyerName: null }, "Данные о назначении временно недоступны"],
+  ]) {
+    const html = renderToStaticMarkup(createElement(module.exports.default, {
+      tab: "overview",
+      activePanel: null,
+      matter: { id: MATTER, title: "Тестовое дело", documents: [], stages: [], ...assignment },
+    }));
+    assert.match(html, /id="staff-panel-overview"(?=[^>]*role="tabpanel")(?![^>]*hidden)[^>]*>/);
+    assert.ok(html.includes(`<dt>Ответственный</dt><dd>${expected}</dd>`), `${assignment.assignmentStatus}: expected responsible-employee value in the rendered overview`);
+  }
 });
 
 function fixture({ role = "admin", ids = [MATTER], assignmentResult } = {}) {
