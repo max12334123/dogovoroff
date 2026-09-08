@@ -22,7 +22,7 @@ export default function StaffNavigation({
             {counts[item.id] > 0 ? <small>{counts[item.id]}</small> : null}
           </button>
         ))}
-        <details className={styles.moreNavigation} open={activeView === "more" || moreItems.some((item) => item.id === activeView)}>
+        <details className={styles.moreNavigation} open={activeView === "more" || moreItems.some((item) => item.id === activeView)} aria-label="Ещё разделы">
           <summary>Ещё</summary>
           <div className={styles.moreNavigationMenu}>
             {moreItems.map((item) => (

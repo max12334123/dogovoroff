@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-const [pageSource, cssSource, effectsSource, legalDocumentSource, precheckSource, layoutSource, navigationSource, matterComponentsSource, errorSource] = await Promise.all([
+const [pageSource, cssSource, effectsSource, legalDocumentSource, precheckSource, layoutSource, navigationSource, matterComponentsSource, errorSource, staffErrorSource, staffCssSource] = await Promise.all([
   readFile(new URL("../app/page.jsx", import.meta.url), "utf8"),
   readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
   readFile(new URL("../app/effects.jsx", import.meta.url), "utf8"),
@@ -12,6 +12,8 @@ const [pageSource, cssSource, effectsSource, legalDocumentSource, precheckSource
   readFile(new URL("../features/cabinet/cabinet-navigation.jsx", import.meta.url), "utf8"),
   readFile(new URL("../features/cabinet/cabinet-matter-components.jsx", import.meta.url), "utf8"),
   readFile(new URL("../app/cabinet/error.jsx", import.meta.url), "utf8"),
+  readFile(new URL("../app/staff/error.jsx", import.meta.url), "utf8"),
+  readFile(new URL("../features/staff/staff.module.css", import.meta.url), "utf8"),
 ]);
 
 test("required lead fields expose their requirement before validation", () => {
@@ -71,4 +73,11 @@ test("cabinet error boundary keeps a visible retry action connected to reset", (
   assert.match(errorSource, /"use client"/);
   assert.match(errorSource, />Повторить</);
   assert.match(errorSource, /onClick=\{\(\) => reset\(\)\}/);
+});
+
+test("staff error state keeps an explicit retry action and motion-safe controls", () => {
+  assert.match(staffErrorSource, /"use client"/);
+  assert.match(staffErrorSource, /className=\{styles\.primaryButton\}/);
+  assert.match(staffErrorSource, /onClick=\{\(\) => reset\(\)\}/);
+  assert.match(staffCssSource, /@media \(prefers-reduced-motion: reduce\)[\s\S]*scroll-behavior:\s*auto !important/);
 });

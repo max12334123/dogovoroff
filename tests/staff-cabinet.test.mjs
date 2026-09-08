@@ -81,7 +81,8 @@ test("staff navigation preserves framework history and focuses a separate worksp
   assert.match(activeClientSource, /openMatter\(notification\.matterId, notification\.targetView\)/);
   assert.match(activeClientSource, /activeView === "messages" \|\| activeView === "documents" \? activeView : "overview"/);
   assert.match(activeClientSource, /initialMatters\.some\(\(item\) => item\.id === pendingCreatedMatter\.matterId\)/);
-  assert.match(activeClientSource, /activeView === "matter" \|\| activePanel \|\| pendingTransition \? styles\.secondaryButton : styles\.newMatterButton/);
+  assert.match(activeClientSource, /activeView === "matter" \|\| activePanel \|\| pendingTransition \? styles\.secondaryButton :/);
+  assert.match(activeClientSource, /styles\.primaryButton\} \$\{styles\.newMatterButton/);
   assert.doesNotMatch(activeClientSource, /pushState\(null|replaceState\(null|localStorage|sessionStorage/);
 });
 
@@ -282,16 +283,24 @@ test("staff detail separates managed requests from other documents without expos
   assert.doesNotMatch(workspaceSource, /lastReviewNote.*AUDIT_COPY|originalName.*AUDIT_COPY/);
 });
 
-test("staff controls keep explicit typography roles on desktop and mobile", () => {
-  const [mobileSharedRule = ""] = cssSource.match(/\.searchField input,\s*\n\s*\.newMatterButton\s*\{[^}]*\}/) ?? [];
+test("staff controls use one approved hierarchy", () => {
+  assert.match(cssSource, /--staff-body-size:\s*16px/);
+  assert.match(cssSource, /--staff-control-size:\s*14px/);
+  assert.match(cssSource, /--staff-control-height:\s*44px/);
+  assert.match(cssSource, /--staff-motion-fast:\s*180ms/);
+  assert.match(cssSource, /--staff-motion-slow:\s*360ms/);
+  for (const role of ["primaryButton", "secondaryButton", "textAction", "dangerButton"]) {
+    assert.match(cssSource, new RegExp(`\\.${role}\\s*\\{`));
+  }
+  assert.match(cssSource, /\.primaryButton,\s*\.secondaryButton,\s*\.textAction,\s*\.dangerButton\s*\{[\s\S]*min-height:\s*var\(--staff-control-height\)/);
+  assert.match(cssSource, /\.searchField input\s*\{[\s\S]*font-size:\s*var\(--staff-body-size\)/);
+});
 
-  assert.match(cssSource, /--staff-control-font-size:\s*12px/);
-  assert.match(cssSource, /--staff-primary-font-size:\s*13px/);
-  assert.match(cssSource, /\.pageShell\s+:where\(button, input, select, textarea, summary\)/);
-  assert.match(cssSource, /\.documentDownload[\s\S]*font-size:\s*var\(--staff-control-font-size\)/);
-  assert.match(cssSource, /\.searchField input\s*\{\s*font-size:\s*16px/);
-  assert.match(mobileSharedRule, /\.newMatterButton/);
-  assert.doesNotMatch(mobileSharedRule, /font-size/);
+test("staff more views keep their approved cross-matter labels without a dead trash control", () => {
+  assert.match(activeClientSource, /const MORE_COPY = \{[\s\S]*documents: \{ title: "Документы", eyebrow: "Материалы по делам" \},[\s\S]*messages: \{ title: "Сообщения", eyebrow: "Связь с клиентами" \},[\s\S]*audit: \{ title: "Журнал действий", eyebrow: "Контроль организации" \},[\s\S]*trash: \{ title: "Корзина", eyebrow: "Удалённые дела" \}/);
+  assert.match(activeClientSource, /activeView === "messages" \|\| activeView === "documents" \? activeView : "overview"/);
+  assert.match(activeClientSource, /canViewAudit/);
+  assert.doesNotMatch(activeNavigationSource, /Корзина/);
 });
 
 test("only administrators receive the matter metadata editor", () => {

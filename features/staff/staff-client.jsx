@@ -31,14 +31,19 @@ const NAVIGATION = [
   { id: "audit", label: "Журнал" },
 ];
 
+const MORE_COPY = {
+  documents: { title: "Документы", eyebrow: "Материалы по делам" },
+  messages: { title: "Сообщения", eyebrow: "Связь с клиентами" },
+  audit: { title: "Журнал действий", eyebrow: "Контроль организации" },
+  trash: { title: "Корзина", eyebrow: "Удалённые дела" },
+};
+
 const VIEW_COPY = {
   today: { title: "Сегодня в работе", eyebrow: "Рабочий день" },
   inbox: { title: "Входящие заявки", eyebrow: "Новые обращения" },
   matters: { title: "Все дела", eyebrow: "Реестр команды" },
   clients: { title: "Клиенты", eyebrow: "Доступ по делам" },
-  documents: { title: "Документы", eyebrow: "Материалы по делам" },
-  messages: { title: "Сообщения", eyebrow: "Связь с клиентами" },
-  audit: { title: "Журнал действий", eyebrow: "Контроль организации" },
+  ...MORE_COPY,
   matter: { title: "Карточка дела", eyebrow: "Работа по делу" },
 };
 
@@ -111,19 +116,20 @@ function getPreferredScrollBehavior() {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
 }
 
-function EmptyState({ title, text }) {
+function EmptyState({ title, text, onReset }) {
   return (
     <section className={styles.emptyPanel}>
       <p className={styles.eyebrow}>Список пуст</p>
       <h2>{title}</h2>
       <p>{text}</p>
+      {onReset ? <button className={styles.textAction} type="button" onClick={onReset}>Сбросить фильтр</button> : null}
     </section>
   );
 }
 
-function RegisterList({ matters, onSelect }) {
+function RegisterList({ matters, onSelect, onReset }) {
   if (!matters.length) {
-    return <EmptyState title="Ничего не найдено" text="Измените запрос или фильтр реестра." />;
+    return <EmptyState title="Ничего не найдено" text="Измените запрос или фильтр реестра." onReset={onReset} />;
   }
 
   return (
@@ -153,10 +159,10 @@ function RegisterList({ matters, onSelect }) {
   );
 }
 
-function CollectionList({ type, matters, onSelect }) {
+function CollectionList({ type, matters, onSelect, onReset }) {
   if (type === "documents") {
     const rows = matters.flatMap((matter) => matter.documents.map((document) => ({ matter, document })));
-    if (!rows.length) return <EmptyState title="Документов пока нет" text="Загруженные материалы появятся здесь и в карточке дела." />;
+    if (!rows.length) return <EmptyState title="Документов пока нет" text="Загруженные материалы появятся здесь и в карточке дела." onReset={onReset} />;
     return (
       <div className={styles.collectionList}>
         {rows.map(({ matter, document }) => (
@@ -171,7 +177,7 @@ function CollectionList({ type, matters, onSelect }) {
 
   if (type === "messages") {
     const rows = matters.filter((matter) => matter.messages.length);
-    if (!rows.length) return <EmptyState title="Сообщений пока нет" text="Диалоги появятся после первого сообщения по делу." />;
+    if (!rows.length) return <EmptyState title="Сообщений пока нет" text="Диалоги появятся после первого сообщения по делу." onReset={onReset} />;
     return (
       <div className={styles.collectionList}>
         {rows.map((matter) => (
@@ -184,7 +190,7 @@ function CollectionList({ type, matters, onSelect }) {
     );
   }
 
-  if (!matters.length) return <EmptyState title="Клиентских дел пока нет" text="После назначения дела клиенту оно появится в этом списке." />;
+  if (!matters.length) return <EmptyState title="Клиентских дел пока нет" text="После назначения дела клиенту оно появится в этом списке." onReset={onReset} />;
   return (
     <div className={styles.collectionList}>
       {matters.map((matter) => (
@@ -445,6 +451,10 @@ export default function StaffClient({
     getStaffMatterLocation(location, matterId, tab, initialMatters, { canViewAudit, intakeEnabled }),
   );
   const closeMatter = () => navigate({ view: location.from });
+  const resetFilters = () => {
+    setSearchQuery("");
+    setRegisterFilter("all");
+  };
 
   useEffect(() => {
     if (!pendingCreatedMatter || !initialMatters.some((item) => item.id === pendingCreatedMatter.matterId)) return;
@@ -699,7 +709,7 @@ export default function StaffClient({
             </label> : null}
             {assignmentOrganizations.length ? (
               <button
-                className={activeView === "matter" || activePanel || pendingTransition ? styles.secondaryButton : styles.newMatterButton}
+                className={activeView === "matter" || activePanel || pendingTransition ? styles.secondaryButton : `${styles.primaryButton} ${styles.newMatterButton}`}
                 ref={newMatterButtonRef}
                 type="button"
                 onClick={() => {
@@ -760,7 +770,7 @@ export default function StaffClient({
               {actionMatters.length || waitingMatters.length || pausedMatters.length ? (
                 <StaffTaskList action={actionMatters} waiting={waitingMatters} paused={pausedMatters} onOpenMatter={openMatter} />
               ) : (
-                <EmptyState title="На сегодня задач нет" text={searchQuery ? "По вашему запросу активные дела не найдены." : "Новые задачи появятся здесь автоматически."} />
+                  <EmptyState title="На сегодня задач нет" text={searchQuery ? "По вашему запросу активные дела не найдены." : "Новые задачи появятся здесь автоматически."} onReset={searchQuery ? resetFilters : undefined} />
               )}
             </div>
           </div>
@@ -792,7 +802,7 @@ export default function StaffClient({
               ))}
             </div>
             <div className={styles.registryGrid}>
-              <RegisterList matters={registerMatters} onSelect={openMatter} />
+              <RegisterList matters={registerMatters} onSelect={openMatter} onReset={searchQuery || registerFilter !== "all" ? resetFilters : undefined} />
             </div>
           </>
         ) : null}
@@ -807,6 +817,7 @@ export default function StaffClient({
                 type={activeView}
                 matters={searchedMatters}
                 onSelect={selectCollectionMatter}
+                onReset={searchQuery ? resetFilters : undefined}
               />
             </div>
           </div>
