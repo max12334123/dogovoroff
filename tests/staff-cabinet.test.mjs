@@ -324,7 +324,8 @@ test("inbox owns its contextual primary action and clears every active empty fil
 test("opened mobile more menu remains in the horizontal navigation strip", () => {
   const mobileStyles = cssSource.slice(cssSource.indexOf("@media (max-width: 680px)"));
   assert.match(activeNavigationSource, /<details[\s\S]*aria-label="Ещё разделы"[\s\S]*<summary>Ещё<\/summary>/);
-  assert.match(mobileStyles, /\.moreNavigation\[open\]\s*\{\s*display:\s*contents/);
+  assert.doesNotMatch(mobileStyles, /\.moreNavigation\[open\]\s*\{[\s\S]*?display:\s*contents/);
+  assert.match(mobileStyles, /\.moreNavigation\[open\]\s*\{[\s\S]*display:\s*flex[\s\S]*flex:\s*0\s+0\s+auto[\s\S]*align-items:\s*stretch/);
   assert.match(mobileStyles, /\.moreNavigation\[open\] \.moreNavigationMenu\s*\{[\s\S]*display:\s*flex[\s\S]*width:\s*max-content/);
 });
 

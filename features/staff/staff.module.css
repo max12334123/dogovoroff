@@ -2182,7 +2182,10 @@
   }
 
   .moreNavigation[open] {
-    display: contents;
+    display: flex;
+    flex: 0 0 auto;
+    align-items: stretch;
+    width: max-content;
   }
 
   .moreNavigation[open] .moreNavigationMenu {
