@@ -2134,6 +2134,10 @@
     padding-inline: 18px;
   }
 
+  .brand {
+    min-height: var(--staff-control-height);
+  }
+
   .brandMark {
     width: 38px;
     height: 38px;

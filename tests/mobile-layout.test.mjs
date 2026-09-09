@@ -83,6 +83,7 @@ test("staff mobile navigation and controls stay readable without page overflow",
   assert.match(railStyles, /overflow-x:\s*auto/);
   assert.match(navStyles, /display:\s*flex/);
   assert.match(navStyles, /width:\s*max-content/);
+  assert.match(mobileStyles, /\.brand\s*\{[\s\S]*min-height:\s*var\(--staff-control-height\)/);
   assert.match(mobileStyles, /\.railButton\s*\{[\s\S]*min-height:\s*var\(--staff-control-height\)/);
   assert.match(mobileStyles, /\.workspaceTabs\s*\{[\s\S]*overflow-x:\s*auto/);
   assert.match(mobileStyles, /\.searchField input\s*\{[\s\S]*font-size:\s*var\(--staff-body-size\)/);
