@@ -35,6 +35,10 @@ function getRequestDraft(request) {
   };
 }
 
+function focusEditorReturnTarget(trigger, fallback) {
+  (trigger?.isConnected ? trigger : fallback)?.focus({ preventScroll: true });
+}
+
 export default function StaffDocumentRequests({
   matter,
   downloadingId = null,
@@ -82,8 +86,10 @@ export default function StaffDocumentRequests({
     });
   };
   const closeEditor = () => requestTransition(() => {
+    const requestId = activeEditor?.includes(":") ? activeEditor.slice(activeEditor.indexOf(":") + 1) : null;
+    const fallback = requestId ? cardRefs.current.get(requestId) : statusRef.current;
     resetEditor();
-    requestAnimationFrame(() => editorTriggerRef.current?.focus());
+    requestAnimationFrame(() => focusEditorReturnTarget(editorTriggerRef.current, fallback));
   });
   useEffect(() => {
     if (!activeEditor) return;

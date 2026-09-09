@@ -89,6 +89,21 @@ test("staff request completion waits for a refreshed request card before returni
   assert.match(staffSource, /setPendingFocusRequestId\(null\);/);
 });
 
+test("closing an inline staff editor restores focus to its surviving card when the trigger unmounts", () => {
+  const match = staffSource.match(/function focusEditorReturnTarget\(trigger, fallback\) \{[\s\S]*?\n\}/);
+  assert.ok(match, "Inline editor focus must handle an unmounted trigger");
+
+  const focusEditorReturnTarget = new Function(`${match[0]}; return focusEditorReturnTarget;`)();
+  let activeElement = null;
+  const detachedTrigger = { isConnected: false, focus() { activeElement = this; } };
+  const requestCard = { isConnected: true, focus(options) { activeElement = this; this.options = options; } };
+
+  focusEditorReturnTarget(detachedTrigger, requestCard);
+
+  assert.equal(activeElement, requestCard);
+  assert.deepEqual(requestCard.options, { preventScroll: true });
+});
+
 test("staff document create, edit, review and confirmations share one progressive surface", () => {
   assert.match(staffSource, /const \[activeEditor, setActiveEditor\] = useState\(null\)/);
   assert.match(staffSource, /activeEditor === "create" \? <form/);
