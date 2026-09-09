@@ -232,7 +232,7 @@ test("staff workspace is split into focused modules", async () => {
 });
 
 test("extracted navigation preserves count and current-page behavior in the more menu", () => {
-  assert.match(activeNavigationSource, /moreItems\.map\(\(item\) =>/);
+  assert.match(activeNavigationSource, /moreItems\.map\(\(item, index\) =>/);
   assert.equal(activeNavigationSource.match(/counts\[item\.id\] > 0 \? <small>\{counts\[item\.id\]\}<\/small> : null/g)?.length, 2);
   assert.equal(activeNavigationSource.match(/className=\{`\$\{styles\.railButton\}\$\{activeView === item\.id \? ` \$\{styles\.isActive\}` : ""\}`\}/g)?.length, 2);
   assert.equal(activeNavigationSource.match(/aria-current=\{activeView === item\.id \? "page" : undefined\}/g)?.length, 2);
@@ -327,6 +327,25 @@ test("opened mobile more menu remains in the horizontal navigation strip", () =>
   assert.doesNotMatch(mobileStyles, /\.moreNavigation\[open\]\s*\{[\s\S]*?display:\s*contents/);
   assert.match(mobileStyles, /\.moreNavigation\[open\]\s*\{[\s\S]*display:\s*flex[\s\S]*flex:\s*0\s+0\s+auto[\s\S]*align-items:\s*stretch/);
   assert.match(mobileStyles, /\.moreNavigation\[open\] \.moreNavigationMenu\s*\{[\s\S]*display:\s*flex[\s\S]*width:\s*max-content/);
+});
+
+test("opening native more navigation reveals its first option without moving summary focus", () => {
+  const functionStart = activeNavigationSource.indexOf("function revealMoreNavigation");
+  assert.notEqual(functionStart, -1, "Opening More must reveal its expanded navigation options");
+  const functionEnd = activeNavigationSource.indexOf("\n}\n\nexport default", functionStart) + 2;
+  const revealMoreNavigation = new Function(`${activeNavigationSource.slice(functionStart, functionEnd)}; return revealMoreNavigation;`)();
+  const summary = {};
+  let activeElement = summary;
+  let scrollOptions = null;
+  const firstMoreItem = {
+    focus() { activeElement = this; },
+    scrollIntoView(options) { scrollOptions = options; },
+  };
+
+  revealMoreNavigation({ open: true }, firstMoreItem, (callback) => callback());
+
+  assert.deepEqual(scrollOptions, { behavior: "auto", block: "nearest", inline: "nearest" });
+  assert.equal(activeElement, summary);
 });
 
 test("only administrators receive the matter metadata editor", () => {
