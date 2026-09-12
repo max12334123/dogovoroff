@@ -94,6 +94,30 @@ test("staff assignment SQL smoke suite is transactional and covers every role", 
   assert.doesNotMatch(source, /service_role/i);
 });
 
+test("staff offboarding SQL smoke keeps stale assignments while proving access revocation", async () => {
+  const source = await readFile(
+    new URL("../supabase/tests/offboarding-revocation-smoke.sql", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(source, /^begin;/m);
+  assert.match(source, /^rollback;/m);
+  assert.doesNotMatch(source, /^commit;/m);
+  assert.match(source, /get diagnostics deleted_rows = row_count/);
+  assert.match(source, /database:stale-lawyer-participant-retained/);
+  assert.match(source, /database:other-organization-membership-preserved/);
+  assert.match(source, /former-lawyer:matter-hidden/);
+  assert.match(source, /former-lawyer:participant-hidden/);
+  assert.match(source, /former-lawyer:storage-hidden/);
+  assert.match(source, /former-lawyer:update-workflow-denied/);
+  assert.match(source, /former-lawyer:create-request-denied/);
+  assert.match(source, /client:can-access-matter/);
+  assert.match(source, /client:insert-storage-still-allowed/);
+  assert.match(source, /admin:can-manage-matter/);
+  assert.match(source, /Offboarding revocation smoke failed/);
+  assert.doesNotMatch(source, /service_role/i);
+});
+
 test("intake inbox SQL smoke suite is transactional and covers the server boundary", async () => {
   const source = await readFile(
     new URL("../supabase/tests/intake-inbox-smoke.sql", import.meta.url),
