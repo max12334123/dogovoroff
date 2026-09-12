@@ -33,8 +33,10 @@ from (values
 ) as fixture(id, label);
 
 insert into public.profiles (id, display_name) values
+  ('71111111-1111-4111-8111-111111111111', 'Reader admin'),
   ('72222222-2222-4222-8222-222222222222', 'Reader lawyer A'),
   ('77777777-7777-4777-8777-777777777777', 'Reader lawyer B'),
+  ('76666666-6666-4666-8666-666666666666', 'Reader former employee'),
   ('74444444-4444-4444-8444-444444444444', 'Never expose client');
 insert into public.organizations (id, name) values
   ('7aaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'Assignment reader A'),
@@ -44,17 +46,27 @@ insert into public.organization_members (organization_id, user_id, role) values
   ('7aaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', '72222222-2222-4222-8222-222222222222', 'lawyer'),
   ('7aaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', '73333333-3333-4333-8333-333333333333', 'lawyer'),
   ('7aaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', '77777777-7777-4777-8777-777777777777', 'lawyer'),
-  ('7bbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', '75555555-5555-4555-8555-555555555555', 'admin');
+  ('7bbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', '75555555-5555-4555-8555-555555555555', 'admin'),
+  ('7bbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', '76666666-6666-4666-8666-666666666666', 'lawyer');
 insert into public.matters (id, organization_id, reference, title) values
   ('7c111111-1111-4111-8111-111111111111', '7aaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'READER-1', 'Assignment reader assigned'),
   ('7c222222-2222-4222-8222-222222222222', '7aaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'READER-2', 'Assignment reader unassigned'),
-  ('7c333333-3333-4333-8333-333333333333', '7bbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', 'READER-3', 'Assignment reader foreign');
+  ('7c333333-3333-4333-8333-333333333333', '7bbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', 'READER-3', 'Assignment reader foreign'),
+  ('7c444444-4444-4444-8444-444444444444', '7aaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'READER-4', 'Assignment reader stale only'),
+  ('7c555555-5555-4555-8555-555555555555', '7aaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'READER-5', 'Assignment reader stale before active'),
+  ('7c666666-6666-4666-8666-666666666666', '7aaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'READER-6', 'Assignment reader current admin assignee'),
+  ('7c777777-7777-4777-8777-777777777777', '7aaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'READER-7', 'Assignment reader current staff without profile');
 insert into public.matter_participants (matter_id, user_id, role, created_at) values
   ('7c111111-1111-4111-8111-111111111111', '74444444-4444-4444-8444-444444444444', 'client', '2026-01-01'),
   ('7c111111-1111-4111-8111-111111111111', '72222222-2222-4222-8222-222222222222', 'lawyer', '2026-01-02'),
   ('7c111111-1111-4111-8111-111111111111', '77777777-7777-4777-8777-777777777777', 'lawyer', '2026-01-02'),
   ('7c111111-1111-4111-8111-111111111111', '76666666-6666-4666-8666-666666666666', 'lawyer', '2026-01-03'),
-  ('7c222222-2222-4222-8222-222222222222', '73333333-3333-4333-8333-333333333333', 'client', '2026-01-01');
+  ('7c222222-2222-4222-8222-222222222222', '73333333-3333-4333-8333-333333333333', 'client', '2026-01-01'),
+  ('7c444444-4444-4444-8444-444444444444', '76666666-6666-4666-8666-666666666666', 'lawyer', '2026-01-01'),
+  ('7c555555-5555-4555-8555-555555555555', '76666666-6666-4666-8666-666666666666', 'lawyer', '2026-01-01'),
+  ('7c555555-5555-4555-8555-555555555555', '77777777-7777-4777-8777-777777777777', 'lawyer', '2026-01-02'),
+  ('7c666666-6666-4666-8666-666666666666', '71111111-1111-4111-8111-111111111111', 'lawyer', '2026-01-01'),
+  ('7c777777-7777-4777-8777-777777777777', '73333333-3333-4333-8333-333333333333', 'lawyer', '2026-01-01');
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '71111111-1111-4111-8111-111111111111', true);
@@ -63,6 +75,14 @@ insert into pg_temp.assignment_reader_results values
     from public.list_staff_matter_assignments(array['7c111111-1111-4111-8111-111111111111']::uuid[]) as r)),
   ('admin:unassigned-null', (select assigned_lawyer_id is null and assigned_lawyer_name is null
     from public.list_staff_matter_assignments(array['7c222222-2222-4222-8222-222222222222']::uuid[]))),
+  ('admin:stale-only-is-unassigned', (select to_jsonb(r) = '{"matter_id":"7c444444-4444-4444-8444-444444444444","assigned_lawyer_id":null,"assigned_lawyer_name":null}'::jsonb
+    from public.list_staff_matter_assignments(array['7c444444-4444-4444-8444-444444444444']::uuid[]) as r)),
+  ('admin:stale-earlier-active-later-selects-active', (select to_jsonb(r) = '{"matter_id":"7c555555-5555-4555-8555-555555555555","assigned_lawyer_id":"77777777-7777-4777-8777-777777777777","assigned_lawyer_name":"Reader lawyer B"}'::jsonb
+    from public.list_staff_matter_assignments(array['7c555555-5555-4555-8555-555555555555']::uuid[]) as r)),
+  ('admin:current-admin-remains-assignable', (select to_jsonb(r) = '{"matter_id":"7c666666-6666-4666-8666-666666666666","assigned_lawyer_id":"71111111-1111-4111-8111-111111111111","assigned_lawyer_name":"Reader admin"}'::jsonb
+    from public.list_staff_matter_assignments(array['7c666666-6666-4666-8666-666666666666']::uuid[]) as r)),
+  ('admin:current-staff-without-profile-uses-fallback', (select to_jsonb(r) = '{"matter_id":"7c777777-7777-4777-8777-777777777777","assigned_lawyer_id":"73333333-3333-4333-8333-333333333333","assigned_lawyer_name":"Сотрудник"}'::jsonb
+    from public.list_staff_matter_assignments(array['7c777777-7777-4777-8777-777777777777']::uuid[]) as r)),
   ('admin:mixed-ids-only-own-no-duplicates', (select count(*) = 2 from public.list_staff_matter_assignments(array[
     '7c111111-1111-4111-8111-111111111111', '7c111111-1111-4111-8111-111111111111',
     '7c222222-2222-4222-8222-222222222222', '7c333333-3333-4333-8333-333333333333',
@@ -90,7 +110,7 @@ insert into pg_temp.assignment_reader_results values
   ('foreign:denied', (select count(*) = 0 from public.list_staff_matter_assignments(array['7c111111-1111-4111-8111-111111111111']::uuid[])));
 select set_config('request.jwt.claim.sub', '76666666-6666-4666-8666-666666666666', true);
 insert into pg_temp.assignment_reader_results values
-  ('former:participant-without-membership-denied', (select count(*) = 0 from public.list_staff_matter_assignments(array['7c111111-1111-4111-8111-111111111111']::uuid[])));
+  ('former:participant-without-same-org-membership-denied', (select count(*) = 0 from public.list_staff_matter_assignments(array['7c111111-1111-4111-8111-111111111111']::uuid[])));
 select set_config('request.jwt.claim.sub', '', true);
 insert into pg_temp.assignment_reader_results values
   ('auth:no-user-denied', pg_temp.assignment_reader_error('{}'::uuid[]) = '42501');
