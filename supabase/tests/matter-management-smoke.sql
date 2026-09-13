@@ -111,12 +111,14 @@ insert into auth.users (
 ) values
   ('61111111-1111-4111-8111-111111111111', 'authenticated', 'authenticated', 'management-client@example.test', now(), '{}'::jsonb, '{}'::jsonb, now(), now()),
   ('63333333-3333-4333-8333-333333333333', 'authenticated', 'authenticated', 'management-lawyer@example.test', now(), '{}'::jsonb, '{}'::jsonb, now(), now()),
-  ('64444444-4444-4444-8444-444444444444', 'authenticated', 'authenticated', 'management-admin@example.test', now(), '{}'::jsonb, '{}'::jsonb, now(), now());
+  ('64444444-4444-4444-8444-444444444444', 'authenticated', 'authenticated', 'management-admin@example.test', now(), '{}'::jsonb, '{}'::jsonb, now(), now()),
+  ('65555555-5555-4555-8555-555555555555', 'authenticated', 'authenticated', 'management-former-lawyer@example.test', now(), '{}'::jsonb, '{}'::jsonb, now(), now());
 
 insert into public.profiles (id, display_name) values
   ('61111111-1111-4111-8111-111111111111', 'Management client'),
   ('63333333-3333-4333-8333-333333333333', 'Management lawyer'),
-  ('64444444-4444-4444-8444-444444444444', 'Management admin');
+  ('64444444-4444-4444-8444-444444444444', 'Management admin'),
+  ('65555555-5555-4555-8555-555555555555', 'Management former lawyer');
 
 insert into public.organizations (id, name) values
   ('6aaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'Management smoke organization A'),
@@ -124,23 +126,77 @@ insert into public.organizations (id, name) values
 
 insert into public.organization_members (organization_id, user_id, role) values
   ('6aaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', '63333333-3333-4333-8333-333333333333', 'lawyer'),
-  ('6aaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', '64444444-4444-4444-8444-444444444444', 'admin');
+  ('6aaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', '64444444-4444-4444-8444-444444444444', 'admin'),
+  ('6bbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', '65555555-5555-4555-8555-555555555555', 'lawyer');
 
 insert into public.matters (id, organization_id, reference, title, summary, created_by) values
-  ('6c111111-1111-4111-8111-111111111111', '6aaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'MGMT-001', 'Исходное дело', 'Исходное описание', '64444444-4444-4444-8444-444444444444');
+  ('6c111111-1111-4111-8111-111111111111', '6aaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'MGMT-001', 'Исходное дело', 'Исходное описание', '64444444-4444-4444-8444-444444444444'),
+  ('6c222222-2222-4222-8222-222222222222', '6aaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'MGMT-STALE-ONLY', 'Дело только с бывшим юристом', 'Проверка пустого назначения', '64444444-4444-4444-8444-444444444444'),
+  ('6c333333-3333-4333-8333-333333333333', '6aaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'MGMT-STALE-FIRST', 'Дело с новым юристом', 'Проверка актуального назначения', '64444444-4444-4444-8444-444444444444');
 
-insert into public.matter_participants (matter_id, user_id, role) values
-  ('6c111111-1111-4111-8111-111111111111', '61111111-1111-4111-8111-111111111111', 'client'),
-  ('6c111111-1111-4111-8111-111111111111', '63333333-3333-4333-8333-333333333333', 'lawyer');
+insert into public.matter_participants (matter_id, user_id, role, created_at) values
+  ('6c111111-1111-4111-8111-111111111111', '61111111-1111-4111-8111-111111111111', 'client', default),
+  ('6c111111-1111-4111-8111-111111111111', '63333333-3333-4333-8333-333333333333', 'lawyer', default),
+  ('6c222222-2222-4222-8222-222222222222', '65555555-5555-4555-8555-555555555555', 'lawyer', '2026-01-01T00:00:00+00'),
+  ('6c333333-3333-4333-8333-333333333333', '65555555-5555-4555-8555-555555555555', 'lawyer', '2026-01-01T00:00:00+00'),
+  ('6c333333-3333-4333-8333-333333333333', '63333333-3333-4333-8333-333333333333', 'lawyer', '2026-01-02T00:00:00+00');
 
 insert into public.matter_stages (id, matter_id, position, title, status) values
-  ('6d111111-1111-4111-8111-111111111111', '6c111111-1111-4111-8111-111111111111', 1, 'Первичная проверка', 'current');
+  ('6d111111-1111-4111-8111-111111111111', '6c111111-1111-4111-8111-111111111111', 1, 'Первичная проверка', 'current'),
+  ('6d222222-2222-4222-8222-222222222222', '6c222222-2222-4222-8222-222222222222', 1, 'Проверка назначения', 'current'),
+  ('6d333333-3333-4333-8333-333333333333', '6c333333-3333-4333-8333-333333333333', 1, 'Проверка нового юриста', 'current');
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '64444444-4444-4444-8444-444444444444', true);
 insert into pg_temp.management_results values
   ('admin:update-details', pg_temp.try_update_details('6c111111-1111-4111-8111-111111111111')::int, 1),
-  ('admin:organization-immutable', pg_temp.try_change_organization('6c111111-1111-4111-8111-111111111111', '6bbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb')::int, 0);
+  ('admin:organization-immutable', pg_temp.try_change_organization('6c111111-1111-4111-8111-111111111111', '6bbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb')::int, 0),
+  (
+    'workflow-output:stale-only-is-unassigned',
+    (
+      select count(*)
+      from public.update_matter_workflow(
+        '6c222222-2222-4222-8222-222222222222',
+        'active'::public.matter_status,
+        '6d222222-2222-4222-8222-222222222222',
+        null,
+        null,
+        null,
+        false,
+        null
+      ) as workflow_result
+      where to_jsonb(workflow_result) = jsonb_build_object(
+        'matter_id', '6c222222-2222-4222-8222-222222222222'::uuid,
+        'status', 'active'::public.matter_status,
+        'active_stage_id', '6d222222-2222-4222-8222-222222222222'::uuid,
+        'assigned_lawyer_id', null
+      )
+    ),
+    1
+  ),
+  (
+    'workflow-output:skips-stale-earlier-lawyer',
+    (
+      select count(*)
+      from public.update_matter_workflow(
+        '6c333333-3333-4333-8333-333333333333',
+        'active'::public.matter_status,
+        '6d333333-3333-4333-8333-333333333333',
+        null,
+        null,
+        null,
+        false,
+        null
+      ) as workflow_result
+      where to_jsonb(workflow_result) = jsonb_build_object(
+        'matter_id', '6c333333-3333-4333-8333-333333333333'::uuid,
+        'status', 'active'::public.matter_status,
+        'active_stage_id', '6d333333-3333-4333-8333-333333333333'::uuid,
+        'assigned_lawyer_id', '63333333-3333-4333-8333-333333333333'::uuid
+      )
+    ),
+    1
+  );
 reset role;
 
 set local role authenticated;
@@ -187,5 +243,6 @@ select json_build_object(
   'passed', true,
   'authorization_checks', 6,
   'persistence_checks', 4,
+  'workflow_output_checks', 2,
   'persistent_rows', 0
 ) as result;
