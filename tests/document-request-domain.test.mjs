@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import * as documentRequestDomain from "../features/document-requests/document-request-domain.mjs";
 import {
   DOCUMENT_REQUEST_STATUS,
   MAX_DOCUMENT_REQUEST_FILES,
@@ -100,6 +101,71 @@ test("mapped requests keep files grouped and choose the next client action deter
   assert.equal(requested.activeDocumentCount, 0);
   assert.equal(getClientPrimaryDocumentRequest([requested, changes]).id, changes.id);
   assert.equal(DOCUMENT_REQUEST_STATUS.ACCEPTED, "accepted");
+});
+
+test("client request priority is changes requested, due date, then creation date without reordering the list", () => {
+  const requests = [
+    { id: "newer", status: "requested", requiresClientAction: true, dueOn: "2026-09-10", createdAt: "2026-09-02T00:00:00.000Z" },
+    { id: "earliest-created", status: "requested", requiresClientAction: true, dueOn: "2026-09-05", createdAt: "2026-08-31T00:00:00.000Z" },
+    { id: "later-created", status: "requested", requiresClientAction: true, dueOn: "2026-09-05", createdAt: "2026-09-01T00:00:00.000Z" },
+    { id: "returned", status: "changes_requested", requiresClientAction: true, dueOn: null, createdAt: "2026-09-03T00:00:00.000Z" },
+  ];
+
+  assert.equal(getClientPrimaryDocumentRequest(requests)?.id, "returned");
+  assert.deepEqual(requests.map(({ id }) => id), ["newer", "earliest-created", "later-created", "returned"]);
+
+  assert.equal(getClientPrimaryDocumentRequest(requests.slice(0, 3))?.id, "earliest-created");
+});
+
+test("primary client control follows the prioritized request and its active files", () => {
+  const getPrimaryAction = documentRequestDomain.getClientPrimaryDocumentRequestAction;
+  assert.equal(typeof getPrimaryAction, "function");
+
+  const requested = {
+    id: "requested",
+    status: "requested",
+    requiresClientAction: true,
+    dueOn: "2026-09-01",
+    createdAt: "2026-08-20T00:00:00.000Z",
+    documents: [{ id: "ready", statusValue: "received" }],
+  };
+  const returnedWithArchivedFile = {
+    id: "returned",
+    status: "changes_requested",
+    requiresClientAction: true,
+    dueOn: "2026-09-30",
+    createdAt: "2026-08-30T00:00:00.000Z",
+    documents: [{ id: "old", statusValue: "archived" }],
+  };
+
+  assert.deepEqual(getPrimaryAction([requested, returnedWithArchivedFile]), {
+    requestId: "returned",
+    action: "add_file",
+  });
+  assert.deepEqual(getPrimaryAction([
+    requested,
+    {
+      ...returnedWithArchivedFile,
+      documents: [
+        { id: "old", statusValue: "archived" },
+        { id: "replacement", statusValue: "received" },
+      ],
+    },
+  ]), {
+    requestId: "returned",
+    action: "submit",
+  });
+});
+
+test("terminal-only client request lists have no primary mutation control", () => {
+  const getPrimaryAction = documentRequestDomain.getClientPrimaryDocumentRequestAction;
+  assert.equal(typeof getPrimaryAction, "function");
+
+  assert.equal(getPrimaryAction([
+    { id: "submitted", status: "submitted", requiresClientAction: false, documents: [{ statusValue: "received" }] },
+    { id: "accepted", status: "accepted", requiresClientAction: false, documents: [] },
+    { id: "cancelled", status: "cancelled", requiresClientAction: false, documents: [] },
+  ]), null);
 });
 
 test("provider errors become bounded Russian messages", () => {

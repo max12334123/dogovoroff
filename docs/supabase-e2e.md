@@ -44,7 +44,7 @@ Branching недоступен, создайте отдельный проект
 - назначение дел: `authorization_checks = 12`, `persistence_checks = 3`,
   `visibility_checks = 3`, `persistent_rows = 0`;
 - управление делом: `authorization_checks = 6`, `persistence_checks = 4`,
-  `persistent_rows = 0`;
+  `workflow_output_checks = 2`, `persistent_rows = 0`;
 - входящие заявки: `authorization_checks = 13`, `idempotency_checks = 3`,
   `conversion_checks = 6`, `persistent_rows = 0`.
 - запросы документов: `authorization_checks = 12`, `transition_checks = 8`,
@@ -72,6 +72,22 @@ Branching недоступен, создайте отдельный проект
 организаций, участников, дел, этапов, событий, запросов, документов, сообщений, аудита,
 Storage и временных политик вернула нулевые значения. Production не изменялся.
 Локальная контрольная проверка после cleanup: `npm test` — `260/260`, `next build` — успешно.
+
+13.09.2026 на `dogovoroff-test` дополнительно применена миграция
+`20260913040237_filter_stale_workflow_assignment_output.sql`, зарегистрированная на стенде
+как `20260913040456`. Два новых сценария сначала воспроизвели ошибочный результат
+`update_matter_workflow`: stale-only назначение возвращало бывшего сотрудника, а более
+ранняя stale-строка скрывала действующего юриста. Репетиция DDL с `rollback` и повторный
+запуск после применения вернули все 12 проверок управления делом, включая
+`workflow_output_checks = 2`, при `persistent_rows = 0`.
+
+После миграции также прошли RLS, staff-assignment, assignment-reader, intake,
+document-request и offboarding smoke-сценарии. Каталог подтвердил прежнюю сигнатуру,
+четыре поля результата, `SECURITY DEFINER`, пустой `search_path`, разрешение `EXECUTE`
+только роли `authenticated`, фильтр текущего membership в организации дела и
+детерминированный порядок `created_at, user_id`. Performance Advisor чист; Security
+Advisor сохранил восемь ожидаемых предупреждений для намеренно доступных
+`SECURITY DEFINER` RPC и один INFO по `intake_requests`. Production не изменялся.
 
 ## Альтернативный способ: временные access token
 

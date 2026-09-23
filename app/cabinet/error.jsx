@@ -11,8 +11,8 @@ export default function CabinetError({ reset }) {
         <h1 id="cabinet-error-title">Не удалось открыть кабинет</h1>
         <p>Данные временно недоступны. Повторите попытку или вернитесь на страницу входа.</p>
         <div className={styles.stateActions}>
-          <button type="button" onClick={() => reset()}>Повторить</button>
-          <Link href="/login?next=/cabinet">Войти снова</Link>
+          <button className={styles.primaryButton} type="button" onClick={() => reset()}>Повторить</button>
+          <Link className={styles.secondaryButton} href="/login?next=/cabinet">Войти снова</Link>
         </div>
       </section>
     </main>

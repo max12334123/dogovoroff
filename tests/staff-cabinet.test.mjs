@@ -12,8 +12,11 @@ import {
   hasStaffAccess,
 } from "../features/staff/staff-domain.mjs";
 import { validateMatterWorkflow } from "../features/staff/staff-workflow-domain.mjs";
+import { buildStaffHref, getStaffMatterLocation, parseStaffLocation } from "../features/staff/staff-navigation-domain.mjs";
+import { createDraftRegistry, createStaffHistory } from "../features/staff/staff-workspace-ui-domain.mjs";
+import { validateMatterMessage } from "../features/cabinet/cabinet-write-domain.mjs";
 
-const [pageSource, clientSource, assignmentFormSource, detailsFormSource, serverSource, actionsSource, middlewareSource, supabaseMiddlewareSource, cssSource] = await Promise.all([
+const [pageSource, clientSource, assignmentFormSource, detailsFormSource, serverSource, actionsSource, middlewareSource, supabaseMiddlewareSource, cssSource, navigationSource, workspaceSource, workflowSource] = await Promise.all([
   readFile(new URL("../app/staff/page.jsx", import.meta.url), "utf8"),
   readFile(new URL("../features/staff/staff-client.jsx", import.meta.url), "utf8"),
   readFile(new URL("../features/staff/staff-assignment-form.jsx", import.meta.url), "utf8"),
@@ -23,7 +26,162 @@ const [pageSource, clientSource, assignmentFormSource, detailsFormSource, server
   readFile(new URL("../middleware.js", import.meta.url), "utf8"),
   readFile(new URL("../lib/supabase/middleware.js", import.meta.url), "utf8"),
   readFile(new URL("../features/staff/staff.module.css", import.meta.url), "utf8"),
+  readFile(new URL("../features/staff/staff-navigation.jsx", import.meta.url), "utf8"),
+  readFile(new URL("../features/staff/staff-matter-workspace.jsx", import.meta.url), "utf8"),
+  readFile(new URL("../features/staff/staff-workflow-form.jsx", import.meta.url), "utf8"),
 ]);
+
+function withoutComments(source) {
+  return source
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/^\s*\/\/.*$/gm, "");
+}
+
+const activeClientSource = withoutComments(clientSource);
+const activeNavigationSource = withoutComments(navigationSource);
+const activeWorkspaceSource = withoutComments(workspaceSource);
+const activeWorkflowSource = withoutComments(workflowSource);
+
+test("staff lists open a separate matter workspace", async () => {
+  assert.doesNotMatch(activeClientSource, /dashboardGrid[\s\S]*showDetail\(\)/);
+  assert.doesNotMatch(activeClientSource, /registryGrid[\s\S]*showDetail\(\)/);
+  const taskList = await readFile(new URL("../features/staff/staff-task-list.jsx", import.meta.url), "utf8");
+  assert.match(taskList, /Требуют вашего действия/);
+  assert.match(taskList, /Ожидают клиента/);
+  assert.match(taskList, /Приостановлены/);
+  assert.match(taskList, /<strong>\{getMatterTask\(matter\)\}<\/strong>/);
+  assert.match(activeClientSource, /activeView === "matter" \? \([\s\S]*<StaffMatterWorkspace/);
+  assert.equal(activeClientSource.match(/<StaffMatterWorkspace/g)?.length, 1);
+  assert.match(activeClientSource, /buildStaffHref/);
+});
+
+test("staff task description uses request precedence and safe stage fallbacks", async () => {
+  const domain = await import("../features/staff/staff-domain.mjs");
+  assert.equal(typeof domain.getMatterTask, "function");
+  const cases = [
+    [{ documentRequests: [{ status: "requested" }, { status: "submitted" }], nextAction: { title: "Позвонить" } }, "Проверить комплект документов"],
+    [{ documentRequests: [{ status: "changes_requested" }], nextAction: { title: "Позвонить" } }, "Ожидаем документы от клиента"],
+    [{ nextAction: { title: "Позвонить" } }, "Позвонить"],
+    [{ stages: [{ title: "Проверить договор" }], currentStage: 0 }, "Проверить договор"],
+    [{ stages: [], currentStage: 4 }, "Продолжить работу по делу"],
+    [{}, "Продолжить работу по делу"],
+  ];
+  for (const [matter, expected] of cases) assert.equal(domain.getMatterTask(matter), expected);
+  assert.doesNotMatch(activeClientSource + activeWorkspaceSource, /function getMatterTask/);
+});
+
+test("staff navigation preserves framework history and focuses a separate workspace", () => {
+  assert.match(activeClientSource, /history\.pushState\(window\.history\.state, "", buildStaffHref\(next\)\)/);
+  assert.match(activeClientSource, /history\.replaceState\(window\.history\.state, "", buildStaffHref\(next\)\)/);
+  assert.match(activeClientSource, /parseStaffLocation\(window\.location\.search, initialMatters, \{ canViewAudit, intakeEnabled \}\)/);
+  assert.match(activeClientSource, /addEventListener\("popstate", handlePopState, true\)/);
+  assert.match(activeClientSource, /removeEventListener\("popstate", handlePopState, true\)/);
+  assert.match(activeClientSource, /onClick=\{closeMatter\}>Назад/);
+  assert.match(activeClientSource, /backButtonRef : mainRef\)\.current\?\.focus/);
+  assert.match(activeClientSource, /openMatter\(notification\.matterId, notification\.targetView\)/);
+  assert.match(activeClientSource, /activeView === "messages" \|\| activeView === "documents" \? activeView : "overview"/);
+  assert.match(activeClientSource, /initialMatters\.some\(\(item\) => item\.id === pendingCreatedMatter\.matterId\)/);
+  assert.match(activeClientSource, /activeView === "matter" \|\| activeView === "inbox" \|\| activePanel \|\| pendingTransition \? styles\.secondaryButton :/);
+  assert.match(activeClientSource, /styles\.primaryButton\} \$\{styles\.newMatterButton/);
+  assert.doesNotMatch(activeClientSource, /pushState\(null|replaceState\(null|localStorage|sessionStorage/);
+});
+
+test("staff list grids remain single column with readable task targets", () => {
+  const listRules = [...cssSource.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+    .filter(([, selector]) => /\.(dashboardGrid|registryGrid)\b/.test(selector));
+  for (const [, , declarations] of listRules) {
+    const columns = declarations.match(/grid-template-columns:\s*([^;]+)/)?.[1];
+    if (columns) assert.equal(columns.trim(), "minmax(0, 1fr)");
+  }
+  assert.match(cssSource, /\.taskRow\s*\{[^}]*min-height:\s*(?:[4-9]\d|\d{3,})px/);
+  assert.match(cssSource, /\.matterWorkspace\s*\{[^}]*max-width:/);
+});
+
+test("creation then Back keeps the history destination after a delayed authorized refresh", () => {
+  // Execute the actual controller effects without mounting unrelated forms or server actions.
+  const effects = [...activeClientSource.matchAll(/  useEffect\(\(\) => \{([\s\S]*?)\n  \}, \[[^\]]*\]\);/g)].map((match) => match[1]);
+  const historyEffect = effects.find((body) => body.includes('addEventListener("popstate"'));
+  const creationEffect = effects.find((body) => body.includes("if (!pendingCreatedMatter"));
+  assert.ok(historyEffect);
+  assert.ok(creationEffect);
+
+  for (const traverseBack of [true, false]) {
+    const frameworkState = { __NA: true, tree: ["staff"] };
+    const entries = ["/staff?view=clients", "/staff?view=matters"];
+    let cursor = 1;
+    const events = new EventTarget();
+    const environment = {
+      initialMatters: [{ id: "matter-existing" }],
+      canViewAudit: false,
+      intakeEnabled: false,
+      pendingCreatedMatter: null,
+      parseStaffLocation,
+      buildStaffHref,
+      getStaffMatterLocation,
+      createStaffHistory,
+      historyRef: { current: null },
+      transitionRef: { current: (action) => action() },
+      draftRegistry: createDraftRegistry(),
+      normalizeManagementLocation: (next) => next,
+      setActivePanel() {},
+      setLocation(next) { environment.location = next; },
+      setPendingCreatedMatter(next) { environment.pendingCreatedMatter = next; },
+      window: {
+        location: { pathname: "/staff", search: "?view=matters", get href() { return `/staff${this.search}`; } },
+        history: {
+          state: frameworkState,
+          replaceState(state, title, href) {
+            assert.equal(state.tree, frameworkState.tree);
+            assert.equal(state.__NA, true);
+            this.state = state;
+            entries[cursor] = href;
+          },
+          pushState(state, title, href) {
+            assert.equal(state.tree, frameworkState.tree);
+            assert.equal(state.__NA, true);
+            this.state = state;
+            entries.splice(++cursor, entries.length, href);
+            environment.window.location.search = href.includes("?") ? href.slice(href.indexOf("?")) : "";
+          },
+        },
+        addEventListener: events.addEventListener.bind(events),
+        removeEventListener: events.removeEventListener.bind(events),
+      },
+    };
+    const runEffect = (body) => new Function(...Object.keys(environment), body)(...Object.values(environment));
+    let cleanup = runEffect(historyEffect);
+    // Successful creation starts waiting for a server-authorized collection.
+    environment.setPendingCreatedMatter({ matterId: "matter-new", origin: environment.location });
+    runEffect(creationEffect);
+    assert.equal(entries.length, 2, "unknown matter must not open before refresh");
+    if (traverseBack) {
+      cursor = 0;
+      environment.window.location.search = "?view=clients";
+      events.dispatchEvent(new Event("popstate"));
+    }
+    cleanup();
+    environment.initialMatters = [...environment.initialMatters, { id: "matter-new" }];
+    cleanup = runEffect(historyEffect);
+    runEffect(creationEffect);
+    if (traverseBack) {
+      assert.equal(environment.location.view, "clients", "delayed refresh must not override Back");
+      assert.equal(cursor, 0);
+      assert.deepEqual(entries, ["/staff?view=clients", "/staff?view=matters"], "Forward branch must survive");
+      cursor = 1;
+      environment.window.location.search = "?view=matters";
+      events.dispatchEvent(new Event("popstate"));
+      assert.equal(environment.location.view, "matters");
+    } else {
+      assert.equal(environment.location.matterId, "matter-new", "ordinary revalidation must keep automatic navigation");
+      assert.equal(entries[2], "/staff?view=matter&matter=matter-new&from=matters");
+    }
+    cleanup();
+  }
+});
+
+test("document navigation lands at managed requests rather than skipping them", () => {
+  assert.match(activeWorkspaceSource, /className=\{styles\.documentRequestSection\} ref=\{documentsRef\}/);
+});
 
 test("staff access is limited to organization lawyers and administrators", () => {
   assert.equal(hasStaffAccess([]), false);
@@ -50,43 +208,153 @@ test("staff route verifies claims and membership before loading matters", () => 
   assert.match(serverSource, /export async function loadStaffData/);
 });
 
-test("staff UI can respond by matter without exposing privileged credentials", () => {
+test("staff UI can respond by matter without exposing privileged credentials", async () => {
+  const [workspaceSource, workflowSource] = await Promise.all([
+    readFile(new URL("../features/staff/staff-matter-workspace.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../features/staff/staff-workflow-form.jsx", import.meta.url), "utf8"),
+  ]);
   assert.match(clientSource, /sendMatterMessage/);
-  assert.match(clientSource, /Сообщение клиенту/);
-  assert.match(clientSource, /role="status"/);
+  assert.match(workspaceSource, /Сообщение клиенту/);
+  assert.match(workspaceSource, /role="status"/);
   assert.match(clientSource, /updateMatterWorkflow/);
-  assert.match(clientSource, /Сохранить рабочий статус/);
-  assert.match(clientSource, /Скачать/);
+  assert.match(workflowSource, /Сохранить изменения/);
+  assert.match(workspaceSource, /Скачать/);
   assert.doesNotMatch(clientSource, /service_role|SUPABASE_SERVICE|localStorage|sessionStorage/);
 });
 
-test("staff detail separates managed requests from other documents without exposing audit text", () => {
-  assert.match(clientSource, /StaffDocumentRequests/);
-  assert.match(clientSource, /document_request\.created/);
-  assert.match(clientSource, /document_request\.accepted/);
-  assert.match(clientSource, /Другие документы/);
-  assert.match(clientSource, /requestId === null/);
-  assert.doesNotMatch(clientSource, /lastReviewNote.*AUDIT_COPY|originalName.*AUDIT_COPY/);
+test("staff workspace is split into focused modules", async () => {
+  assert.match(activeNavigationSource, /Сегодня/);
+  assert.match(activeNavigationSource, /Ещё/);
+  assert.match(activeWorkspaceSource, /StaffDocumentRequests/);
+  assert.match(activeWorkspaceSource, /Написать клиенту/);
+  assert.match(activeWorkflowSource, /onSubmit/);
+  assert.doesNotMatch(activeNavigationSource + activeWorkspaceSource + activeWorkflowSource, /service_role|SUPABASE_SERVICE/);
 });
 
-test("staff controls keep explicit typography roles on desktop and mobile", () => {
-  const [mobileSharedRule = ""] = cssSource.match(/\.searchField input,\s*\n\s*\.newMatterButton\s*\{[^}]*\}/) ?? [];
+test("extracted navigation preserves count and current-page behavior in the more menu", () => {
+  assert.match(activeNavigationSource, /moreItems\.map\(\(item, index\) =>/);
+  assert.equal(activeNavigationSource.match(/counts\[item\.id\] > 0 \? <small>\{counts\[item\.id\]\}<\/small> : null/g)?.length, 2);
+  assert.equal(activeNavigationSource.match(/className=\{`\$\{styles\.railButton\}\$\{activeView === item\.id \? ` \$\{styles\.isActive\}` : ""\}`\}/g)?.length, 2);
+  assert.equal(activeNavigationSource.match(/aria-current=\{activeView === item\.id \? "page" : undefined\}/g)?.length, 2);
+  assert.match(cssSource, /\.moreNavigation\s*>\s*summary\s*\{/);
+  assert.match(cssSource, /\.moreNavigationMenu\s*\{/);
+});
 
-  assert.match(cssSource, /--staff-control-font-size:\s*12px/);
-  assert.match(cssSource, /--staff-primary-font-size:\s*13px/);
-  assert.match(cssSource, /\.pageShell\s+:where\(button, input, select, textarea, summary\)/);
-  assert.match(cssSource, /\.documentDownload[\s\S]*font-size:\s*var\(--staff-control-font-size\)/);
-  assert.match(cssSource, /\.searchField input\s*\{\s*font-size:\s*16px/);
-  assert.match(mobileSharedRule, /\.newMatterButton/);
-  assert.doesNotMatch(mobileSharedRule, /font-size/);
+test("workflow contents remain labelled inside their contextual dialog", () => {
+  assert.match(activeWorkflowSource, /<section[^>]*aria-labelledby="staff-workflow-title"/);
+  assert.match(activeWorkflowSource, /id="staff-workflow-title"/);
+  assert.doesNotMatch(activeWorkflowSource, /role="dialog"|aria-modal=/);
+});
+
+test("matter workspace exposes real tabs and contextual administration", () => {
+  for (const label of ["Обзор", "Документы", "Сообщения", "Управление"]) assert.ok(activeWorkspaceSource.includes(label));
+  assert.match(activeWorkspaceSource, /role="tablist"/);
+  assert.match(activeWorkspaceSource, /role="tabpanel"/);
+  assert.match(activeWorkspaceSource, /aria-controls=/);
+  assert.match(activeWorkspaceSource, /onKeyDown=/);
+  assert.match(activeWorkspaceSource, /activePanel/);
+  assert.match(activeClientSource, /const \[activePanel, setActivePanel\] = useState\(null\)/);
+  assert.doesNotMatch(activeClientSource, /\[assignmentOpen|\[detailsOpen/);
+});
+
+test("extracted matter workspace preserves metadata authorization and callback wiring", () => {
+  assert.match(activeClientSource, /<StaffMatterWorkspace[\s\S]*canEditDetails=\{canEditDetails\}/);
+  assert.match(activeWorkspaceSource, /\{canEditDetails \? <button[^>]*onClick=\{onOpenDetails\}/);
+  assert.match(activeWorkspaceSource, /<StaffWorkflowForm[\s\S]*onChange=\{onWorkflowChange\}[\s\S]*onClose=\{onWorkflowClose\}[\s\S]*onSubmit=\{onWorkflowSubmit\}/);
+  assert.match(activeWorkspaceSource, /<StaffDocumentRequests[\s\S]*onDownload=\{onDownload\}/);
+  assert.match(activeWorkspaceSource, /onClick=\{onOpenDocuments\}/);
+  assert.match(activeWorkspaceSource, /onClick=\{onOpenComposer\}/);
+  assert.match(activeWorkspaceSource, /onOpenPanel\("workflow"\)/);
+});
+
+test("extracted presentational components import no server authority", () => {
+  const extractedSources = activeNavigationSource + activeWorkspaceSource + activeWorkflowSource;
+  assert.doesNotMatch(extractedSources, /from\s+["'][^"']*(?:actions?|server|supabase|credentials?)[^"']*["']/i);
+  assert.doesNotMatch(extractedSources, /service_role|SUPABASE_SERVICE|createClient|process\.env/i);
+});
+
+test("staff detail separates managed requests from other documents without exposing audit text", async () => {
+  const workspaceSource = await readFile(new URL("../features/staff/staff-matter-workspace.jsx", import.meta.url), "utf8");
+  assert.match(workspaceSource, /StaffDocumentRequests/);
+  assert.match(clientSource, /document_request\.created/);
+  assert.match(clientSource, /document_request\.accepted/);
+  assert.match(workspaceSource, /Другие документы/);
+  assert.match(workspaceSource, /requestId === null/);
+  assert.doesNotMatch(workspaceSource, /lastReviewNote.*AUDIT_COPY|originalName.*AUDIT_COPY/);
+});
+
+test("staff controls use one approved hierarchy", () => {
+  assert.match(cssSource, /--staff-body-size:\s*16px/);
+  assert.match(cssSource, /--staff-control-size:\s*14px/);
+  assert.match(cssSource, /--staff-control-height:\s*44px/);
+  assert.match(cssSource, /--staff-motion-fast:\s*180ms/);
+  assert.match(cssSource, /--staff-motion-slow:\s*360ms/);
+  for (const role of ["primaryButton", "secondaryButton", "textAction", "dangerButton"]) {
+    assert.match(cssSource, new RegExp(`\\.${role}\\s*\\{`));
+  }
+  assert.match(cssSource, /\.primaryButton,\s*\.secondaryButton,\s*\.textButton,\s*\.textAction,\s*\.dangerButton\s*\{[\s\S]*min-height:\s*var\(--staff-control-height\)/);
+  assert.match(cssSource, /\.searchField input\s*\{[\s\S]*font-size:\s*var\(--staff-body-size\)/);
+});
+
+test("staff more views keep their approved cross-matter labels without a dead trash control", () => {
+  assert.match(activeClientSource, /const MORE_COPY = \{[\s\S]*documents: \{ title: "Документы", eyebrow: "Материалы по делам" \},[\s\S]*messages: \{ title: "Сообщения", eyebrow: "Связь с клиентами" \},[\s\S]*audit: \{ title: "Журнал действий", eyebrow: "Контроль организации" \},[\s\S]*trash: \{ title: "Корзина", eyebrow: "Удалённые дела" \}/);
+  assert.match(activeClientSource, /activeView === "messages" \|\| activeView === "documents" \? activeView : "overview"/);
+  assert.match(activeClientSource, /canViewAudit/);
+  assert.doesNotMatch(activeNavigationSource, /Корзина/);
+});
+
+test("staff controls keep concrete touch targets and share text-action typography", () => {
+  assert.match(cssSource, /\.headerNav a,\s*\.headerNav button\s*\{[\s\S]*min-width:\s*var\(--staff-control-height\)[\s\S]*min-height:\s*var\(--staff-control-height\)/);
+  assert.match(cssSource, /\.drawerClose\s*\{[\s\S]*min-width:\s*var\(--staff-control-height\)[\s\S]*min-height:\s*var\(--staff-control-height\)/);
+  assert.match(cssSource, /\.primaryButton,\s*\.secondaryButton,\s*\.textButton,\s*\.textAction,\s*\.dangerButton\s*\{/);
+});
+
+test("inbox owns its contextual primary action and clears every active empty filter", async () => {
+  const intakeSource = await readFile(new URL("../features/staff/staff-intake-panel.jsx", import.meta.url), "utf8");
+
+  assert.match(activeClientSource, /activeView === "matter" \|\| activeView === "inbox" \|\| activePanel \|\| pendingTransition \? styles\.secondaryButton/);
+  assert.match(intakeSource, /className=\{styles\.intakePrimaryAction\}[\s\S]*Принять и создать дело/);
+  assert.match(activeClientSource, /<StaffIntakePanel[\s\S]*onResetSearch=\{resetSearch\}/);
+  assert.match(activeClientSource, /<AuditList events=\{auditEvents\} matters=\{initialMatters\} onReset=\{searchQuery \? resetSearch : undefined\}/);
+  assert.match(intakeSource, /function IntakeEmpty\(\{ filtered, onReset \}\)/);
+  assert.match(intakeSource, /const resetFilters = \(\) => \{[\s\S]*setFilter\("open"\);[\s\S]*onResetSearch\?\.\(\)/);
+  assert.match(intakeSource, /onReset=\{filtered \? resetFilters : undefined\}/);
+});
+
+test("opened mobile more menu remains in the horizontal navigation strip", () => {
+  const mobileStyles = cssSource.slice(cssSource.indexOf("@media (max-width: 680px)"));
+  assert.match(activeNavigationSource, /<details[\s\S]*aria-label="Ещё разделы"[\s\S]*<summary>Ещё<\/summary>/);
+  assert.doesNotMatch(mobileStyles, /\.moreNavigation\[open\]\s*\{[\s\S]*?display:\s*contents/);
+  assert.match(mobileStyles, /\.moreNavigation\[open\]\s*\{[\s\S]*display:\s*flex[\s\S]*flex:\s*0\s+0\s+auto[\s\S]*align-items:\s*stretch/);
+  assert.match(mobileStyles, /\.moreNavigation\[open\] \.moreNavigationMenu\s*\{[\s\S]*display:\s*flex[\s\S]*width:\s*max-content/);
+});
+
+test("opening native more navigation reveals its first option without moving summary focus", () => {
+  const functionStart = activeNavigationSource.indexOf("function revealMoreNavigation");
+  assert.notEqual(functionStart, -1, "Opening More must reveal its expanded navigation options");
+  const functionEnd = activeNavigationSource.indexOf("\n}\n\nexport default", functionStart) + 2;
+  const revealMoreNavigation = new Function(`${activeNavigationSource.slice(functionStart, functionEnd)}; return revealMoreNavigation;`)();
+  const summary = {};
+  let activeElement = summary;
+  let scrollOptions = null;
+  const firstMoreItem = {
+    focus() { activeElement = this; },
+    scrollIntoView(options) { scrollOptions = options; },
+  };
+
+  revealMoreNavigation({ open: true }, firstMoreItem, (callback) => callback());
+
+  assert.deepEqual(scrollOptions, { behavior: "auto", block: "nearest", inline: "nearest" });
+  assert.equal(activeElement, summary);
 });
 
 test("only administrators receive the matter metadata editor", () => {
   assert.match(serverSource, /includeOrganizationId: true/);
   assert.match(serverSource, /assignmentOrganizations/);
-  assert.match(clientSource, /StaffMatterDetailsForm/);
-  assert.match(clientSource, /Редактировать реквизиты/);
-  assert.match(clientSource, /canEditDetails/);
+  assert.match(activeClientSource, /StaffMatterDetailsForm/);
+  assert.match(activeWorkspaceSource, /Редактировать реквизиты/);
+  assert.match(activeWorkspaceSource, /\{canEditDetails \? <button[^>]*onClick=\{onOpenDetails\}/);
+  assert.match(activeClientSource, /canEditDetails=\{canEditDetails\}/);
   assert.match(actionsSource, /validateMatterDetails/);
   assert.match(actionsSource, /\.rpc\("update_matter_details"/);
   assert.match(detailsFormSource, /role="dialog"/);
@@ -120,6 +388,7 @@ test("staff dashboard separates team actions, client waiting, and archive withou
     { reference: "DO-5", title: "Комплект на проверке", summary: "Документы", state: "active", nextAction: { title: "Ожидаем клиента" }, documentRequests: [{ status: "submitted" }] },
     { reference: "DO-6", title: "Запрошен комплект", summary: "Документы", state: "active", nextAction: null, documentRequests: [{ status: "requested" }] },
     { reference: "DO-7", title: "Нужны исправления", summary: "Документы", state: "active", nextAction: null, documentRequests: [{ status: "changes_requested" }] },
+    { reference: "DO-8", title: "Удалённое дело", summary: "Корзина", state: "active", trashedAt: "2026-09-04T10:00:00.000Z", nextAction: null },
   ];
 
   assert.equal(getStaffMatterQueue(matters[0]), "action");
@@ -129,15 +398,17 @@ test("staff dashboard separates team actions, client waiting, and archive withou
   assert.equal(getStaffMatterQueue(matters[4]), "action");
   assert.equal(getStaffMatterQueue(matters[5]), "waiting");
   assert.equal(getStaffMatterQueue(matters[6]), "waiting");
+  assert.equal(getStaffMatterQueue(matters[7]), "trash");
   assert.deepEqual(filterStaffMatters(matters, "поставка", "action"), [matters[0]]);
   assert.deepEqual(filterStaffMatters(matters, "", "action"), [matters[0], matters[4]]);
   assert.deepEqual(filterStaffMatters(matters, "", "waiting"), [matters[1], matters[5], matters[6]]);
   assert.deepEqual(filterStaffMatters(matters, "", "archive"), [matters[2]]);
+  assert.deepEqual(filterStaffMatters(matters, "", "all"), matters.slice(0, 7));
+  assert.deepEqual(filterStaffMatters(matters, "", "trash"), [matters[7]]);
   assert.match(clientSource, /Сегодня в работе/);
-  assert.match(clientSource, /Требуют вашего действия/);
   assert.match(clientSource, /Ожидают клиента/);
   assert.match(clientSource, /Приостановлены/);
-  assert.match(clientSource, /queueId="paused"/);
+  assert.match(clientSource, /paused=\{pausedMatters\}/);
   assert.doesNotMatch(serverSource, /auth\.users|client_email/);
 });
 
@@ -182,13 +453,62 @@ test("staff workflow action validates the payload before calling the protected R
   assert.match(actionsSource, /revalidatePath\("\/staff"\)/);
 });
 
-test("staff workflow draft refreshes when the selected matter data changes", () => {
+test("staff refresh keeps an open workflow draft instead of overwriting it", () => {
   assert.match(clientSource, /setWorkflowDraft\(getWorkflowDraft\(matter\)\)/);
+  assert.match(clientSource, /if \(activePanel !== "workflow" && activePanel !== "assignment"\)/);
+  assert.doesNotMatch(clientSource, /setDetailsOpen/);
   assert.match(clientSource, /\}, \[matter\]\);/);
 });
 
-test("staff stages keep stable keys even when fallback fixture titles repeat", () => {
-  assert.match(clientSource, /key=\{stage\.id \?\? `\$\{stage\.title\}-\$\{index\}`\}/);
+test("workflow refresh changes idle data but preserves drafts for both workflow entry points", () => {
+  const body = [...activeClientSource.matchAll(/  useEffect\(\(\) => \{([\s\S]*?)\n  \}, \[[^\]]*\]\);/g)]
+    .map((match) => match[1]).find((effect) => effect.includes('if (activePanel !== "workflow"'));
+  assert.ok(body);
+  for (const activePanel of ["workflow", "assignment", null]) {
+    let changed = false;
+    new Function("matter", "activePanel", "getWorkflowDraft", "setWorkflowDraft", "setWorkflowFeedback", "setDocumentFeedback", body)(
+      { id: "same-matter-new-object" }, activePanel, () => ({}), () => { changed = true; }, () => {}, () => {},
+    );
+    assert.equal(changed, activePanel === null);
+  }
+});
+
+test("failed message requests preserve the text and retry id until success", async () => {
+  const body = activeClientSource.match(/const handleSubmit = async \(event\) => \{([\s\S]*?)\n  \};/)?.[1];
+  assert.ok(body);
+  const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+  const sent = [];
+  const environment = {
+    matter: { id: "a1111111-1111-4111-8111-111111111111" },
+    isSending: false,
+    draft: "Тестовый ответ",
+    validateMatterMessage,
+    messageIdRef: { current: null },
+    createUuidV4: () => "b1111111-1111-4111-8111-111111111111",
+    window: { crypto: {} },
+    router: { refresh() {} },
+    setDraft(value) { environment.draft = value; },
+    setFeedback(value) { environment.feedback = value; },
+    setIsSending(value) { environment.isSending = value; },
+    async sendMatterMessage(value) {
+      sent.push(value);
+      if (sent.length === 1) return { ok: false, message: "Ошибка" };
+      if (sent.length === 2) throw new Error("offline");
+      return { ok: true, message: "Отправлено" };
+    },
+  };
+  for (let attempt = 0; attempt < 3; attempt++) {
+    await new AsyncFunction(...Object.keys(environment), "event", body)(...Object.values(environment), { preventDefault() {} });
+    assert.equal(environment.draft, attempt < 2 ? "Тестовый ответ" : "");
+    assert.equal(environment.isSending, false);
+    assert.equal(environment.messageIdRef.current, attempt < 2 ? "b1111111-1111-4111-8111-111111111111" : null);
+  }
+  assert.equal(new Set(sent.map((message) => message.id)).size, 1);
+});
+
+test("staff stages keep stable keys even when fallback fixture titles repeat", async () => {
+  const workspaceSource = await readFile(new URL("../features/staff/staff-matter-workspace.jsx", import.meta.url), "utf8");
+  assert.match(workspaceSource, /key=\{stage\.id \?\? `\$\{stage\.title\}-\$\{index\}`\}/);
 });
 
 test("reopening a matter chooses an available stage instead of leaving an empty current stage", () => {

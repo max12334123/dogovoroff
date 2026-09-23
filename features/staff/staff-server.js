@@ -7,6 +7,34 @@ import {
 } from "./staff-domain.mjs";
 import { mapIntakeRequestRows } from "./staff-intake-domain.mjs";
 
+async function addMatterAssignments(supabase, matters) {
+  // Keep calls bounded to the RPC limit; the database independently checks every ID.
+  const assignments = new Map();
+  for (let offset = 0; offset < matters.length; offset += 100) {
+    const matterIds = matters.slice(offset, offset + 100).map((matter) => matter.id);
+    const { data, error } = await supabase.rpc("list_staff_matter_assignments", {
+      target_matter_ids: matterIds,
+    });
+    // Support a rolling deployment without confusing an absent reader with no assignment.
+    if (error?.code === "PGRST202") break;
+    if (error) throw new Error(`Staff matter assignment query failed: ${error.code ?? "unknown"}`);
+    const requestedIds = new Set(matterIds);
+    for (const row of data ?? []) {
+      if (requestedIds.has(row.matter_id)) assignments.set(row.matter_id, row);
+    }
+  }
+
+  return matters.map((matter) => {
+    const assignment = assignments.get(matter.id);
+    return {
+      ...matter,
+      assignmentStatus: assignment ? (assignment.assigned_lawyer_id ? "assigned" : "unassigned") : "unavailable",
+      assignedLawyerId: assignment?.assigned_lawyer_id ?? null,
+      assignedLawyerName: assignment?.assigned_lawyer_name ?? null,
+    };
+  });
+}
+
 export async function loadStaffData(supabase, userId) {
   if (typeof userId !== "string" || !userId) {
     return null;
@@ -117,7 +145,7 @@ export async function loadStaffData(supabase, userId) {
     assignmentOrganizations,
     intakeEnabled,
     intakeRequests,
-    matters,
+    matters: await addMatterAssignments(supabase, matters),
     auditEvents,
     canViewAudit: adminOrganizationIds.size > 0,
   };

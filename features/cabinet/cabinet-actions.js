@@ -60,7 +60,7 @@ export async function registerMatterDocument(input) {
       return actionError(WRITE_ERROR_MESSAGE);
     }
 
-    const writeResult = await registerDocumentMetadata({ supabase, document, userId });
+    const writeResult = await registerDocumentMetadata({ supabase, document });
     const { error } = writeResult;
 
     if (error) {

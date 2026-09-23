@@ -200,7 +200,7 @@ insert into pg_temp.rls_results values
   ('client_a:message-own', pg_temp.try_insert_message('a1111111-aaaa-4111-c111-111111111111', 'a1111111-1111-4111-8111-111111111111', '11111111-1111-4111-8111-111111111111')::int, 1),
   ('client_a:message-other', pg_temp.try_insert_message('a1111111-aaaa-4111-c222-222222222222', 'b2222222-2222-4222-8222-222222222222', '11111111-1111-4111-8111-111111111111')::int, 0),
   ('client_a:message-forged-author', pg_temp.try_insert_message('a1111111-aaaa-4111-c333-333333333333', 'a1111111-1111-4111-8111-111111111111', '22222222-2222-4222-8222-222222222222')::int, 0),
-  ('client_a:document-own', pg_temp.try_insert_document('a1111111-aaaa-4111-d111-111111111111', 'a1111111-1111-4111-8111-111111111111', '11111111-1111-4111-8111-111111111111')::int, 1),
+  ('client_a:document-direct-insert-denied', pg_temp.try_insert_document('a1111111-aaaa-4111-d111-111111111111', 'a1111111-1111-4111-8111-111111111111', '11111111-1111-4111-8111-111111111111')::int, 0),
   ('client_a:document-other', pg_temp.try_insert_document('a1111111-aaaa-4111-d222-222222222222', 'b2222222-2222-4222-8222-222222222222', '11111111-1111-4111-8111-111111111111')::int, 0),
   ('client_a:document-forged-uploader', pg_temp.try_insert_document('a1111111-aaaa-4111-d333-333333333333', 'a1111111-1111-4111-8111-111111111111', '22222222-2222-4222-8222-222222222222')::int, 0);
 reset role;

@@ -13,8 +13,12 @@ import {
   getRequestModeFromSearch,
 } from "../lib/public-navigation.mjs";
 
-const [componentSource, pageSource, cssSource, homeSource, actionsSource, serverSource, nextConfigSource] = await Promise.all([
+const [clientSource, matterComponentsSource, overviewSource, actionDomainSource, navigationSource, pageSource, cssSource, homeSource, actionsSource, serverSource, nextConfigSource] = await Promise.all([
   readFile(new URL("../features/cabinet/cabinet-client.jsx", import.meta.url), "utf8"),
+  readFile(new URL("../features/cabinet/cabinet-matter-components.jsx", import.meta.url), "utf8"),
+  readFile(new URL("../features/cabinet/cabinet-overview.jsx", import.meta.url), "utf8"),
+  readFile(new URL("../features/cabinet/cabinet-navigation-domain.mjs", import.meta.url), "utf8"),
+  readFile(new URL("../features/cabinet/cabinet-navigation.jsx", import.meta.url), "utf8"),
   readFile(new URL("../app/cabinet/page.jsx", import.meta.url), "utf8"),
   readFile(new URL("../features/cabinet/cabinet.module.css", import.meta.url), "utf8"),
   readFile(new URL("../app/page.jsx", import.meta.url), "utf8"),
@@ -22,6 +26,7 @@ const [componentSource, pageSource, cssSource, homeSource, actionsSource, server
   readFile(new URL("../features/cabinet/cabinet-server.js", import.meta.url), "utf8"),
   readFile(new URL("../next.config.mjs", import.meta.url), "utf8"),
 ]);
+const componentSource = [clientSource, matterComponentsSource, overviewSource, actionDomainSource].join("\n");
 
 test("cabinet data keeps the client journey explicit and stable", () => {
   assert.deepEqual(CABINET_VIEWS.map((view) => view.id), ["overview", "matters", "documents", "messages"]);
@@ -49,7 +54,7 @@ test("empty cabinet guides a newly registered client without storing onboarding 
 });
 
 test("cabinet UI is client-facing, accessible, and connected to private matter operations", () => {
-  assert.match(componentSource, /aria-label="Навигация личного кабинета"/);
+  assert.match(navigationSource, /aria-label="Разделы личного кабинета"/);
   assert.match(componentSource, /aria-live="polite"/);
   assert.match(componentSource, /type="file"/);
   assert.match(componentSource, /Приватном хранилище|приватном хранилище/);
@@ -85,6 +90,45 @@ test("cabinet keeps requested files distinct from ordinary documents", () => {
   assert.match(componentSource, /Других документов пока нет\./);
 });
 
+test("client views avoid duplicate full registries and preserve protected actions", () => {
+  assert.match(componentSource, /Мои дела/);
+  assert.match(componentSource, /Материалы дела/);
+  assert.match(componentSource, /Связь по делу/);
+  assert.match(componentSource, /ClientDocumentRequests/);
+  assert.match(componentSource, /sendMatterMessage/);
+  assert.match(componentSource, /Несохранённое сообщение/);
+  assert.match(clientSource, /<h2 className=\{styles\.userTitle\} id="matter-details-title">\{matter\.title\}<\/h2>/);
+  assert.doesNotMatch(componentSource, /overviewGrid/);
+});
+
+test("client navigation protects a non-empty message draft before changing view or matter", () => {
+  assert.match(clientSource, /const \[pendingNavigation, setPendingNavigation\] = useState\(null\)/);
+  assert.match(clientSource, /const requestNavigation = \(view, matterId = activeMatterId\) =>/);
+  assert.match(clientSource, /if \(view === activeView && matterId === activeMatterId\) \{\s*return;\s*\}/);
+  assert.match(clientSource, /activeView === "messages" && draft\.trim\(\)/);
+  assert.match(clientSource, /setPendingNavigation\(\{ view, matterId \}\)/);
+  assert.match(clientSource, /const discardDraftAndContinue = \(\) =>/);
+  assert.match(clientSource, /setDraft\(""\)[\s\S]*selectView\(next\.view, next\.matterId\)/);
+  assert.match(clientSource, /<UnsavedMessageDialog/);
+  assert.match(clientSource, /onNavigate=\{requestNavigation\}/);
+  assert.match(clientSource, /onSelectView=\{requestNavigation\}/);
+  assert.match(clientSource, /focus\(\{ preventScroll: true \}\)/);
+  assert.doesNotMatch(clientSource, /scrollIntoView/);
+});
+
+test("history navigation shares the draft decision and restores URL consistency before prompting", () => {
+  assert.match(clientSource, /const scheduleMainFocus = \(\) =>/);
+  assert.match(clientSource, /getHistoryNavigationDecision/);
+  assert.match(clientSource, /history\.go\(decision\.returnDelta\)/);
+  assert.match(clientSource, /resolvePendingHistoryNavigation/);
+  assert.match(clientSource, /window\.addEventListener\("popstate", handlePopState\)/);
+  assert.match(clientSource, /registerBeforeUnloadGuard/);
+  assert.match(clientSource, /return registerBeforeUnloadGuard\(window\)/);
+  assert.match(clientSource, /window\.history\.replaceState/);
+  assert.match(clientSource, /canonicalizeCurrentEntry\(requested, event\.state, canonicalIndex\)/);
+  assert.match(clientSource, /canonicalizeCurrentEntry\(initial, window\.history\.state, initialIndex\)/);
+});
+
 test("private cabinet route is excluded from search and linked from the public navigation", () => {
   assert.match(pageSource, /index:\s*false/);
   assert.match(pageSource, /follow:\s*false/);
@@ -115,15 +159,110 @@ test("cabinet layout includes mobile and reduced-motion protection", () => {
   assert.match(cssSource, /@media \(prefers-reduced-motion: reduce\)/);
   assert.match(cssSource, /overflow-wrap:\s*anywhere/);
   assert.match(componentSource, /focus\(\{ preventScroll: true \}\)/);
-  assert.match(componentSource, /scrollIntoView\(\{ block: "start" \}\)/);
   assert.match(cssSource, /scroll-margin-top:\s*116px/);
 });
 
-test("cabinet controls use explicit typography roles without a high-specificity font reset", () => {
-  assert.match(cssSource, /--cabinet-control-font-size:\s*10\.5px/);
-  assert.match(cssSource, /--cabinet-primary-font-size:\s*11px/);
+test("cabinet controls use one readable hierarchy", () => {
+  assert.match(cssSource, /--cabinet-body-size:\s*16px/);
+  assert.match(cssSource, /--cabinet-control-size:\s*14px/);
+  assert.match(cssSource, /--cabinet-control-height:\s*44px/);
+  assert.match(cssSource, /min-height:\s*44px/);
+  assert.match(cssSource, /\.primaryButton/);
+  assert.match(cssSource, /\.secondaryButton/);
+  assert.match(cssSource, /\.textAction/);
+  assert.match(cssSource, /\.dangerButton/);
+  assert.match(cssSource, /@media \(prefers-reduced-motion: reduce\)/);
   assert.match(cssSource, /\.shell\s+:where\(button, input, textarea, summary\)/);
   assert.match(cssSource, /\.topNavButton strong\s*\{\s*font:\s*inherit/);
-  assert.match(cssSource, /\.summaryHeading button[\s\S]*text-transform:\s*uppercase/);
   assert.doesNotMatch(cssSource, /\.shell button,\s*\n\.shell input/);
+});
+
+test("shared cabinet controls do not carry overview layout into error actions", () => {
+  const primaryButtonBlock = cssSource.match(/\.primaryButton\s*\{([^}]*)\}/)?.[1] ?? "";
+
+  assert.doesNotMatch(primaryButtonBlock, /(?:width|margin-top)\s*:/);
+  assert.match(
+    cssSource,
+    /\.primaryActionPanel \.primaryButton\s*\{[^}]*width:\s*min\(100%, 360px\)[^}]*margin-top:\s*34px/,
+  );
+});
+
+test("reduced motion also covers cabinet error controls", () => {
+  assert.match(
+    cssSource,
+    /\.stateShell \*,\s*\.stateShell \*::before,\s*\.stateShell \*::after\s*\{[\s\S]*transition-duration:\s*0\.01ms[\s\S]*animation-duration:\s*0\.01ms/,
+  );
+});
+
+test("cabinet navigation uses allowlisted URL state and keeps AI in the header", () => {
+  assert.match(componentSource, /parseCabinetLocation/);
+  assert.match(componentSource, /popstate/);
+  assert.match(componentSource, /history\.pushState/);
+  assert.match(navigationSource, /AI-разбор/);
+  assert.match(navigationSource, /Главная/);
+  assert.match(navigationSource, /Мои дела/);
+  assert.doesNotMatch(navigationSource, /localStorage|sessionStorage/);
+});
+
+test("mobile profile keeps the account name accessible without crowding the header", () => {
+  assert.match(navigationSource, /aria-label=\{`Профиль: \$\{displayName\}`\}/);
+  assert.match(navigationSource, /className=\{styles\.profileName\}>\{displayName\}<\/span>/);
+  assert.match(navigationSource, /className=\{styles\.profileMobileLabel\} aria-hidden="true">Профиль<\/span>/);
+  assert.match(navigationSource, /className=\{styles\.profileAccountName\}>\{displayName\}<\/strong>/);
+  assert.match(navigationSource, /href="\/privacy">Конфиденциальность<\/a>/);
+});
+
+test("cabinet location transitions clear matter-scoped feedback through selection and history paths", () => {
+  assert.match(componentSource, /const activeMatterIdRef = useRef\(/);
+  assert.match(componentSource, /const applyCabinetLocation = \(next\) =>/);
+  assert.match(componentSource, /applyCabinetLocation\(initial\)/);
+  assert.match(componentSource, /applyCabinetLocation\(requested\)/);
+  assert.match(componentSource, /applyCabinetLocation\(next\)/);
+  assert.match(componentSource, /setDraft\(""\)[\s\S]*setDocumentFeedback\(\{ tone: "neutral", text: "" \}\)/);
+});
+
+test("client overview leads with one primary action and quiet waiting copy", async () => {
+  const source = await readFile(
+    new URL("../features/cabinet/cabinet-overview.jsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(source, /getClientPrimaryAction/);
+  assert.match(source, /Что происходит по делу/);
+  assert.match(actionDomainSource, /Сейчас от вас ничего не требуется/);
+  assert.match(source, /<h2 id="client-primary-action-title">\{action\.title\}<\/h2>/);
+  assert.equal((source.match(/styles\.primaryButton/g) ?? []).length, 1);
+});
+
+test("cabinet upload keeps a selected valid file after a network failure", () => {
+  assert.match(
+    clientSource,
+    /if \(!registration\.ok\) \{[\s\S]*return;[\s\S]*setUploadFeedback\(\{ tone: "success", text: registration\.message \}\);[\s\S]*input\.value = "";/,
+  );
+  assert.doesNotMatch(
+    clientSource,
+    /finally \{\s*setIsUploading\(false\);\s*input\.value = "";\s*\}/,
+  );
+});
+
+test("client overview promotes only actually unread message notifications", () => {
+  assert.match(
+    clientSource,
+    /notification\.type === "message\.created" && notification\.unread === true/,
+  );
+});
+
+test("My Matters renders full stage history while overview remains compact", () => {
+  assert.match(
+    clientSource,
+    /sectionTitle="Мои дела"[\s\S]*?<Timeline matter=\{matter\} \/>/,
+  );
+  assert.match(overviewSource, /<Timeline matter=\{matter\} condensed \/>/);
+  assert.match(matterComponentsSource, /getVisibleTimelineStages\(matter, \{ condensed \}\)/);
+});
+
+test("overview compact stage uses the available timeline width", () => {
+  assert.match(
+    cssSource,
+    /\.timelineCondensed\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/,
+  );
 });

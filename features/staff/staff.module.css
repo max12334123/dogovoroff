@@ -1,4 +1,5 @@
-.pageShell {
+.pageShell,
+.stateShell {
   --staff-black: #050505;
   --staff-soft: #0b0c0d;
   --staff-paper: #fafaf7;
@@ -6,15 +7,23 @@
   --staff-ice: #79c8f3;
   --staff-line: rgba(255, 255, 255, 0.16);
   --staff-soft-line: rgba(255, 255, 255, 0.09);
-  --staff-control-font-size: 12px;
+  --staff-body-size: 16px;
+  --staff-control-size: 14px;
+  --staff-control-height: 44px;
+  --staff-motion-fast: 180ms;
+  --staff-motion-slow: 360ms;
+  --staff-control-font-size: var(--staff-control-size);
   --staff-control-font-weight: 620;
   --staff-control-letter-spacing: 0.06em;
-  --staff-primary-font-size: 13px;
-  --staff-primary-font-weight: 650;
-  --staff-primary-letter-spacing: 0.02em;
+  --staff-primary-font-size: var(--staff-control-size);
+  --staff-primary-font-weight: var(--staff-control-font-weight);
+  --staff-primary-letter-spacing: var(--staff-control-letter-spacing);
   --cabinet-control-font-size: 11px;
   --cabinet-control-font-weight: 650;
   --cabinet-control-letter-spacing: 0.12em;
+}
+
+.pageShell {
   min-height: 100vh;
   color: var(--staff-paper);
   background: var(--staff-black);
@@ -27,12 +36,15 @@
   box-sizing: border-box;
 }
 
-.pageShell :where(button, input, select, textarea, summary) {
+.pageShell :where(button, input, select, textarea, summary),
+.stateShell :where(button, input, select, textarea, summary) {
   font: inherit;
 }
 
 .pageShell button,
+.stateShell button,
 .pageShell summary,
+.stateShell summary,
 .pageShell a {
   -webkit-tap-highlight-color: transparent;
 }
@@ -41,7 +53,8 @@
   cursor: pointer;
 }
 
-.pageShell button:disabled {
+.pageShell button:disabled,
+.stateShell button:disabled {
   cursor: wait;
   opacity: 0.58;
 }
@@ -57,8 +70,14 @@
     var(--staff-black);
 }
 
+.stateColumn {
+  display: grid;
+  width: min(720px, 100%);
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .stateCard {
-  width: min(560px, 100%);
+  width: 100%;
   padding: clamp(28px, 6vw, 56px);
   border: 1px solid var(--staff-line);
   background: rgba(11, 12, 13, 0.84);
@@ -71,6 +90,8 @@
   font-weight: 420;
   line-height: 0.98;
   letter-spacing: -0.055em;
+  overflow-wrap: anywhere;
+  hyphens: auto;
 }
 
 .stateCard p:not(.eyebrow) {
@@ -87,34 +108,13 @@
   margin-top: 30px;
 }
 
-.stateActions button,
-.stateActions a {
-  min-height: 48px;
-  padding: 0 18px;
-  border: 1px solid var(--staff-paper);
-  color: var(--staff-black);
-  background: var(--staff-paper);
-  cursor: pointer;
-  font-size: var(--staff-control-font-size, 12px);
-  font-weight: var(--staff-control-font-weight, 620);
-  letter-spacing: var(--staff-control-letter-spacing, 0.06em);
-  line-height: 1.3;
-  text-transform: uppercase;
-}
-
 .stateActions a {
   display: inline-flex;
   align-items: center;
-  color: var(--staff-paper);
-  background: transparent;
 }
 
-.stateActions :is(button, a):hover {
-  color: var(--staff-paper);
-  background: transparent;
-}
-
-.pageShell :is(button, a, input, select, textarea, summary):focus-visible {
+.pageShell :is(button, a, input, select, textarea, summary):focus-visible,
+.stateShell :is(button, a, input, select, textarea, summary):focus-visible {
   outline: 2px solid var(--staff-ice);
   outline-offset: 3px;
 }
@@ -215,8 +215,9 @@
 
 .headerNav a,
 .headerNav button {
-  min-height: 40px;
-  padding: 0;
+  min-width: var(--staff-control-height);
+  min-height: var(--staff-control-height);
+  padding: 0 10px;
   color: #d7d7d3;
   background: transparent;
   font-size: var(--cabinet-control-font-size);
@@ -277,7 +278,7 @@
   color: #b6b8b9;
   background: transparent;
   text-align: left;
-  transition: color 220ms ease, background 220ms ease, border-color 220ms ease;
+  transition: color var(--staff-motion-fast) ease, background var(--staff-motion-fast) ease, border-color var(--staff-motion-fast) ease;
 }
 
 .railButton span {
@@ -302,6 +303,132 @@
 
 .railButton.isActive small {
   color: var(--staff-ice);
+}
+
+.pageShell [hidden] {
+  display: none !important;
+}
+
+.navigationSurface {
+  display: contents;
+}
+
+.workspaceTabs {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  margin: 24px 0;
+  border-bottom: 1px solid var(--staff-line);
+}
+
+.workspaceTabs button {
+  flex-shrink: 0;
+  min-width: 44px;
+  min-height: 48px;
+  padding: 12px 16px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: var(--staff-muted);
+  background: transparent;
+}
+
+.workspaceTabs button[aria-selected="true"] {
+  border-bottom-color: var(--staff-ice);
+  color: var(--staff-paper);
+}
+
+.workspaceTabs button:focus-visible,
+.managementActions button:focus-visible,
+.draftConfirmation button:focus-visible {
+  outline: 2px solid var(--staff-ice);
+  outline-offset: -3px;
+}
+
+.managementActions,
+.draftConfirmation {
+  display: grid;
+  gap: 16px;
+}
+
+.managementActions button {
+  min-height: 44px;
+  text-align: left;
+}
+
+.draftConfirmation,
+.assignmentDrawer .workflowSection {
+  margin: 0;
+  padding: 24px clamp(20px, 5vw, 42px);
+}
+
+.assignmentDrawer .workflowSection {
+  --staff-muted: #53595d;
+  --staff-paper: #080808;
+  --staff-line: rgba(5, 5, 5, 0.2);
+}
+
+.assignmentDrawer .workflowForm :is(input, select, textarea) {
+  color: #080808;
+  background: #fff;
+  font-size: 16px;
+}
+
+.assignmentDrawer .textButton {
+  color: #232526;
+}
+
+.contentHeader .secondaryButton {
+  color: var(--staff-paper);
+}
+
+.moreNavigation {
+  position: relative;
+}
+
+.moreNavigation > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 52px;
+  padding: 0 18px;
+  border: 1px solid transparent;
+  color: #b6b8b9;
+  background: transparent;
+  cursor: pointer;
+  font-size: 14px;
+  list-style: none;
+  transition: color var(--staff-motion-fast) ease, background var(--staff-motion-fast) ease, border-color var(--staff-motion-fast) ease;
+}
+
+.moreNavigation > summary::-webkit-details-marker {
+  display: none;
+}
+
+.moreNavigation > summary::after {
+  content: "+";
+  color: var(--staff-muted);
+  font-size: 16px;
+  transition: color var(--staff-motion-fast) ease, transform var(--staff-motion-fast) ease;
+}
+
+.moreNavigation > summary:hover,
+.moreNavigation[open] > summary {
+  color: var(--staff-paper);
+  border-color: var(--staff-soft-line);
+  background: #111315;
+}
+
+.moreNavigation[open] > summary::after {
+  color: var(--staff-ice);
+  transform: rotate(45deg);
+}
+
+.moreNavigationMenu {
+  display: grid;
+  gap: 7px;
+  margin: 7px 0 0 12px;
+  padding-left: 7px;
+  border-left: 1px solid var(--staff-soft-line);
 }
 
 .railCabinetLink {
@@ -340,6 +467,8 @@
   font-weight: 420;
   line-height: 0.98;
   letter-spacing: -0.055em;
+  overflow-wrap: anywhere;
+  hyphens: auto;
 }
 
 .eyebrow {
@@ -380,8 +509,8 @@
   outline: none;
   color: var(--staff-paper);
   background: #08090a;
-  font-size: 14px;
-  transition: border-color 220ms ease, background 220ms ease;
+  font-size: var(--staff-body-size);
+  transition: border-color var(--staff-motion-fast) ease, background var(--staff-motion-fast) ease;
 }
 
 .searchField input::placeholder {
@@ -393,22 +522,27 @@
   background: #0b0d0f;
 }
 
-.newMatterButton,
+.primaryButton,
+.secondaryButton,
+.textButton,
+.textAction,
+.dangerButton {
+  min-height: var(--staff-control-height);
+  font-size: var(--staff-control-size);
+  font-weight: var(--staff-control-font-weight);
+  letter-spacing: var(--staff-control-letter-spacing);
+  line-height: 1.3;
+}
+
 .primaryButton {
-  min-height: 58px;
   padding: 0 28px;
   border: 1px solid var(--staff-ice);
   color: #071016;
   background: var(--staff-ice);
-  font-size: var(--staff-primary-font-size);
-  font-weight: var(--staff-primary-font-weight);
-  letter-spacing: var(--staff-primary-letter-spacing);
-  line-height: 1.3;
   white-space: nowrap;
-  transition: color 220ms ease, background 220ms ease, transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: color var(--staff-motion-fast) ease, background var(--staff-motion-fast) ease, transform var(--staff-motion-fast) cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.newMatterButton:hover,
 .primaryButton:hover {
   color: var(--staff-paper);
   background: transparent;
@@ -418,13 +552,72 @@
 .dashboardGrid,
 .registryGrid {
   display: grid;
-  grid-template-columns: minmax(520px, 1.28fr) minmax(420px, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   align-items: flex-start;
 }
 
 .queuePanel {
   min-height: calc(100vh - 232px);
   padding: 30px 20px 70px;
+}
+
+.taskGroups {
+  min-width: 0;
+}
+
+.newMatterButton {
+  white-space: nowrap;
+}
+
+.taskList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--staff-soft-line);
+}
+
+.taskRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 20px;
+  width: 100%;
+  min-height: 96px;
+  padding: 18px;
+  border: 1px solid transparent;
+  border-bottom-color: var(--staff-soft-line);
+  background: #08090a;
+  color: var(--staff-paper);
+  text-align: left;
+}
+
+.taskRow:hover {
+  border-color: rgba(121, 200, 243, 0.38);
+  background: #0c0e10;
+}
+
+.taskDue {
+  color: var(--staff-muted);
+  font-size: 12px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.matterWorkspace {
+  width: 100%;
+  max-width: 1120px;
+  margin-inline: auto;
+  min-width: 0;
+}
+
+.backButton {
+  min-height: 44px;
+  min-width: 44px;
+  margin: 16px 30px 0;
+  padding: 10px 16px;
+  border: 1px solid var(--staff-line);
+  color: var(--staff-ice);
+  background: transparent;
 }
 
 .queueSection + .queueSection {
@@ -525,7 +718,7 @@
 .detailPanel {
   min-height: calc(100vh - 232px);
   padding: 31px 30px 80px;
-  border-left: 1px solid var(--staff-line);
+  border-left: 0;
   background: #060607;
 }
 
@@ -837,20 +1030,18 @@
   width: 100%;
 }
 
-.textButton {
-  min-height: 46px;
+.textButton,
+.textAction {
+  min-height: var(--staff-control-height);
   padding: 0;
   color: var(--staff-ice);
   background: transparent;
   text-align: left;
-  font-size: var(--staff-control-font-size);
-  font-weight: var(--staff-control-font-weight);
-  letter-spacing: var(--staff-control-letter-spacing);
-  line-height: 1.3;
-  transition: color 220ms ease, padding-left 220ms ease;
+  transition: color var(--staff-motion-fast) ease, padding-left var(--staff-motion-fast) ease;
 }
 
-.textButton:hover {
+.textButton:hover,
+.textAction:hover {
   padding-left: 6px;
   color: var(--staff-paper);
 }
@@ -1305,7 +1496,7 @@
 }
 
 .registryGrid {
-  grid-template-columns: minmax(520px, 1.25fr) minmax(390px, 0.85fr);
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .registerList,
@@ -1496,7 +1687,7 @@
   display: flex;
   justify-content: flex-end;
   background: rgba(0, 0, 0, 0.72);
-  animation: backdropIn 220ms ease both;
+  animation: backdropIn var(--staff-motion-fast) ease both;
 }
 
 .assignmentDrawer {
@@ -1508,7 +1699,7 @@
   color: #080808;
   background: #f7f7f3;
   box-shadow: -22px 0 70px rgba(0, 0, 0, 0.42);
-  animation: drawerIn 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: drawerIn var(--staff-motion-slow) cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .drawerHeader {
@@ -1533,8 +1724,9 @@
 }
 
 .drawerClose {
-  min-height: 40px;
-  padding: 0 0 0 16px;
+  min-width: var(--staff-control-height);
+  min-height: var(--staff-control-height);
+  padding: 0 12px;
   color: #343638;
   background: transparent;
   font-size: 12px;
@@ -1728,18 +1920,25 @@
 }
 
 .secondaryButton {
-  min-height: 52px;
   padding: 0 14px;
   color: #232526;
   background: transparent;
-  font-size: var(--staff-control-font-size);
-  font-weight: var(--staff-control-font-weight);
-  letter-spacing: var(--staff-control-letter-spacing);
-  line-height: 1.3;
 }
 
 .secondaryButton:hover {
   color: #1678bc;
+}
+
+.dangerButton {
+  padding: 0 14px;
+  border: 1px solid rgba(255, 187, 187, 0.72);
+  color: #ffd1d1;
+  background: transparent;
+}
+
+.dangerButton:hover {
+  border-color: #ffd1d1;
+  color: var(--staff-paper);
 }
 
 .toast {
@@ -1805,8 +2004,6 @@
     padding-inline: 24px;
   }
 
-  .dashboardGrid,
-  .registryGrid,
   .intakeGrid {
     grid-template-columns: minmax(430px, 1.25fr) minmax(340px, 0.9fr);
   }
@@ -1870,6 +2067,28 @@
     background: transparent;
   }
 
+  .moreNavigation {
+    flex: 0 0 auto;
+  }
+
+  .moreNavigation > summary {
+    min-height: 52px;
+    padding: 0 18px;
+    border: 0;
+    border-bottom: 2px solid transparent;
+  }
+
+  .moreNavigation[open] > summary {
+    border-bottom-color: var(--staff-ice);
+    background: transparent;
+  }
+
+  .moreNavigationMenu {
+    margin: 0;
+    padding: 0 0 7px;
+    border-left: 0;
+  }
+
   .railCabinetLink {
     display: none;
   }
@@ -1878,8 +2097,6 @@
     min-height: 176px;
   }
 
-  .dashboardGrid,
-  .registryGrid,
   .intakeGrid {
     grid-template-columns: 1fr;
   }
@@ -1917,6 +2134,10 @@
     padding-inline: 18px;
   }
 
+  .brand {
+    min-height: var(--staff-control-height);
+  }
+
   .brandMark {
     width: 38px;
     height: 38px;
@@ -1941,14 +2162,53 @@
 
   .rail {
     top: 68px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+  }
+
+  .rail nav {
+    display: flex;
+    width: max-content;
+  }
+
+  .workspaceTabs {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
   }
 
   .railButton {
-    min-height: 50px;
+    min-height: var(--staff-control-height);
     padding-inline: 12px;
   }
 
   .railButton span {
+    font-size: 12px;
+  }
+
+  .moreNavigation[open] {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: stretch;
+    width: max-content;
+  }
+
+  .moreNavigation[open] .moreNavigationMenu {
+    display: flex;
+    width: max-content;
+    gap: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  .moreNavigation[open] .moreNavigationMenu .railButton {
+    width: auto;
+    flex: 0 0 auto;
+  }
+
+  .moreNavigation > summary {
+    min-height: var(--staff-control-height);
+    padding-inline: 12px;
     font-size: 12px;
   }
 
@@ -1957,6 +2217,12 @@
     gap: 24px;
     min-height: 0;
     padding: 26px 20px 24px;
+  }
+
+  .contentHeader > *,
+  .headerTools,
+  .searchField {
+    min-width: 0;
   }
 
   .contentHeader h1 {
@@ -1979,16 +2245,33 @@
   .searchField input,
   .newMatterButton {
     width: 100%;
-    height: 54px;
-    min-height: 54px;
+    height: var(--staff-control-height);
+    min-height: var(--staff-control-height);
   }
 
   .searchField input {
-    font-size: 16px;
+    font-size: var(--staff-body-size);
+  }
+
+  .documentRequestSection :is(input, textarea),
+  .workflowForm :is(input, select, textarea),
+  .composer textarea,
+  .drawerField :is(input, select, textarea) {
+    font-size: var(--staff-body-size);
   }
 
   .queuePanel {
     padding: 24px 12px 40px;
+  }
+
+  .taskRow {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+    padding: 16px 12px;
+  }
+
+  .backButton {
+    margin-inline: 20px;
   }
 
   .queueSection h2 {
@@ -2151,7 +2434,10 @@
 @media (prefers-reduced-motion: reduce) {
   .pageShell *,
   .pageShell *::before,
-  .pageShell *::after {
+  .pageShell *::after,
+  .stateShell *,
+  .stateShell *::before,
+  .stateShell *::after {
     scroll-behavior: auto !important;
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;

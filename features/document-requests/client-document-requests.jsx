@@ -13,6 +13,7 @@ import {
   submitDocumentRequest,
   withdrawDocumentRequestFile,
 } from "./document-request-actions";
+import { getClientPrimaryDocumentRequestAction } from "./document-request-domain.mjs";
 import styles from "./document-requests.module.css";
 
 const FILE_ACCEPT = ".pdf,.doc,.docx,.jpg,.jpeg,.png";
@@ -56,6 +57,7 @@ export default function ClientDocumentRequests({
   const activeRequests = requests.filter((request) => request.status !== "cancelled");
   const cancelledRequests = requests.filter((request) => request.status === "cancelled");
   const visibleRequests = mode === "overview" ? requests.slice(0, 1) : activeRequests;
+  const primaryAction = getClientPrimaryDocumentRequestAction(requests);
   const visibleFeedback = feedback.text ? feedback : downloadFeedback;
 
   const focusFeedback = () => {
@@ -217,6 +219,10 @@ export default function ClientDocumentRequests({
   const renderRequest = (request, quiet = false) => {
     const activeDocuments = request.documents.filter(isActiveFile);
     const canAct = request.status === "requested" || request.status === "changes_requested";
+    const isPrimaryAddFileAction = primaryAction?.requestId === request.id
+      && primaryAction?.action === "add_file";
+    const isPrimarySubmitAction = primaryAction?.requestId === request.id
+      && primaryAction?.action === "submit";
     const busy = busyKey === request.id;
     const pendingRequestRegistrations = Object.values(pendingRegistrations)
       .filter((registration) => registration.requestId === request.id);
@@ -278,7 +284,10 @@ export default function ClientDocumentRequests({
         {canAct && (
           <div className={styles.actions}>
             {activeDocuments.length < 20 ? (
-              <label className={styles.secondaryButton} aria-disabled={busy}>
+              <label
+                className={isPrimaryAddFileAction ? styles.primaryButton : styles.secondaryButton}
+                aria-disabled={busy}
+              >
                 <span>{busy ? "Обрабатываем…" : "Добавить файл"}</span>
                 <input
                   className={styles.visuallyHidden}
@@ -300,7 +309,14 @@ export default function ClientDocumentRequests({
                 Повторить регистрацию: {registration.originalName}
               </button>
             ))}
-            <button className={styles.primaryButton} type="button" disabled={busy || activeDocuments.length === 0} onClick={() => handleSubmit(request)}>Отправить комплект на проверку</button>
+            <button
+              className={isPrimarySubmitAction ? styles.primaryButton : styles.secondaryButton}
+              type="button"
+              disabled={busy || activeDocuments.length === 0}
+              onClick={() => handleSubmit(request)}
+            >
+              Отправить комплект на проверку
+            </button>
           </div>
         )}
       </article>

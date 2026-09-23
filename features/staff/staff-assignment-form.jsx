@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createMatterAssignment, createMatterFromIntakeRequest } from "./staff-actions";
 import { validateMatterAssignment } from "./staff-assignment-domain.mjs";
 import { getIntakeAssignmentDefaults } from "./staff-intake-domain.mjs";
+import { useDialogFocus, useDraftRegistration } from "./staff-workspace-ui";
 import styles from "./staff.module.css";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -36,7 +37,7 @@ function validateFirstStep(form) {
   return "";
 }
 
-export default function StaffAssignmentForm({ organizations, intakeRequest = null, onCreated, onClose }) {
+export default function StaffAssignmentForm({ organizations, intakeRequest = null, onCreated, onClose, onComplete, draftRegistry, confirmation, returnFocusRef }) {
   const intakeDefaults = getIntakeAssignmentDefaults(intakeRequest);
   const firstOrganizationId = organizations.some((organization) => organization.id === intakeDefaults.organizationId)
     ? intakeDefaults.organizationId
@@ -59,21 +60,14 @@ export default function StaffAssignmentForm({ organizations, intakeRequest = nul
   }));
   const [feedback, setFeedback] = useState({ tone: "neutral", text: "" });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const initialForm = useRef(form).current;
+  useDialogFocus(dialogRef, () => { if (!isSubmitting) onClose(); }, returnFocusRef);
+  useDraftRegistration(draftRegistry, "new-matter", JSON.stringify(form) !== JSON.stringify(initialForm), isSubmitting);
 
   const activeOrganization = useMemo(
     () => organizations.find((organization) => organization.id === form.organizationId) ?? organizations[0],
     [form.organizationId, organizations],
   );
-
-  useEffect(() => {
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    emailRef.current?.focus();
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, []);
 
   useEffect(() => {
     if (step === 2) {
@@ -131,36 +125,11 @@ export default function StaffAssignmentForm({ organizations, intakeRequest = nul
       }
 
       onCreated?.(result.matterId, result.message);
-      onClose?.();
+      (onComplete ?? onClose)?.();
     } catch {
       setFeedback({ tone: "error", text: "Не удалось создать дело. Попробуйте ещё раз." });
     } finally {
       setIsSubmitting(false);
-    }
-  };
-
-  const handleDialogKeyDown = (event) => {
-    if (event.key === "Escape" && !isSubmitting) {
-      event.preventDefault();
-      onClose?.();
-      return;
-    }
-
-    if (event.key !== "Tab") return;
-
-    const focusable = dialogRef.current?.querySelectorAll(
-      'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), summary, [href]',
-    );
-    if (!focusable?.length) return;
-
-    const first = focusable[0];
-    const last = focusable[focusable.length - 1];
-    if (event.shiftKey && document.activeElement === first) {
-      event.preventDefault();
-      last.focus();
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault();
-      first.focus();
     }
   };
 
@@ -172,7 +141,7 @@ export default function StaffAssignmentForm({ organizations, intakeRequest = nul
         role="dialog"
         aria-modal="true"
         aria-labelledby="staff-assignment-title"
-        onKeyDown={handleDialogKeyDown}
+        tabIndex={-1}
       >
         <header className={styles.drawerHeader}>
           <div>
@@ -184,12 +153,13 @@ export default function StaffAssignmentForm({ organizations, intakeRequest = nul
           </button>
         </header>
 
-        <div className={styles.stepIndicator} aria-label={`Шаг ${step} из 2`}>
+        {confirmation}
+        <div className={styles.stepIndicator} hidden={Boolean(confirmation)} aria-label={`Шаг ${step} из 2`}>
           <span className={step >= 1 ? styles.stepActive : ""}>1 · Клиент и дело</span>
           <span className={step >= 2 ? styles.stepActive : ""}>2 · Статус и шаг</span>
         </div>
 
-        <form className={styles.assignmentForm} onSubmit={step === 1 ? handleContinue : handleSubmit}>
+        <form className={styles.assignmentForm} hidden={Boolean(confirmation)} onSubmit={step === 1 ? handleContinue : handleSubmit}>
           {organizations.length > 1 && !intakeRequest ? (
             <label className={styles.drawerField}>
               <span>Организация</span>

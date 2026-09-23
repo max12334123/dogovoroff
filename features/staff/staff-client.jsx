@@ -5,13 +5,17 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createUuidV4 } from "../../lib/submission-id.mjs";
 import { DOCUMENT_BUCKET } from "../cabinet/cabinet-write-domain.mjs";
 import { sendMatterMessage } from "../cabinet/cabinet-actions";
-import { getMatterById } from "../cabinet/cabinet-data.mjs";
 import { validateMatterMessage } from "../cabinet/cabinet-write-domain.mjs";
 import NotificationCenter from "../notifications/notification-center";
-import StaffDocumentRequests from "../document-requests/staff-document-requests";
 import StaffAssignmentForm from "./staff-assignment-form";
 import StaffIntakePanel from "./staff-intake-panel";
+import StaffMatterWorkspace from "./staff-matter-workspace";
 import StaffMatterDetailsForm from "./staff-matter-details-form";
+import StaffNavigation from "./staff-navigation";
+import StaffTaskList from "./staff-task-list";
+import { createDraftRegistry, createStaffHistory } from "./staff-workspace-ui-domain.mjs";
+import { DraftConfirmation, StaffDialog, useDraftRegistration } from "./staff-workspace-ui";
+import { buildStaffHref, getStaffMatterLocation, parseStaffLocation } from "./staff-navigation-domain.mjs";
 import { filterStaffAuditEvents, filterStaffMatters, filterStaffNavigation, getStaffMatterQueue } from "./staff-domain.mjs";
 import { updateMatterWorkflow } from "./staff-actions";
 import { validateMatterWorkflow } from "./staff-workflow-domain.mjs";
@@ -27,14 +31,20 @@ const NAVIGATION = [
   { id: "audit", label: "Журнал" },
 ];
 
+const MORE_COPY = {
+  documents: { title: "Документы", eyebrow: "Материалы по делам" },
+  messages: { title: "Сообщения", eyebrow: "Связь с клиентами" },
+  audit: { title: "Журнал действий", eyebrow: "Контроль организации" },
+  trash: { title: "Корзина", eyebrow: "Удалённые дела" },
+};
+
 const VIEW_COPY = {
   today: { title: "Сегодня в работе", eyebrow: "Рабочий день" },
   inbox: { title: "Входящие заявки", eyebrow: "Новые обращения" },
   matters: { title: "Все дела", eyebrow: "Реестр команды" },
   clients: { title: "Клиенты", eyebrow: "Доступ по делам" },
-  documents: { title: "Документы", eyebrow: "Материалы по делам" },
-  messages: { title: "Сообщения", eyebrow: "Связь с клиентами" },
-  audit: { title: "Журнал действий", eyebrow: "Контроль организации" },
+  ...MORE_COPY,
+  matter: { title: "Карточка дела", eyebrow: "Работа по делу" },
 };
 
 const REGISTER_FILTERS = [
@@ -43,13 +53,6 @@ const REGISTER_FILTERS = [
   { id: "waiting", label: "Ожидают клиента" },
   { id: "paused", label: "Приостановлены" },
   { id: "archive", label: "Архив" },
-];
-
-const MATTER_STATUS_OPTIONS = [
-  { value: "active", label: "Активное дело" },
-  { value: "paused", label: "Приостановлено" },
-  { value: "completed", label: "Завершено" },
-  { value: "archived", label: "В архиве" },
 ];
 
 const AUDIT_DATE_FORMATTER = new Intl.DateTimeFormat("ru-RU", {
@@ -109,340 +112,24 @@ function getWorkflowDraft(matter) {
   };
 }
 
-function getMatterTask(matter) {
-  const requests = matter.documentRequests ?? [];
-  if (requests.some((request) => request.status === "submitted")) {
-    return "Проверить комплект документов";
-  }
-  if (requests.some((request) => request.status === "requested" || request.status === "changes_requested")) {
-    return "Ожидаем документы от клиента";
-  }
-  if (matter.nextAction) {
-    return matter.nextAction.title;
-  }
-
-  return matter.stages[matter.currentStage]?.title || "Продолжить работу по делу";
-}
-
 function getPreferredScrollBehavior() {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
 }
 
-function EmptyState({ title, text }) {
+function EmptyState({ title, text, onReset }) {
   return (
     <section className={styles.emptyPanel}>
       <p className={styles.eyebrow}>Список пуст</p>
       <h2>{title}</h2>
       <p>{text}</p>
+      {onReset ? <button className={styles.textAction} type="button" onClick={onReset}>Сбросить фильтр</button> : null}
     </section>
   );
 }
 
-function QueueSection({ title, matters, activeMatterId, onSelect, queueId = "action", waiting = false }) {
-  if (!matters.length) return null;
-
-  return (
-    <section className={styles.queueSection} aria-labelledby={`queue-${queueId}`}>
-      <h2 id={`queue-${queueId}`}>
-        {title} <span>· {matters.length}</span>
-      </h2>
-      <div className={styles.queueList}>
-        {matters.map((matter, index) => {
-          const active = matter.id === activeMatterId;
-          return (
-            <button
-              className={`${styles.queueRow}${active ? ` ${styles.isActive}` : ""}`}
-              key={matter.id}
-              type="button"
-              aria-pressed={active}
-              onClick={() => onSelect(matter.id)}
-            >
-              <span className={styles.queueIndex}>{String(index + 1).padStart(2, "0")}</span>
-              <span className={styles.queueMatter}>
-                <strong>{matter.title}</strong>
-                <small>{matter.reference}</small>
-              </span>
-              <span className={styles.queueTask}>{getMatterTask(matter)}</span>
-              <span className={styles.queueDue}>{waiting ? matter.nextAction?.deadline || matter.responseBy : matter.responseBy}</span>
-            </button>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
-
-function MatterStages({ matter }) {
-  if (!matter.stages.length) {
-    return <p className={styles.muted}>Этапы по делу ещё не добавлены.</p>;
-  }
-
-  return (
-    <ol className={styles.stageList}>
-      {matter.stages.map((stage, index) => (
-        <li className={styles[`stage_${stage.status}`]} key={stage.id ?? `${stage.title}-${index}`}>
-          <span>{String(index + 1).padStart(2, "0")}</span>
-          <div>
-            <strong>{stage.title}</strong>
-            <small>{stage.detail}</small>
-          </div>
-        </li>
-      ))}
-    </ol>
-  );
-}
-
-function MessageHistory({ messages }) {
-  if (!messages.length) {
-    return <p className={styles.muted}>Сообщений по делу пока нет.</p>;
-  }
-
-  return (
-    <ol className={styles.messageList}>
-      {messages.map((message) => (
-        <li key={message.id}>
-          <div>
-            <strong>{message.sender}</strong>
-            <time>{message.date}</time>
-          </div>
-          <p>{message.text}</p>
-        </li>
-      ))}
-    </ol>
-  );
-}
-
-function MatterDetail({
-  matter,
-  organizationLabel,
-  assignmentStaff,
-  workflowDraft,
-  workflowFeedback,
-  isUpdatingWorkflow,
-  downloadingId,
-  documentFeedback,
-  onWorkflowChange,
-  onAssignmentChange,
-  onWorkflowSubmit,
-  onDownload,
-  documentsRef,
-  messageInputRef,
-  composerOpen,
-  draft,
-  feedback,
-  isSending,
-  onDraftChange,
-  onSubmit,
-  onOpenDocuments,
-  onOpenComposer,
-  onOpenCard,
-  canEditDetails,
-  detailsButtonRef,
-  onOpenDetails,
-}) {
-  if (!matter) {
-    return (
-      <aside className={styles.detailPanel} aria-label="Карточка дела">
-        <p className={styles.eyebrow}>Карточка дела</p>
-        <h2>Выберите дело</h2>
-        <p className={styles.muted}>Здесь появятся этапы, документы и доступные действия.</p>
-      </aside>
-    );
-  }
-
-  const otherDocuments = matter.documents.filter((document) => document.requestId === null);
-
-  return (
-    <aside className={styles.detailPanel} aria-labelledby="staff-matter-title">
-      <div className={styles.detailIntro}>
-        <p className={styles.eyebrow}>{matter.reference}</p>
-        <h2 id="staff-matter-title">{getMatterTask(matter)}</h2>
-        <p>{matter.title}</p>
-      </div>
-
-      <dl className={styles.matterMeta}>
-        <div><dt>Статус</dt><dd>{matter.stateLabel}</dd></div>
-        <div><dt>Срок ответа</dt><dd>{matter.responseBy}</dd></div>
-        <div><dt>Организация</dt><dd>{organizationLabel}</dd></div>
-        <div><dt>Обновлено</dt><dd>{matter.updated || "Недавно"}</dd></div>
-      </dl>
-
-      <section className={styles.detailSection} aria-labelledby="staff-stages-title">
-        <p className={styles.eyebrow} id="staff-stages-title">Этапы дела</p>
-        <MatterStages matter={matter} />
-      </section>
-
-      {matter.nextAction ? (
-        <section className={styles.nextAction} aria-labelledby="staff-next-action-title">
-          <p className={styles.eyebrow}>Ожидаем от клиента</p>
-          <h3 id="staff-next-action-title">{matter.nextAction.title}</h3>
-          <p>{matter.nextAction.description}</p>
-          {matter.nextAction.deadline ? <small>{matter.nextAction.deadline}</small> : null}
-        </section>
-      ) : null}
-
-      <section className={styles.documentRequestSection} aria-label="Запросы документов">
-        <StaffDocumentRequests
-          matter={matter}
-          downloadingId={downloadingId}
-          downloadFeedback={documentFeedback}
-          onDownload={onDownload}
-        />
-      </section>
-
-      <section className={styles.workflowSection} aria-labelledby="staff-workflow-title">
-        <div className={styles.sectionHeading}>
-          <div>
-            <p className={styles.eyebrow}>Управление</p>
-            <h3 id="staff-workflow-title">Рабочий статус</h3>
-          </div>
-          <span>Команда</span>
-        </div>
-        <form className={styles.workflowForm} onSubmit={onWorkflowSubmit}>
-          <label>
-            <span>Статус дела</span>
-            <select value={workflowDraft.status} onChange={(event) => onWorkflowChange("status", event.target.value)} disabled={isUpdatingWorkflow}>
-              {MATTER_STATUS_OPTIONS.map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}
-            </select>
-          </label>
-          <label>
-            <span>Текущий этап</span>
-            <select value={workflowDraft.stageId} onChange={(event) => onWorkflowChange("stageId", event.target.value)} disabled={isUpdatingWorkflow}>
-              <option value="">Не менять этап</option>
-              {matter.stages.map((stage) => <option value={stage.id} key={stage.id}>{stage.title}</option>)}
-            </select>
-          </label>
-          <label>
-            <span>Следующий шаг клиента</span>
-            <input
-              value={workflowDraft.nextActionTitle}
-              maxLength={240}
-              placeholder="Например, загрузить договор"
-              disabled={isUpdatingWorkflow}
-              onChange={(event) => onWorkflowChange("nextActionTitle", event.target.value)}
-            />
-          </label>
-          <label>
-            <span>Описание шага</span>
-            <textarea
-              value={workflowDraft.nextActionDescription}
-              maxLength={2000}
-              rows={3}
-              placeholder="Что нужно сделать клиенту"
-              disabled={isUpdatingWorkflow}
-              onChange={(event) => onWorkflowChange("nextActionDescription", event.target.value)}
-            />
-          </label>
-          <label>
-            <span>Срок следующего шага</span>
-            <input
-              type="date"
-              value={workflowDraft.nextActionDueAt}
-              disabled={isUpdatingWorkflow}
-              onChange={(event) => onWorkflowChange("nextActionDueAt", event.target.value)}
-            />
-          </label>
-          {assignmentStaff.length ? (
-            <label>
-              <span>Ответственный сотрудник</span>
-              <select
-                value={workflowDraft.assignmentTouched ? (workflowDraft.assignedLawyerId || "__none__") : "__keep__"}
-                disabled={isUpdatingWorkflow}
-                onChange={(event) => onAssignmentChange(event.target.value)}
-              >
-                <option value="__keep__">Оставить текущее назначение</option>
-                <option value="__none__">Снять персональное назначение</option>
-                {assignmentStaff.map((member) => <option value={member.id} key={member.id}>{member.name}</option>)}
-              </select>
-              <small>Изменение доступно только администраторам организации.</small>
-            </label>
-          ) : null}
-          <button className={styles.primaryButton} type="submit" disabled={isUpdatingWorkflow}>
-            {isUpdatingWorkflow ? "Сохраняем…" : "Сохранить рабочий статус"}
-          </button>
-          <p className={`${styles.feedback}${workflowFeedback.tone === "error" ? ` ${styles.feedbackError}` : ""}`} role="status" aria-live="polite">
-            {workflowFeedback.text}
-          </p>
-        </form>
-      </section>
-
-      <div className={styles.detailActions}>
-        <button className={styles.primaryButton} type="button" onClick={onOpenDocuments}>Открыть документы</button>
-        <button className={styles.textButton} type="button" onClick={onOpenComposer}>Написать клиенту</button>
-        <button className={styles.textButton} type="button" onClick={onOpenCard}>Открыть карточку дела</button>
-        {canEditDetails ? (
-          <button className={styles.textButton} ref={detailsButtonRef} type="button" onClick={onOpenDetails}>
-            Редактировать реквизиты
-          </button>
-        ) : null}
-      </div>
-
-      <section className={styles.documentSection} ref={documentsRef} tabIndex="-1" aria-labelledby="staff-documents-title">
-        <div className={styles.sectionHeading}>
-          <p className={styles.eyebrow}>Другие документы</p>
-          <span>{otherDocuments.length}</span>
-        </div>
-        <h3 className={styles.visuallyHidden} id="staff-documents-title">Другие документы по делу</h3>
-        {otherDocuments.length ? (
-          <ul className={styles.documentList}>
-            {otherDocuments.map((document) => (
-              <li key={document.id}>
-                <button
-                  className={styles.documentDownload}
-                  type="button"
-                  disabled={downloadingId === document.id}
-                  onClick={() => onDownload(document)}
-                >
-                  <span>{document.name}</span>
-                  <small>{downloadingId === document.id ? "Загрузка…" : "Скачать"}</small>
-                </button>
-                <small>{document.status} · {document.updated}</small>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className={styles.muted}>Других документов пока нет.</p>
-        )}
-      </section>
-
-      {composerOpen ? (
-        <section className={styles.messages} aria-labelledby="staff-messages-title">
-          <div className={styles.sectionHeading}>
-            <div>
-              <p className={styles.eyebrow}>Связь</p>
-              <h3 id="staff-messages-title">Сообщения по делу</h3>
-            </div>
-            <span>{matter.messages.length}</span>
-          </div>
-          <MessageHistory messages={matter.messages} />
-          <form className={styles.composer} onSubmit={onSubmit}>
-            <label htmlFor="staff-message">Сообщение клиенту</label>
-            <textarea
-              id="staff-message"
-              ref={messageInputRef}
-              value={draft}
-              maxLength={2000}
-              rows={5}
-              placeholder="Кратко опишите следующий шаг или ответ"
-              disabled={isSending}
-              onChange={(event) => onDraftChange(event.target.value)}
-            />
-            <button className={styles.primaryButton} type="submit" disabled={isSending}>
-              {isSending ? "Отправка…" : "Отправить сообщение"}
-            </button>
-            <p className={`${styles.feedback}${feedback.tone === "error" ? ` ${styles.feedbackError}` : ""}`} role="status" aria-live="polite">
-              {feedback.text}
-            </p>
-          </form>
-        </section>
-      ) : null}
-    </aside>
-  );
-}
-
-function RegisterList({ matters, activeMatterId, onSelect }) {
+function RegisterList({ matters, onSelect, onReset }) {
   if (!matters.length) {
-    return <EmptyState title="Ничего не найдено" text="Измените запрос или фильтр реестра." />;
+    return <EmptyState title="Ничего не найдено" text="Измените запрос или фильтр реестра." onReset={onReset} />;
   }
 
   return (
@@ -454,10 +141,9 @@ function RegisterList({ matters, activeMatterId, onSelect }) {
         const queue = getStaffMatterQueue(matter);
         return (
           <button
-            className={`${styles.registerRow}${matter.id === activeMatterId ? ` ${styles.isActive}` : ""}`}
+            className={styles.registerRow}
             type="button"
             key={matter.id}
-            aria-pressed={matter.id === activeMatterId}
             onClick={() => onSelect(matter.id)}
           >
             <span className={styles.registerMatter}>
@@ -473,10 +159,10 @@ function RegisterList({ matters, activeMatterId, onSelect }) {
   );
 }
 
-function CollectionList({ type, matters, activeMatterId, onSelect }) {
+function CollectionList({ type, matters, onSelect, onReset }) {
   if (type === "documents") {
     const rows = matters.flatMap((matter) => matter.documents.map((document) => ({ matter, document })));
-    if (!rows.length) return <EmptyState title="Документов пока нет" text="Загруженные материалы появятся здесь и в карточке дела." />;
+    if (!rows.length) return <EmptyState title="Документов пока нет" text="Загруженные материалы появятся здесь и в карточке дела." onReset={onReset} />;
     return (
       <div className={styles.collectionList}>
         {rows.map(({ matter, document }) => (
@@ -491,11 +177,11 @@ function CollectionList({ type, matters, activeMatterId, onSelect }) {
 
   if (type === "messages") {
     const rows = matters.filter((matter) => matter.messages.length);
-    if (!rows.length) return <EmptyState title="Сообщений пока нет" text="Диалоги появятся после первого сообщения по делу." />;
+    if (!rows.length) return <EmptyState title="Сообщений пока нет" text="Диалоги появятся после первого сообщения по делу." onReset={onReset} />;
     return (
       <div className={styles.collectionList}>
         {rows.map((matter) => (
-          <button className={matter.id === activeMatterId ? styles.isActive : ""} type="button" key={matter.id} onClick={() => onSelect(matter.id)}>
+          <button type="button" key={matter.id} onClick={() => onSelect(matter.id)}>
             <span><strong>{matter.title}</strong><small>{matter.reference}</small></span>
             <span>{matter.messages.length} сообщ.<small>{matter.messages[0]?.date}</small></span>
           </button>
@@ -504,11 +190,11 @@ function CollectionList({ type, matters, activeMatterId, onSelect }) {
     );
   }
 
-  if (!matters.length) return <EmptyState title="Клиентских дел пока нет" text="После назначения дела клиенту оно появится в этом списке." />;
+  if (!matters.length) return <EmptyState title="Клиентских дел пока нет" text="После назначения дела клиенту оно появится в этом списке." onReset={onReset} />;
   return (
     <div className={styles.collectionList}>
       {matters.map((matter) => (
-        <button className={matter.id === activeMatterId ? styles.isActive : ""} type="button" key={matter.id} onClick={() => onSelect(matter.id)}>
+        <button type="button" key={matter.id} onClick={() => onSelect(matter.id)}>
           <span><strong>Клиент по делу {matter.reference}</strong><small>{matter.title}</small></span>
           <span>{matter.stateLabel}<small>{matter.responseBy}</small></span>
         </button>
@@ -517,9 +203,9 @@ function CollectionList({ type, matters, activeMatterId, onSelect }) {
   );
 }
 
-function AuditList({ events, matters }) {
+function AuditList({ events, matters, onReset }) {
   if (!events.length) {
-    return <EmptyState title="Записей пока нет" text="Изменения по делам появятся здесь после первого действия команды." />;
+    return <EmptyState title="Записей пока нет" text="Изменения по делам появятся здесь после первого действия команды." onReset={onReset} />;
   }
 
   const matterById = new Map(matters.map((matter) => [matter.id, matter]));
@@ -571,16 +257,22 @@ export default function StaffClient({
   const documentsRef = useRef(null);
   const messageInputRef = useRef(null);
   const messageIdRef = useRef(null);
-  const [activeView, setActiveView] = useState("today");
-  const [activeMatterId, setActiveMatterId] = useState(
-    initialMatters.find((item) => item.state === "active")?.id ?? initialMatters[0]?.id ?? null,
-  );
+  const mainRef = useRef(null);
+  const backButtonRef = useRef(null);
+  const [location, setLocation] = useState(() => parseStaffLocation("", initialMatters, { canViewAudit, intakeEnabled }));
+  const [pendingCreatedMatter, setPendingCreatedMatter] = useState(null);
+  const activeView = location.view;
   const [searchQuery, setSearchQuery] = useState("");
   const [registerFilter, setRegisterFilter] = useState("all");
-  const [assignmentOpen, setAssignmentOpen] = useState(false);
+  const [activePanel, setActivePanel] = useState(null);
   const [assignmentIntakeRequest, setAssignmentIntakeRequest] = useState(null);
-  const [detailsOpen, setDetailsOpen] = useState(false);
-  const [composerOpen, setComposerOpen] = useState(false);
+  const [pendingTransition, setPendingTransition] = useState(null);
+  const draftRegistry = useRef(createDraftRegistry()).current;
+  const historyRef = useRef(null);
+  const transitionRef = useRef(null);
+  const tabFocusRef = useRef(false);
+  const workflowInitialRef = useRef(null);
+  const panelTriggerRef = useRef(null);
   const [draft, setDraft] = useState("");
   const [feedback, setFeedback] = useState({ tone: "neutral", text: "" });
   const [workflowFeedback, setWorkflowFeedback] = useState({ tone: "neutral", text: "" });
@@ -591,10 +283,39 @@ export default function StaffClient({
   const [toast, setToast] = useState("");
   const [isSending, setIsSending] = useState(false);
 
-  const resolvedMatterId = initialMatters.some((item) => item.id === activeMatterId)
-    ? activeMatterId
-    : initialMatters[0]?.id ?? null;
-  const matter = useMemo(() => getMatterById(resolvedMatterId, initialMatters), [resolvedMatterId, initialMatters]);
+  const matter = initialMatters.find((item) => item.id === location.matterId) ?? null;
+  const workflowDirty = (activePanel === "workflow" || activePanel === "assignment") && JSON.stringify(workflowDraft) !== JSON.stringify(workflowInitialRef.current);
+  useDraftRegistration(draftRegistry, "message", Boolean(draft), isSending, () => {
+    setDraft("");
+    messageIdRef.current = null;
+  });
+  useDraftRegistration(draftRegistry, "workflow", workflowDirty, isUpdatingWorkflow, () => {
+    setWorkflowDraft(getWorkflowDraft(matter));
+  });
+  const requestTransition = (action) => {
+    if (draftRegistry.busy() || pendingTransition) return;
+    if (draftRegistry.dirty()) {
+      setPendingTransition({ action, focus: document.activeElement });
+    } else {
+      draftRegistry.discard();
+      action();
+    }
+  };
+  transitionRef.current = requestTransition;
+  const continueEditing = () => {
+    const target = pendingTransition?.focus;
+    setPendingTransition(null);
+    requestAnimationFrame(() => target?.isConnected && target.focus());
+  };
+  const discardChanges = () => {
+    const action = pendingTransition?.action;
+    setPendingTransition(null);
+    draftRegistry.discard();
+    action?.();
+  };
+  const confirmation = pendingTransition ? <DraftConfirmation onContinue={continueEditing} onDiscard={discardChanges} /> : null;
+  const normalizeManagementLocation = (next) => next.tab === "management" && !assignmentOrganizations.some((organization) => organization.id === initialMatters.find((item) => item.id === next.matterId)?.organizationId)
+    ? { ...next, tab: "overview" } : next;
   const searchedMatters = useMemo(
     () => filterStaffMatters(initialMatters, searchQuery, "all"),
     [initialMatters, searchQuery],
@@ -619,6 +340,8 @@ export default function StaffClient({
   const canEditDetails = assignmentOrganizations.some((organization) => organization.id === matter?.organizationId);
   const viewCopy = VIEW_COPY[activeView];
   const navigation = filterStaffNavigation(NAVIGATION, { canViewAudit, intakeEnabled });
+  const navigationItems = navigation.filter((item) => ["today", "inbox", "matters", "clients"].includes(item.id));
+  const moreNavigationItems = navigation.filter((item) => !["today", "inbox", "matters", "clients"].includes(item.id));
   const openIntakeCount = initialIntakeRequests.filter((request) => (
     request.status === "new" || request.status === "reviewing" || request.status === "contacted"
   )).length;
@@ -638,10 +361,11 @@ export default function StaffClient({
       return;
     }
 
-    setWorkflowDraft(getWorkflowDraft(matter));
-    setWorkflowFeedback({ tone: "neutral", text: "" });
+    if (activePanel !== "workflow" && activePanel !== "assignment") {
+      setWorkflowDraft(getWorkflowDraft(matter));
+      setWorkflowFeedback({ tone: "neutral", text: "" });
+    }
     setDocumentFeedback({ tone: "neutral", text: "" });
-    setDetailsOpen(false);
   }, [matter]);
 
   useEffect(() => {
@@ -650,28 +374,100 @@ export default function StaffClient({
     return () => window.clearTimeout(timeoutId);
   }, [toast]);
 
-  const selectView = (viewId) => {
-    setActiveView(viewId);
-    if (viewId === "today" && getStaffMatterQueue(matter) === "archive") {
-      setActiveMatterId(initialMatters.find((item) => getStaffMatterQueue(item) !== "archive")?.id ?? null);
+  useEffect(() => {
+    const readLocation = () => {
+      const next = normalizeManagementLocation(parseStaffLocation(window.location.search, initialMatters, { canViewAudit, intakeEnabled }));
+      window.history.replaceState(window.history.state, "", buildStaffHref(next));
+      setLocation(next);
+    };
+    if (!historyRef.current) {
+      historyRef.current = createStaffHistory(window);
+      historyRef.current.mark();
     }
-  };
+    readLocation();
+    const handlePopState = (event) => {
+      setPendingCreatedMatter(null);
+      if (historyRef.current.pop(event, draftRegistry.dirty() || draftRegistry.busy(), (action) => transitionRef.current(action))) {
+        event.stopImmediatePropagation();
+        return;
+      }
+      draftRegistry.discard();
+      setActivePanel(null);
+      if (window.location.pathname !== "/staff") return;
+      readLocation();
+    };
+    window.addEventListener("popstate", handlePopState, true);
+    return () => window.removeEventListener("popstate", handlePopState, true);
+  }, [initialMatters, canViewAudit, intakeEnabled, assignmentOrganizations]);
 
-  const selectMatter = (matterId) => {
-    setActiveMatterId(matterId);
+  useEffect(() => {
+    const beforeUnload = (event) => {
+      if (!draftRegistry.dirty() && !draftRegistry.busy()) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", beforeUnload);
+    return () => window.removeEventListener("beforeunload", beforeUnload);
+  }, [draftRegistry]);
+
+  useEffect(() => {
     setDraft("");
-    setComposerOpen(false);
-    setDetailsOpen(false);
     messageIdRef.current = null;
     setFeedback({ tone: "neutral", text: "" });
+    setActivePanel(null);
+  }, [location.matterId]);
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      if (tabFocusRef.current) {
+        tabFocusRef.current = false;
+        document.getElementById(`staff-tab-${location.tab}`)?.focus({ preventScroll: true });
+        return;
+      }
+      (location.view === "matter" ? backButtonRef : mainRef).current?.focus({ preventScroll: true });
+      const target = location.tab === "documents" ? documentsRef.current
+        : location.tab === "messages" ? messageInputRef.current : null;
+      if (target) {
+        target.focus({ preventScroll: true });
+        target.scrollIntoView({ behavior: getPreferredScrollBehavior(), block: "start" });
+      }
+      else window.scrollTo({ top: 0, behavior: getPreferredScrollBehavior() });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [location.view, location.matterId, location.tab]);
+
+  const navigate = (requested, focusTab = false) => requestTransition(() => {
+    setPendingCreatedMatter(null);
+    const next = normalizeManagementLocation(parseStaffLocation(buildStaffHref(requested).split("?")[1], initialMatters, { canViewAudit, intakeEnabled }));
+    tabFocusRef.current = focusTab;
+    setActivePanel(null);
+    window.history.pushState(window.history.state, "", buildStaffHref(next));
+    historyRef.current?.pushed();
+    setLocation(next);
+  });
+
+  const selectView = (viewId) => navigate({ view: viewId });
+  const openMatter = (matterId, tab = "overview") => navigate(
+    getStaffMatterLocation(location, matterId, tab, initialMatters, { canViewAudit, intakeEnabled }),
+  );
+  const closeMatter = () => navigate({ view: location.from });
+  const resetSearch = () => setSearchQuery("");
+  const resetFilters = () => {
+    resetSearch();
+    setRegisterFilter("all");
   };
 
+  useEffect(() => {
+    if (!pendingCreatedMatter || !initialMatters.some((item) => item.id === pendingCreatedMatter.matterId)) return;
+    const next = getStaffMatterLocation(pendingCreatedMatter.origin, pendingCreatedMatter.matterId, "overview", initialMatters, { canViewAudit, intakeEnabled });
+    window.history.pushState(window.history.state, "", buildStaffHref(next));
+    historyRef.current?.pushed();
+    setLocation(next);
+    setPendingCreatedMatter(null);
+  }, [pendingCreatedMatter, initialMatters, canViewAudit, intakeEnabled]);
+
   const selectCollectionMatter = (matterId) => {
-    selectMatter(matterId);
-    if (activeView === "messages") {
-      setComposerOpen(true);
-      requestAnimationFrame(() => messageInputRef.current?.focus());
-    }
+    openMatter(matterId, activeView === "messages" || activeView === "documents" ? activeView : "overview");
   };
 
   const handleDraftChange = (value) => {
@@ -771,12 +567,37 @@ export default function StaffClient({
       }
 
       setWorkflowFeedback({ tone: "success", text: result.message });
+      setToast(result.message);
+      draftRegistry.delete("workflow");
+      setActivePanel(null);
       router.refresh();
     } catch {
       setWorkflowFeedback({ tone: "error", text: "Не удалось обновить дело. Попробуйте ещё раз." });
     } finally {
       setIsUpdatingWorkflow(false);
     }
+  };
+
+  const closeWorkflow = () => pendingTransition ? continueEditing() : requestTransition(() => {
+    setWorkflowDraft(getWorkflowDraft(matter));
+    setWorkflowFeedback({ tone: "neutral", text: "" });
+    setActivePanel(null);
+  });
+
+  const openPanel = (panel) => {
+    const trigger = document.activeElement;
+    requestTransition(() => {
+      if (!["workflow", "details", "assignment"].includes(panel)) return;
+      if (["details", "assignment"].includes(panel) && !canEditDetails) return;
+      if (panel === "workflow" || panel === "assignment") {
+        const initial = getWorkflowDraft(matter);
+        workflowInitialRef.current = initial;
+        setWorkflowDraft(initial);
+        setWorkflowFeedback({ tone: "neutral", text: "" });
+      }
+      panelTriggerRef.current = trigger;
+      setActivePanel(panel);
+    });
   };
 
   const handleDocumentDownload = async (document) => {
@@ -816,109 +637,60 @@ export default function StaffClient({
   };
 
   const closeAssignment = () => {
-    setAssignmentOpen(false);
+    setActivePanel(null);
     setAssignmentIntakeRequest(null);
-    requestAnimationFrame(() => newMatterButtonRef.current?.focus());
   };
 
   const closeDetails = () => {
-    setDetailsOpen(false);
-    requestAnimationFrame(() => detailsButtonRef.current?.focus());
+    setActivePanel(null);
   };
 
-  const openDocuments = () => {
-    documentsRef.current?.scrollIntoView({ behavior: getPreferredScrollBehavior(), block: "start" });
-    documentsRef.current?.focus({ preventScroll: true });
+  const changeTab = (tab, focusTab = false) => {
+    if (location.tab === tab) {
+      const target = focusTab ? document.getElementById(`staff-tab-${tab}`) : tab === "documents" ? documentsRef.current : messageInputRef.current;
+      target?.focus({ preventScroll: true });
+      target?.scrollIntoView({ behavior: getPreferredScrollBehavior(), block: "start" });
+      return;
+    }
+    navigate({ ...location, tab }, focusTab);
   };
-
-  const openComposer = () => {
-    setComposerOpen(true);
-    requestAnimationFrame(() => messageInputRef.current?.focus());
-  };
-
-  const openMatterCard = () => {
-    setActiveView("matters");
-    window.scrollTo({ top: 0, behavior: getPreferredScrollBehavior() });
-  };
+  const openDocuments = () => changeTab("documents");
+  const openComposer = () => changeTab("messages");
 
   const openIntakeAssignment = (request) => {
-    setAssignmentIntakeRequest(request);
-    setAssignmentOpen(true);
+    const trigger = document.activeElement;
+    requestTransition(() => {
+      panelTriggerRef.current = trigger;
+      setAssignmentIntakeRequest(request);
+      setActivePanel("new-matter");
+    });
   };
 
   const openConvertedMatter = (matterId) => {
-    setActiveMatterId(matterId);
-    setActiveView("matters");
-    window.scrollTo({ top: 0, behavior: getPreferredScrollBehavior() });
+    openMatter(matterId);
   };
 
   const openNotification = (notification) => {
-    selectMatter(notification.matterId);
-    setActiveView(notification.targetView === "overview" ? "matters" : notification.targetView);
-    window.scrollTo({ top: 0, behavior: getPreferredScrollBehavior() });
+    openMatter(notification.matterId, notification.targetView);
   };
-
-  const showDetail = () => (
-    <MatterDetail
-      matter={matter}
-      organizationLabel={organizationLabel}
-      assignmentStaff={assignmentStaff}
-      workflowDraft={workflowDraft}
-      workflowFeedback={workflowFeedback}
-      isUpdatingWorkflow={isUpdatingWorkflow}
-      downloadingId={downloadingId}
-      documentFeedback={documentFeedback}
-      onWorkflowChange={handleWorkflowChange}
-      onAssignmentChange={handleAssignmentChange}
-      onWorkflowSubmit={handleWorkflowSubmit}
-      onDownload={handleDocumentDownload}
-      documentsRef={documentsRef}
-      messageInputRef={messageInputRef}
-      composerOpen={composerOpen}
-      draft={draft}
-      feedback={feedback}
-      isSending={isSending}
-      onDraftChange={handleDraftChange}
-      onSubmit={handleSubmit}
-      onOpenDocuments={openDocuments}
-      onOpenComposer={openComposer}
-      onOpenCard={openMatterCard}
-      canEditDetails={canEditDetails}
-      detailsButtonRef={detailsButtonRef}
-      onOpenDetails={() => setDetailsOpen(true)}
-    />
-  );
 
   return (
     <div className={styles.workspace}>
-      <aside className={styles.rail} aria-label="Разделы рабочей панели">
-        <nav>
-          {navigation.map((item) => {
-            const active = activeView === item.id;
-            return (
-              <button
-                className={`${styles.railButton}${active ? ` ${styles.isActive}` : ""}`}
-                type="button"
-                key={item.id}
-                aria-current={active ? "page" : undefined}
-                onClick={() => selectView(item.id)}
-              >
-                <span>{item.label}</span>
-                {navCounts[item.id] !== null ? <small>{navCounts[item.id]}</small> : null}
-              </button>
-            );
-          })}
-        </nav>
-        <a className={styles.railCabinetLink} href="/cabinet">Личный кабинет</a>
-      </aside>
+      <div className={styles.navigationSurface} inert={activePanel || pendingTransition ? true : undefined}><StaffNavigation
+        activeView={activeView === "matter" ? location.from : activeView}
+        counts={navCounts}
+        items={navigationItems}
+        moreItems={moreNavigationItems}
+        onSelect={selectView}
+      /></div>
 
-      <section className={styles.content}>
-        <header className={styles.contentHeader}>
+      <section className={styles.content} ref={mainRef} tabIndex={-1} aria-label={viewCopy.title}>
+        <header className={styles.contentHeader} inert={activePanel || pendingTransition ? true : undefined}>
           <div>
             <p className={styles.eyebrow}>{viewCopy.eyebrow}</p>
             <h1>{viewCopy.title}</h1>
             <p className={styles.todayLabel}>
-              {activeView === "today"
+              {activeView === "matter" ? matter?.reference : activeView === "today"
                 ? todayLabel
                 : activeView === "inbox"
                   ? `${initialIntakeRequests.length} заявок в журнале`
@@ -927,7 +699,7 @@ export default function StaffClient({
           </div>
           <div className={styles.headerTools}>
             <NotificationCenter notifications={initialNotifications} onOpen={openNotification} />
-            <label className={styles.searchField}>
+            {activeView !== "matter" ? <label className={styles.searchField}>
               <span className={styles.visuallyHidden}>{activeView === "inbox" ? "Поиск по заявкам" : "Поиск по делам"}</span>
               <input
                 type="search"
@@ -935,15 +707,14 @@ export default function StaffClient({
                 placeholder={activeView === "inbox" ? "Поиск по имени, телефону или запросу" : "Поиск по делу или номеру"}
                 onChange={(event) => setSearchQuery(event.target.value)}
               />
-            </label>
+            </label> : null}
             {assignmentOrganizations.length ? (
               <button
-                className={styles.newMatterButton}
+                className={activeView === "matter" || activeView === "inbox" || activePanel || pendingTransition ? styles.secondaryButton : `${styles.primaryButton} ${styles.newMatterButton}`}
                 ref={newMatterButtonRef}
                 type="button"
                 onClick={() => {
-                  setAssignmentIntakeRequest(null);
-                  setAssignmentOpen(true);
+                  openIntakeAssignment(null);
                 }}
               >
                 Новое дело
@@ -952,20 +723,57 @@ export default function StaffClient({
           </div>
         </header>
 
+        {activeView === "matter" ? (
+          <div className={styles.matterWorkspace}>
+            <button ref={backButtonRef} className={styles.backButton} type="button" inert={activePanel || pendingTransition ? true : undefined} onClick={closeMatter}>Назад</button>
+            <StaffMatterWorkspace
+              matter={matter}
+              organizationLabel={organizationLabel}
+              assignmentStaff={assignmentStaff}
+              workflowDraft={workflowDraft}
+              workflowDirty={workflowDirty}
+              workflowFeedback={workflowFeedback}
+              isUpdatingWorkflow={isUpdatingWorkflow}
+              downloadingId={downloadingId}
+              documentFeedback={documentFeedback}
+              onWorkflowChange={handleWorkflowChange}
+              onAssignmentChange={handleAssignmentChange}
+              onWorkflowClose={closeWorkflow}
+              onWorkflowSubmit={handleWorkflowSubmit}
+              onDownload={handleDocumentDownload}
+              documentsRef={documentsRef}
+              messageInputRef={messageInputRef}
+              tab={location.tab}
+              onTabChange={changeTab}
+              activePanel={activePanel}
+              onOpenPanel={openPanel}
+              draftRegistry={draftRegistry}
+              requestTransition={requestTransition}
+              confirmation={confirmation}
+              panelTriggerRef={panelTriggerRef}
+              draft={draft}
+              feedback={feedback}
+              isSending={isSending}
+              onDraftChange={handleDraftChange}
+              onSubmit={handleSubmit}
+              onOpenDocuments={openDocuments}
+              onOpenComposer={openComposer}
+              canEditDetails={canEditDetails}
+              detailsButtonRef={detailsButtonRef}
+              onOpenDetails={() => openPanel("details")}
+            />
+          </div>
+        ) : null}
+
         {activeView === "today" ? (
           <div className={styles.dashboardGrid}>
             <div className={styles.queuePanel}>
               {actionMatters.length || waitingMatters.length || pausedMatters.length ? (
-                <>
-                  <QueueSection queueId="action" title="Требуют вашего действия" matters={actionMatters} activeMatterId={resolvedMatterId} onSelect={selectMatter} />
-                  <QueueSection queueId="waiting" title="Ожидают клиента" matters={waitingMatters} activeMatterId={resolvedMatterId} onSelect={selectMatter} waiting />
-                  <QueueSection queueId="paused" title="Приостановлены" matters={pausedMatters} activeMatterId={resolvedMatterId} onSelect={selectMatter} />
-                </>
+                <StaffTaskList action={actionMatters} waiting={waitingMatters} paused={pausedMatters} onOpenMatter={openMatter} />
               ) : (
-                <EmptyState title="На сегодня задач нет" text={searchQuery ? "По вашему запросу активные дела не найдены." : "Новые задачи появятся здесь автоматически."} />
+                  <EmptyState title="На сегодня задач нет" text={searchQuery ? "По вашему запросу активные дела не найдены." : "Новые задачи появятся здесь автоматически."} onReset={searchQuery ? resetFilters : undefined} />
               )}
             </div>
-            {showDetail()}
           </div>
         ) : null}
 
@@ -976,6 +784,7 @@ export default function StaffClient({
             assignmentOrganizations={assignmentOrganizations}
             onCreateMatter={openIntakeAssignment}
             onOpenMatter={openConvertedMatter}
+            onResetSearch={resetSearch}
           />
         ) : null}
 
@@ -995,8 +804,7 @@ export default function StaffClient({
               ))}
             </div>
             <div className={styles.registryGrid}>
-              <RegisterList matters={registerMatters} activeMatterId={resolvedMatterId} onSelect={selectMatter} />
-              {showDetail()}
+              <RegisterList matters={registerMatters} onSelect={openMatter} onReset={searchQuery || registerFilter !== "all" ? resetFilters : undefined} />
             </div>
           </>
         ) : null}
@@ -1010,42 +818,46 @@ export default function StaffClient({
               <CollectionList
                 type={activeView}
                 matters={searchedMatters}
-                activeMatterId={resolvedMatterId}
                 onSelect={selectCollectionMatter}
+                onReset={searchQuery ? resetFilters : undefined}
               />
             </div>
-            {showDetail()}
           </div>
         ) : null}
 
         {activeView === "audit" ? (
           <div className={styles.registryGrid}>
-            <AuditList events={auditEvents} matters={initialMatters} />
-            {showDetail()}
+            <AuditList events={auditEvents} matters={initialMatters} onReset={searchQuery ? resetSearch : undefined} />
           </div>
         ) : null}
       </section>
 
-      {assignmentOpen ? (
+      {activePanel === "new-matter" ? (
         <StaffAssignmentForm
           key={assignmentIntakeRequest?.id ?? "manual-assignment"}
           organizations={assignmentOrganizations}
           intakeRequest={assignmentIntakeRequest}
-          onClose={closeAssignment}
+          draftRegistry={draftRegistry}
+          confirmation={confirmation}
+          returnFocusRef={panelTriggerRef}
+          onClose={() => pendingTransition ? continueEditing() : requestTransition(closeAssignment)}
+          onComplete={closeAssignment}
           onCreated={(matterId, message) => {
-            setActiveMatterId(matterId);
-            setActiveView("today");
+            setPendingCreatedMatter({ matterId, origin: location });
             setToast(message);
             router.refresh();
           }}
         />
       ) : null}
 
-      {detailsOpen && matter && canEditDetails ? (
+      {activePanel === "details" && matter && canEditDetails ? (
         <StaffMatterDetailsForm
           key={matter.id}
           matter={matter}
-          onClose={closeDetails}
+          draftRegistry={draftRegistry}
+          confirmation={confirmation}
+          returnFocusRef={panelTriggerRef}
+          onClose={() => pendingTransition ? continueEditing() : requestTransition(closeDetails)}
           onSaved={(message) => {
             closeDetails();
             setToast(message);
@@ -1053,6 +865,8 @@ export default function StaffClient({
           }}
         />
       ) : null}
+
+      {pendingTransition && !activePanel ? <StaffDialog title="Несохранённые изменения" id="staff-discard-title" onClose={continueEditing} returnFocusRef={{ current: pendingTransition.focus }}>{confirmation}</StaffDialog> : null}
 
       <p className={`${styles.toast}${toast ? ` ${styles.toastVisible}` : ""}`} role="status" aria-live="polite">
         {toast}

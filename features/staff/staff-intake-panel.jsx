@@ -29,12 +29,13 @@ function getPhoneHref(value) {
   return normalized ? `tel:${normalized}` : undefined;
 }
 
-function IntakeEmpty({ searched }) {
+function IntakeEmpty({ filtered, onReset }) {
   return (
     <section className={styles.intakeEmpty}>
       <p className={styles.eyebrow}>Входящие</p>
-      <h2>{searched ? "Заявки не найдены" : "В этой очереди пока пусто"}</h2>
-      <p>{searched ? "Измените поиск или фильтр." : "Новые обращения с сайта появятся здесь автоматически."}</p>
+      <h2>{filtered ? "Заявки не найдены" : "В этой очереди пока пусто"}</h2>
+      <p>{filtered ? "Измените поиск или фильтр." : "Новые обращения с сайта появятся здесь автоматически."}</p>
+      {onReset ? <button className={styles.textAction} type="button" onClick={onReset}>Сбросить фильтр</button> : null}
     </section>
   );
 }
@@ -45,6 +46,7 @@ export default function StaffIntakePanel({
   assignmentOrganizations = [],
   onCreateMatter,
   onOpenMatter,
+  onResetSearch,
 }) {
   const router = useRouter();
   const [filter, setFilter] = useState("open");
@@ -69,6 +71,12 @@ export default function StaffIntakePanel({
     && request.status !== "matter_created"
     && request.status !== "closed"
     && adminOrganizationIds.has(request.organizationId);
+  const filtered = Boolean(searchQuery) || filter !== "open";
+  const resetFilters = () => {
+    setFilter("open");
+    setFeedback({ tone: "neutral", text: "" });
+    onResetSearch?.();
+  };
 
   const changeStatus = async (status) => {
     if (!request || updating) return;
@@ -130,7 +138,7 @@ export default function StaffIntakePanel({
               </span>
               <time dateTime={item.submittedAt}>{formatDate(item.submittedAt)}</time>
             </button>
-          )) : <IntakeEmpty searched={Boolean(searchQuery)} />}
+          )) : <IntakeEmpty filtered={filtered} onReset={filtered ? resetFilters : undefined} />}
         </section>
 
         <aside className={styles.intakeDetail} aria-labelledby="staff-intake-title">
@@ -209,7 +217,7 @@ export default function StaffIntakePanel({
               </p>
             </>
           ) : (
-            <IntakeEmpty searched={Boolean(searchQuery)} />
+            <IntakeEmpty filtered={filtered} onReset={filtered ? resetFilters : undefined} />
           )}
         </aside>
       </div>
