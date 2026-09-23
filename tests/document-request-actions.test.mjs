@@ -226,24 +226,20 @@ test("document metadata registration routes linked files through the atomic RPC"
   }]);
 });
 
-test("ordinary document metadata keeps the existing direct insert path", async () => {
-  const tableCalls = [];
+test("ordinary document metadata uses the guarded registration RPC", async () => {
+  const rpcCalls = [];
   const ordinarySupabase = {
-    rpc() {
-      assert.fail("ordinary documents must not call the request RPC");
-    },
-    from(table) {
+    rpc(name, args) {
       return {
-        async insert(payload) {
-          tableCalls.push({ table, payload });
-          return { data: null, error: null };
+        async single() {
+          rpcCalls.push({ name, args });
+          return { data: { document_id: DOCUMENT_ID, document_status: "received" }, error: null };
         },
       };
     },
   };
   const ordinary = await registerDocumentMetadata({
     supabase: ordinarySupabase,
-    userId: "user-1",
     document: {
       id: DOCUMENT_ID,
       matterId: MATTER_ID,
@@ -256,17 +252,15 @@ test("ordinary document metadata keeps the existing direct insert path", async (
   });
 
   assert.equal(ordinary.linked, false);
-  assert.deepEqual(tableCalls, [{
-    table: "documents",
-    payload: {
-      id: DOCUMENT_ID,
-      matter_id: MATTER_ID,
-      request_id: null,
-      storage_path: `${MATTER_ID}/${DOCUMENT_ID}/document.pdf`,
-      original_name: "Договор.pdf",
-      mime_type: "application/pdf",
-      size_bytes: 1024,
-      uploaded_by: "user-1",
+  assert.deepEqual(rpcCalls, [{
+    name: "register_matter_document",
+    args: {
+      target_matter_id: MATTER_ID,
+      new_document_id: DOCUMENT_ID,
+      new_storage_path: `${MATTER_ID}/${DOCUMENT_ID}/document.pdf`,
+      new_original_name: "Договор.pdf",
+      new_mime_type: "application/pdf",
+      new_size_bytes: 1024,
     },
   }]);
 });

@@ -150,6 +150,30 @@ exception
 end;
 $$;
 
+create function pg_temp.try_register_document(
+  test_id uuid,
+  target_matter_id uuid
+)
+returns text
+language plpgsql
+set search_path = ''
+as $$
+begin
+  perform * from public.register_matter_document(
+    target_matter_id,
+    test_id,
+    target_matter_id::text || '/' || test_id::text || '/document.pdf',
+    'offboarding-probe.pdf',
+    'application/pdf',
+    128
+  );
+  return 'ok';
+exception
+  when others then
+    return sqlstate;
+end;
+$$;
+
 create function pg_temp.try_create_document_request(target_matter_id uuid)
 returns text
 language plpgsql
@@ -202,6 +226,7 @@ grant execute on function pg_temp.try_insert_stage(uuid, uuid) to authenticated;
 grant execute on function pg_temp.try_insert_event(uuid, uuid, uuid) to authenticated;
 grant execute on function pg_temp.try_insert_message(uuid, uuid, uuid) to authenticated;
 grant execute on function pg_temp.try_insert_document(uuid, uuid, uuid) to authenticated;
+grant execute on function pg_temp.try_register_document(uuid, uuid) to authenticated;
 grant execute on function pg_temp.try_insert_storage_object(uuid, uuid, uuid) to authenticated;
 grant execute on function pg_temp.try_create_document_request(uuid) to authenticated;
 grant execute on function pg_temp.try_update_workflow(uuid, uuid) to authenticated;
@@ -291,6 +316,13 @@ insert into storage.objects (id, bucket_id, name, owner_id, metadata) values (
   '{"size":128,"mimetype":"application/pdf"}'::jsonb
 );
 
+-- These pre-existing owned uploads test RPC authorization across offboarding.
+insert into storage.objects (id, bucket_id, name, owner_id, metadata) values
+  ('8f333333-3333-4333-8333-333333333333', 'matter-documents', '8c111111-1111-4111-8111-111111111111/8f333333-3333-4333-8333-333333333333/document.pdf', '83333333-3333-4333-8333-333333333333', '{"size":128,"mimetype":"application/pdf"}'::jsonb),
+  ('8f555555-5555-4555-8555-555555555555', 'matter-documents', '8c111111-1111-4111-8111-111111111111/8f555555-5555-4555-8555-555555555555/document.pdf', '81111111-1111-4111-8111-111111111111', '{"size":128,"mimetype":"application/pdf"}'::jsonb),
+  ('8f777777-7777-4777-8777-777777777777', 'matter-documents', '8c111111-1111-4111-8111-111111111111/8f777777-7777-4777-8777-777777777777/document.pdf', '83333333-3333-4333-8333-333333333333', '{"size":128,"mimetype":"application/pdf"}'::jsonb),
+  ('8f888888-8888-4888-8888-888888888888', 'matter-documents', '8c111111-1111-4111-8111-111111111111/8f888888-8888-4888-8888-888888888888/document.pdf', '84444444-4444-4444-8444-444444444444', '{"size":128,"mimetype":"application/pdf"}'::jsonb);
+
 -- Legitimate control: an assigned current lawyer has read and management access.
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '83333333-3333-4333-8333-333333333333', true);
@@ -301,7 +333,8 @@ insert into pg_temp.offboarding_results values
   ('current-lawyer:can-access-organization', private.can_access_organization('8aaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa')::text, 'true'),
   ('current-lawyer:can-access-matter', private.can_access_matter('8c111111-1111-4111-8111-111111111111')::text, 'true'),
   ('current-lawyer:can-manage-matter', private.can_manage_matter('8c111111-1111-4111-8111-111111111111')::text, 'true'),
-  ('current-lawyer:can-access-matter-text', private.can_access_matter_text('8c111111-1111-4111-8111-111111111111')::text, 'true');
+  ('current-lawyer:can-access-matter-text', private.can_access_matter_text('8c111111-1111-4111-8111-111111111111')::text, 'true'),
+  ('current-lawyer:register-owned-document-allowed', pg_temp.try_register_document('8f777777-7777-4777-8777-777777777777', '8c111111-1111-4111-8111-111111111111'), 'ok');
 reset role;
 
 -- The production lifecycle event being tested: membership is removed while the
@@ -364,10 +397,10 @@ insert into pg_temp.offboarding_results values
   ('client:own-participant-visible', (select count(*)::text from public.matter_participants where matter_id = '8c111111-1111-4111-8111-111111111111'), '1'),
   ('client:stages-visible', (select count(*)::text from public.matter_stages where matter_id = '8c111111-1111-4111-8111-111111111111'), '1'),
   ('client:events-visible', (select count(*)::text from public.matter_events where matter_id = '8c111111-1111-4111-8111-111111111111'), '1'),
-  ('client:documents-visible', (select count(*)::text from public.documents where matter_id = '8c111111-1111-4111-8111-111111111111'), '1'),
+  ('client:documents-visible', (select count(*)::text from public.documents where matter_id = '8c111111-1111-4111-8111-111111111111'), '2'),
   ('client:messages-visible', (select count(*)::text from public.messages where matter_id = '8c111111-1111-4111-8111-111111111111'), '1'),
   ('client:requests-visible', (select count(*)::text from public.document_requests where matter_id = '8c111111-1111-4111-8111-111111111111'), '1'),
-  ('client:storage-visible', (select count(*)::text from storage.objects where name like '8c111111-1111-4111-8111-111111111111/%'), '1'),
+  ('client:storage-visible', (select count(*)::text from storage.objects where name like '8c111111-1111-4111-8111-111111111111/%'), '5'),
   ('client:can-access-organization', private.can_access_organization('8aaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa')::text, 'true'),
   ('client:can-access-matter', private.can_access_matter('8c111111-1111-4111-8111-111111111111')::text, 'true'),
   ('client:cannot-manage-matter', private.can_manage_matter('8c111111-1111-4111-8111-111111111111')::text, 'false'),
@@ -379,7 +412,8 @@ set local role authenticated;
 select set_config('request.jwt.claim.sub', '84444444-4444-4444-8444-444444444444', true);
 insert into pg_temp.offboarding_results values
   ('admin:matter-visible', (select count(*)::text from public.matters where id = '8c111111-1111-4111-8111-111111111111'), '1'),
-  ('admin:can-manage-matter', private.can_manage_matter('8c111111-1111-4111-8111-111111111111')::text, 'true');
+  ('admin:can-manage-matter', private.can_manage_matter('8c111111-1111-4111-8111-111111111111')::text, 'true'),
+  ('admin:register-owned-document-allowed', pg_temp.try_register_document('8f888888-8888-4888-8888-888888888888', '8c111111-1111-4111-8111-111111111111'), 'ok');
 reset role;
 
 -- Former staff must also lose every write path backed by the shared helpers.
@@ -390,7 +424,7 @@ insert into pg_temp.offboarding_results values
   ('former-lawyer:insert-stage-denied', pg_temp.try_insert_stage('8d222222-2222-4222-8222-222222222222', '8c111111-1111-4111-8111-111111111111'), '42501'),
   ('former-lawyer:insert-event-denied', pg_temp.try_insert_event('8e222222-2222-4222-8222-222222222222', '8c111111-1111-4111-8111-111111111111', '83333333-3333-4333-8333-333333333333'), '42501'),
   ('former-lawyer:insert-message-denied', pg_temp.try_insert_message('8b222222-2222-4222-8222-222222222222', '8c111111-1111-4111-8111-111111111111', '83333333-3333-4333-8333-333333333333'), '42501'),
-  ('former-lawyer:insert-document-denied', pg_temp.try_insert_document('8f333333-3333-4333-8333-333333333333', '8c111111-1111-4111-8111-111111111111', '83333333-3333-4333-8333-333333333333'), '42501'),
+  ('former-lawyer:register-owned-document-denied', pg_temp.try_register_document('8f333333-3333-4333-8333-333333333333', '8c111111-1111-4111-8111-111111111111'), '42501'),
   ('former-lawyer:insert-storage-denied', pg_temp.try_insert_storage_object('8f444444-4444-4444-8444-444444444444', '8c111111-1111-4111-8111-111111111111', '83333333-3333-4333-8333-333333333333'), '42501'),
   ('former-lawyer:create-request-denied', pg_temp.try_create_document_request('8c111111-1111-4111-8111-111111111111'), '42501'),
   ('former-lawyer:update-workflow-denied', pg_temp.try_update_workflow('8c111111-1111-4111-8111-111111111111', '8d111111-1111-4111-8111-111111111111'), '42501');
@@ -401,7 +435,8 @@ set local role authenticated;
 select set_config('request.jwt.claim.sub', '81111111-1111-4111-8111-111111111111', true);
 insert into pg_temp.offboarding_results values
   ('client:insert-message-still-allowed', pg_temp.try_insert_message('8b333333-3333-4333-8333-333333333333', '8c111111-1111-4111-8111-111111111111', '81111111-1111-4111-8111-111111111111'), 'ok'),
-  ('client:insert-document-still-allowed', pg_temp.try_insert_document('8f555555-5555-4555-8555-555555555555', '8c111111-1111-4111-8111-111111111111', '81111111-1111-4111-8111-111111111111'), 'ok'),
+  ('client:direct-document-insert-denied', pg_temp.try_insert_document('8f555555-5555-4555-8555-555555555555', '8c111111-1111-4111-8111-111111111111', '81111111-1111-4111-8111-111111111111'), '42501'),
+  ('client:register-owned-document-allowed', pg_temp.try_register_document('8f555555-5555-4555-8555-555555555555', '8c111111-1111-4111-8111-111111111111'), 'ok'),
   ('client:insert-storage-still-allowed', pg_temp.try_insert_storage_object('8f666666-6666-4666-8666-666666666666', '8c111111-1111-4111-8111-111111111111', '81111111-1111-4111-8111-111111111111'), 'ok');
 reset role;
 
