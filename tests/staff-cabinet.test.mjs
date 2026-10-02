@@ -332,7 +332,8 @@ test("opened mobile more menu remains in the horizontal navigation strip", () =>
 test("opening native more navigation reveals its first option without moving summary focus", () => {
   const functionStart = activeNavigationSource.indexOf("function revealMoreNavigation");
   assert.notEqual(functionStart, -1, "Opening More must reveal its expanded navigation options");
-  const functionEnd = activeNavigationSource.indexOf("\n}\n\nexport default", functionStart) + 2;
+  const functionEnd = activeNavigationSource.indexOf("\n}", functionStart) + 2;
+  assert.ok(functionEnd > functionStart, "The navigation helper must have a closing brace");
   const revealMoreNavigation = new Function(`${activeNavigationSource.slice(functionStart, functionEnd)}; return revealMoreNavigation;`)();
   const summary = {};
   let activeElement = summary;

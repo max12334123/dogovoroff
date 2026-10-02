@@ -2,10 +2,11 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-const [componentSource, pageSource, cssSource] = await Promise.all([
+const [componentSource, pageSource, cssSource, storySource] = await Promise.all([
   readFile(new URL("../features/precheck/precheck-section.jsx", import.meta.url), "utf8"),
   readFile(new URL("../app/page.jsx", import.meta.url), "utf8"),
   readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  readFile(new URL("../app/homepage-story.jsx", import.meta.url), "utf8"),
 ]);
 
 test("guided intake exposes two accessible steps and one final action", () => {
@@ -53,11 +54,13 @@ test("quick form remains default while estimator and header can start the preche
   assert.match(pageSource, /useState\("quick"\)/);
   assert.match(pageSource, /Быстрая заявка/);
   assert.match(pageSource, /Предварительный разбор/);
-  assert.match(pageSource, /Получить точную оценку[\s\S]{0,200}startPrecheck|startPrecheck[\s\S]{0,200}Получить точную оценку/);
+  assert.match(pageSource, /onStartPrecheck=\{startPrecheck\}/);
+  assert.match(storySource, /onStartPrecheck\(practice\.service\)[\s\S]{0,100}Получить точную оценку/);
   assert.match(pageSource, /site-header__ai[\s\S]{0,500}onClick=\{startAiPrecheck\}[\s\S]{0,300}AI-разбор/);
   assert.match(pageSource, /mobile-nav__ai[\s\S]{0,300}onClick=\{startAiPrecheck\}[\s\S]{0,300}AI-разбор/);
-  assert.match(pageSource, /Обсудить задачу[\s\S]{0,250}chooseService|chooseService[\s\S]{0,250}Обсудить задачу/);
-  assert.match(pageSource, /Обсудить формат[\s\S]{0,250}chooseService|chooseService[\s\S]{0,250}Обсудить формат/);
+  assert.match(pageSource, /onChooseService=\{chooseService\}/);
+  assert.match(storySource, /onChooseService\(practice\.service\)[\s\S]{0,100}Обсудить задачу/);
+  assert.match(storySource, /onChooseService\(plan\.service\)[\s\S]{0,100}Обсудить формат/);
   assert.match(pageSource, /form\.service \? practiceIdFromService\(form\.service\) : ""/);
 });
 
@@ -72,6 +75,14 @@ test("both application paths reuse a client UUID across ambiguous retries", () =
   assert.match(componentSource, /submissionId: submissionIdRef\.current/);
   assert.match(pageSource, /quickSubmissionIdRef\.current \|\|= createSubmissionId\(\)/);
   assert.match(pageSource, /submissionId: quickSubmissionIdRef\.current/);
+});
+
+test("repeat contact focuses the name field only after the quick form remounts", () => {
+  assert.match(pageSource, /const repeatContactFocusRef = useRef\(false\)/);
+  assert.match(pageSource, /const setNameFieldElement = useCallback\(\(element\) => \{[\s\S]{0,300}nameFieldRef\.current = element;[\s\S]{0,300}if \(element && repeatContactFocusRef\.current\) \{[\s\S]{0,300}repeatContactFocusRef\.current = false;[\s\S]{0,200}element\.focus\(\);/);
+  assert.match(pageSource, /const resetForm = \(\) => \{[\s\S]{0,200}repeatContactFocusRef\.current = true;/);
+  assert.match(pageSource, /<input ref=\{setNameFieldElement\} id="lead-name"/);
+  assert.doesNotMatch(pageSource, /const resetForm = \(\) => \{[\s\S]{0,800}requestAnimationFrame/);
 });
 
 test("header AI action follows the navigation style responsively", () => {

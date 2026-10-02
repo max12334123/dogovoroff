@@ -1,71 +1,65 @@
-# Design QA — staff workspace
+# Dogovoroff — cinematic homepage QA
 
-## Evidence
+Latest verification: 2026-10-02. Vercel Preview and a fresh local production build.
+The earlier protected-workspace report is preserved locally in design-qa-staff.md and in Git history.
 
-- Source visual truth: `C:\Users\yur03\.codex\generated_images\019fff8a-ef94-7aa1-82a2-32ccb76da14e\exec-7202c756-1c53-4ec4-b2fa-07a81dbdbdbd.png`
-- Source pixels: 1487 × 1058, density 1x.
-- Desktop implementation: `C:\Users\yur03\.codex\visualizations\2026\08\14\019fff8a-ef94-7aa1-82a2-32ccb76da14e\staff-desktop-final.png`
-- Desktop screenshot pixels: 1425 × 975; browser CSS viewport: 1440 × 1025; density 1x. The in-app browser screenshot excludes browser chrome and the scrollbar gutter.
-- Mobile implementation: `C:\Users\yur03\.codex\visualizations\2026\08\14\019fff8a-ef94-7aa1-82a2-32ccb76da14e\staff-mobile-final.png`
-- Mobile screenshot pixels: 375 × 844; browser CSS viewport: 390 × 844; density 1x. The 15 px width difference is the scrollbar gutter.
-- Mobile drawer state: `C:\Users\yur03\.codex\visualizations\2026\08\14\019fff8a-ef94-7aa1-82a2-32ccb76da14e\staff-mobile-drawer-final.png`
-- Side-by-side comparison: `C:\Users\yur03\.codex\visualizations\2026\08\14\019fff8a-ef94-7aa1-82a2-32ccb76da14e\staff-comparison-final.png`
-- Comparison normalization: source and desktop capture were normalized to 1440 × 1024 at 1x and placed side by side. Browser chrome was not included.
-- State: authenticated staff dashboard represented with realistic non-personal test fixtures; active matter selected; mobile creation drawer open in the interaction capture.
+final result: passed (local and Preview verification; Production candidate preparation in progress, main domain unchanged)
 
-## Full-view comparison evidence
+## Result and scope
 
-- Information architecture matches the approved target: compact account header, fixed navigation rail, task-first queues, persistent matter detail, search, and primary “Новое дело” action.
-- Layout rhythm preserves the target's three-column balance, thin rules, square controls, large editorial heading, and dense but scannable matter rows.
-- Colors map to the approved black, graphite, white, muted gray, and ice-blue palette. Active and focus states remain distinguishable without introducing decorative gradients or shadows.
-- Typography follows the site's existing premium sans-serif system and the target hierarchy. All visible leaf text now renders at 12 px or larger.
-- The only visible image asset is the existing Dogovoroff logo; it uses the real project asset rather than a code-drawn substitute.
-- App copy is shorter and task-oriented. Dynamic fixture counts and matter names intentionally differ from the concept image.
+The approved homepage is deployed at https://dogovoroff-arb6tr4fy-dogovoroff.vercel.app/ (Preview dpl_BTP4FkgDcKrLabtDLM3eD2dKz9qK), not yet published to the main Production domain. No database, authorization, private-download, cabinet or staff workflow was changed in this revision. On 2026-10-02, exactly one explicitly approved synthetic application returned HTTP 200 and appeared as row 17 in the configured Google Sheet. Receipt inside the Telegram chat was not independently inspected. Preview has CONTACT_INBOX_ENABLED disabled, so this test did not exercise the Production Supabase intake queue.
 
-## Focused region evidence
+The old repeated section grids were replaced with a scroll-lit manifesto, five practice chapters around a Blender sculpture, a four-chapter cinematic process, open format rows and an editorial team section. Contact and precheck use the same dark visual language. All operational copy and controls are native HTML.
 
-A separate crop was not required because the native source and final desktop capture keep the header, queue rows, detail timeline, controls, and logo legible in the combined comparison. Small-control and responsive fidelity were additionally checked in the dedicated mobile dashboard and mobile drawer captures.
+## Visual comparison and fidelity ledger
 
-## Interaction and responsive checks
+References: the approved black-chrome hero exec-ef117ad7-8874-4cfb-a8f6-3f01cbe814e9.png and design-assets/story-v3-{manifesto,practices,process,formats,team}.png. These are visual direction, not fabricated staff or factual service content.
 
-- “Все дела” opens the register; status filter and text search reduce the visible set correctly.
-- “Новое дело” opens an accessible two-step drawer; step progression works, Escape/close returns focus to the trigger, and no submission was made during QA.
-- “Написать клиенту” exposes the message composer; “Открыть документы” moves focus to the document section.
-- Desktop and 390 px mobile layouts have no horizontal document overflow.
-- The mobile drawer fills the viewport, locks background scrolling, and remains vertically scrollable.
-- Browser console: no warnings or errors in the final pass.
+The references and rendered screenshots were opened with the image viewer for comparison. Primary rendered viewport: 1536 × 1024 CSS px at DPR 1; additional views: 1366 × 768, 1280 × 650, 768 × 1024, 390 × 844 and 360 × 780. Reference rasters do not define responsive states or browser chrome, so this is a composition comparison, not a pixel-parity claim.
 
-## Findings
+1. Typography: Geologica Variable replaces the earlier classical Prata treatment. Thin 150–270 display weights, tight spacing, Cyrillic and three-line hero hierarchy are present. Body text is intentionally denser than the raster concept to retain real service details. No interface text is flattened into an image.
+2. Composition and rhythm: the manifesto retains three large lines and three open principle columns; practices retain left-hand copy, a right-hand sculpture and bottom chapter navigation. Formats retain three open rows instead of cards. Short viewports deliberately switch to document flow.
+3. Palette and materials: near-black backgrounds, cold white lettering, glacial highlights and titanium/chrome remain consistent across the page, including both precheck steps and its result. No neon or boxed primary CTA treatment was introduced.
+4. Artwork and motion: the practice sculpture is a real curved, engraved Blender GLB animated with Three.js. Its fan, lighting and silhouette differ from the generated concept. The real Higgsfield film is a moving black-chrome northern ridge rather than the concept's exact cliff shot. These are intentional production assets, not exact image reproductions.
+5. Controls and content: borderless line-arrow actions, keyboard chapter navigation, visible selection/focus and the full-width contact invitation follow the direction. Actual prices, services, consent wording and company facts remain intact.
+6. Team: the two departments and outlined 07/05 experience markers carry over; invented office people in the concept were intentionally omitted. Real staff photographs can be introduced later only from supplied material.
 
-No actionable P0, P1, or P2 findings remain.
+Findings fixed during comparison: serif hero mismatch; illegible chapter stops halfway through transitions; pointer events intercepted by the live text overlay; the sculpture touching price copy at laptop height; a light precheck panel inconsistent with the new palette. No remaining local P1/P2 functional finding was observed. Visual preference and real-device performance still require user review.
 
-- Accepted product constraint: the current authorized matter payload does not expose client names or responsible-person names. The implementation uses matter title, reference, organization, status, and update time instead of inventing personal data or broadening the authorization boundary.
-- Accepted responsive adaptation: the desktop side rail becomes a horizontally scrollable navigation strip on narrow screens so all destinations remain reachable without squeezing labels.
+## Verification evidence
 
-## Comparison history
+- 2026-10-02 full unit/contract suite: 350 passed, 0 failed.
+- 2026-10-02 fresh npm.cmd run build: passed; homepage 28.1 kB route JS / 174 kB first-load JS. These are bundle sizes, not measured internet load times.
+- 2026-10-02 hosted Chrome checks: live Three.js hero and Blender sculpture, actual Higgsfield video playback/offscreen pause, real synthetic contact success, mobile navigation at 390 px and first screen at 360 px. No JavaScript errors were observed. No horizontal overflow was observed at those mobile widths.
+- 2026-10-02 independent read-only reviews: no blocking correctness, focus, motion-lifecycle or protected-workflow regression found. Runtime assets must be included in an immutable release commit; the Preview environment must not be promoted as a substitute for a Production build.
 
-### Pass 1
+Historical local checks below were performed on 2026-09-27:
 
-- [P2] Several compact labels rendered below 12 px and were too small for comfortable scanning.
-- Fix: raised every sub-12 px staff-workspace declaration to 12 px while retaining the target's compact hierarchy.
-- Earlier evidence: `C:\Users\yur03\.codex\visualizations\2026\08\14\019fff8a-ef94-7aa1-82a2-32ccb76da14e\staff-comparison.png`.
+- Full unit/contract suite: 347 passed, 0 failed after the motion and success-focus fixes.
+- After final CSS/dependency cleanup, the focused homepage, precheck, accessibility, security-config and team suite passed 35/35.
+- Final npm.cmd run build: passed; homepage is static, 27.3 kB route JS / 173 kB first-load JS reported by Next. This is bundle size, not a measured internet load time.
+- Main Chrome/Playwright production pass: 53/53 assertions passed. Includes changing hero frames, delayed media loading, chapter click/keyboard navigation, inactive inert panels, precheck service mapping, validation focus, mocked quick-form success and idempotency ID, formats, video playback, offscreen video/GPU pause, mobile menu focus and overflow checks.
+- Final visual-polish pass: 18/18 assertions passed at 1536, 1366 and 390 px. Both precheck steps and mocked successful submission work, optional AI consent starts unchecked, price stays outside the sculpture surface and there are no application runtime errors.
+- Reduced motion, data-saving and no-JavaScript runs made zero GLB/video requests; the hero and practice content remained available. Mobile WebGL was absent. On ordinary mobile connections, the film remains optional/lazy video playback.
+- Initial desktop hero made zero GLB/video requests; each was requested only when its section entered view. GPU draw calls and video stopped offscreen. These observations do not establish FPS on all customer devices.
+- Local-only Vercel analytics endpoints return 404/MIME errors because the preview is not hosted on Vercel. They were logged separately, not misreported as application errors.
+- git diff --check passed. Independent read-only lifecycle/a11y review found no current P1/P2 issue.
 
-### Pass 2
+## Assets and reproducibility
 
-- Post-fix evidence: `C:\Users\yur03\.codex\visualizations\2026\08\14\019fff8a-ef94-7aa1-82a2-32ccb76da14e\staff-comparison-final.png`.
-- Browser measurement confirms a 12 px minimum visible leaf-text size, no horizontal overflow at 1440 px or 390 px, and no console warnings or errors.
-- No actionable P0, P1, or P2 mismatch remains.
+- public/media/legal-atlas.glb: 840,948 bytes. Three curved titanium sheets, machined edge materials and Cyrillic engraving. Builder: design-assets/build-legal-atlas.py; saved final source: design-assets/legal-atlas-v2.blend.
+- public/media/legal-atlas-poster.webp: 39,708 bytes; transparent static fallback.
+- public/media/higgsfield-northern-film.mp4: 850,006 bytes, 1366 × 768, seamless 5.2-second loop without audio. Higgsfield job and source provenance are in design-assets/motion-direction.md.
+- Blender MCP was used for the initial isolated scene; the final asset was built through the installed Blender background CLI. The user's original live scene was not modified.
 
-## Follow-up polish
+## Local evidence files
 
-- [P3] When the backend safely exposes assigned staff and client display names, those fields can replace the privacy-preserving matter labels and bring the detail density even closer to the concept.
+Directory: C:/Users/yur03/.codex/visualizations/2026/08/14/019fff8a-ef94-7aa1-82a2-32ccb76da14e/
 
-## Implementation checklist
+- final-hero.png, final-manifesto.png, final-process.png, final-formats.png, final-team.png, final-contact.png.
+- Latest sculpture: polished-practices-1536.png, polished-practices-1366.png.
+- Latest precheck: polished-precheck-1536.png, polished-precheck-contacts-390.png, polished-precheck-result-390.png.
+- Responsive/fallback: final-hero-360.png, final-practices-390.png, final-reduced.png, final-saveData.png, final-noScript.png.
+- Machine-readable results: final-story-qa.json, polished-story-qa.json. Temporary test runners are removed after verification; screenshots and reports remain outside the repository.
 
-- [x] Match approved desktop composition and visual tokens.
-- [x] Preserve existing authorization and server-action contracts.
-- [x] Verify primary navigation, search, filters, document/message actions, and two-step creation flow.
-- [x] Verify desktop and mobile overflow behavior.
-- [x] Verify final browser console.
-
-final result: passed
+Next release gate: prepare a clean Production build from the release commit with Production environment variables, verify its separate deployment address, then explicitly switch the main domain. Real Safari/iPhone performance and Telegram chat receipt remain unverified. No migrations are part of this homepage release.

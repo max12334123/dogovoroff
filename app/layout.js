@@ -1,22 +1,13 @@
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
-import { Cormorant_Garamond, Manrope } from "next/font/google";
+import "@fontsource-variable/manrope/wght.css";
+import "@fontsource/cormorant-garamond/cyrillic-400.css";
+import "@fontsource/cormorant-garamond/latin-400.css";
+import "@fontsource/cormorant-garamond/cyrillic-400-italic.css";
+import "@fontsource/cormorant-garamond/latin-400-italic.css";
 import "./globals.css";
 import Effects from "./effects";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, SITE_URL } from "./site";
-
-const manrope = Manrope({
-  subsets: ["cyrillic", "latin"],
-  display: "swap",
-  variable: "--font-manrope",
-});
-
-const cormorant = Cormorant_Garamond({
-  subsets: ["cyrillic", "latin"],
-  display: "swap",
-  style: ["normal", "italic"],
-  variable: "--font-cormorant",
-});
 
 export const metadata = {
   metadataBase: new URL(SITE_URL),
@@ -98,7 +89,7 @@ const structuredData = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="ru" data-scroll-behavior="smooth" className={`${manrope.variable} ${cormorant.variable}`}>
+    <html lang="ru" data-scroll-behavior="smooth">
       <body>
         <script
           type="application/ld+json"

@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import dynamic from "next/dynamic";
+import "@fontsource-variable/geologica/wght.css";
 import { track } from "@vercel/analytics";
 import {
   AnimatePresence,
@@ -11,16 +12,18 @@ import {
   useScroll,
   useSpring,
 } from "framer-motion";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { getNextTabIndex } from "../lib/a11y-utils.mjs";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { normalizeContactPayload } from "../lib/contact-form.mjs";
 import { maskPhone, validateLead } from "../lib/form-utils.mjs";
 import { getRequestModeFromSearch } from "../lib/public-navigation.mjs";
 import { createSubmissionId } from "../lib/submission-id.mjs";
 import { PRECHECK_PRACTICES, practiceIdFromService } from "../features/precheck/config.mjs";
-import { APPROACH, CLIENTS, CONFIG, FAQ, PLANS, PRACTICES, STATS, STEPS, TEAM } from "./content";
+import { CONFIG, FAQ, PRACTICES } from "./content";
 import { LEGAL } from "./legal";
 import NorthernMotion from "./northern-motion";
+import HomepageStory from "./homepage-story";
+import "./homepage.css";
+import "./homepage-story.css";
 
 const EASE = [0.22, 1, 0.36, 1];
 const FOCUSABLE_SELECTOR =
@@ -59,8 +62,8 @@ function Reveal({ children, className = "", delay = 0, as = "div", id }) {
     <Component
       id={id}
       className={className}
-      initial={reduceMotion ? false : { opacity: 0, y: 28, filter: "blur(5px)" }}
-      whileInView={reduceMotion ? undefined : { opacity: 1, y: 0, filter: "blur(0px)" }}
+      initial={reduceMotion ? false : { y: 20 }}
+      whileInView={reduceMotion ? undefined : { y: 0 }}
       viewport={{ once: true, margin: "-80px" }}
       transition={{ duration: 0.8, delay, ease: EASE }}
     >
@@ -71,13 +74,14 @@ function Reveal({ children, className = "", delay = 0, as = "div", id }) {
 
 function MagneticAction({ href, children, className = "", onClick, type, target, rel, disabled }) {
   const ref = useRef(null);
+  const reduceMotion = useReducedMotion();
   const x = useMotionValue(0);
   const y = useMotionValue(0);
   const springX = useSpring(x, { stiffness: 190, damping: 18, mass: 0.35 });
   const springY = useSpring(y, { stiffness: 190, damping: 18, mass: 0.35 });
 
   const move = (event) => {
-    if (window.matchMedia("(pointer: coarse)").matches || !ref.current) return;
+    if (reduceMotion || window.matchMedia("(pointer: coarse)").matches || !ref.current) return;
     const rect = ref.current.getBoundingClientRect();
     x.set((event.clientX - rect.left - rect.width / 2) * 0.12);
     y.set((event.clientY - rect.top - rect.height / 2) * 0.16);
@@ -109,19 +113,6 @@ function MagneticAction({ href, children, className = "", onClick, type, target,
   );
 }
 
-function SectionHeading({ index, eyebrow, title, text, dark = false }) {
-  return (
-    <Reveal className={`section-heading${dark ? " section-heading--dark" : ""}`}>
-      <p className="section-heading__index">{index}</p>
-      <div>
-        <p className="eyebrow">{eyebrow}</p>
-        <h2>{title}</h2>
-      </div>
-      {text ? <p className="section-heading__text">{text}</p> : <span />}
-    </Reveal>
-  );
-}
-
 function MessengerLink({ href, icon, label, light = false }) {
   return (
     <a className={`messenger-link${light ? " messenger-link--light" : ""}`} href={href} target="_blank" rel="noreferrer">
@@ -134,11 +125,10 @@ function MessengerLink({ href, icon, label, light = false }) {
 }
 
 export default function HomePage() {
+  const reduceMotion = useReducedMotion();
   const [hydrated, setHydrated] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [openPractice, setOpenPractice] = useState(0);
-  const [activePrice, setActivePrice] = useState(0);
   const [openFaq, setOpenFaq] = useState(0);
   const [formVisible, setFormVisible] = useState(false);
   const [heroActionVisible, setHeroActionVisible] = useState(true);
@@ -155,19 +145,29 @@ export default function HomePage() {
   const menuTriggerRef = useRef(null);
   const mobileNavRef = useRef(null);
   const menuRestoreFocusRef = useRef(true);
-  const priceTabRefs = useRef([]);
   const nameFieldRef = useRef(null);
+  const repeatContactFocusRef = useRef(false);
   const phoneFieldRef = useRef(null);
   const serviceFieldRef = useRef(null);
   const consentFieldRef = useRef(null);
   const successRef = useRef(null);
+  const setNameFieldElement = useCallback((element) => {
+    nameFieldRef.current = element;
+    if (element && repeatContactFocusRef.current) {
+      repeatContactFocusRef.current = false;
+      element.focus();
+    }
+  }, []);
+  const setSuccessElement = useCallback((element) => {
+    successRef.current = element;
+    successRef.current?.focus();
+  }, []);
   const quickFormHeadingRef = useRef(null);
   const requestRef = useRef(null);
   const heroActionRef = useRef(null);
   const quickSubmissionIdRef = useRef("");
   const { scrollYProgress } = useScroll();
   const progress = useSpring(scrollYProgress, { stiffness: 120, damping: 28, mass: 0.35 });
-  const selectedPractice = useMemo(() => PRACTICES[activePrice], [activePrice]);
 
   useEffect(() => setHydrated(true), []);
 
@@ -194,13 +194,6 @@ export default function HomePage() {
       window.clearTimeout(settleTimer);
     };
   }, []);
-
-  useEffect(() => {
-    if (submitState !== "success") return undefined;
-
-    const focusSuccess = window.requestAnimationFrame(() => successRef.current?.focus());
-    return () => window.cancelAnimationFrame(focusSuccess);
-  }, [submitState]);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 18);
@@ -295,15 +288,6 @@ export default function HomePage() {
   const closeMenuAfterNavigation = () => {
     menuRestoreFocusRef.current = false;
     setMenuOpen(false);
-  };
-
-  const handlePriceKeyDown = (event, index) => {
-    const nextIndex = getNextTabIndex(event.key, index, PRACTICES.length);
-    if (nextIndex === null) return;
-
-    event.preventDefault();
-    setActivePrice(nextIndex);
-    priceTabRefs.current[nextIndex]?.focus();
   };
 
   const chooseService = (service) => {
@@ -436,25 +420,25 @@ export default function HomePage() {
   };
 
   const resetForm = () => {
+    repeatContactFocusRef.current = true;
     setForm({ name: "", phone: "", service: "", message: "", website: "", agree: false });
     setErrors({});
     setSubmitError("");
     setMailHref("");
     setSubmitState("idle");
     quickSubmissionIdRef.current = "";
-    window.requestAnimationFrame(() => nameFieldRef.current?.focus());
   };
 
   return (
     <>
-      <div className="site-shell">
+      <div className="site-shell home-shell">
         <a className="skip-link" href="#main">Перейти к содержанию</a>
         <motion.div className="scroll-progress" style={{ scaleX: progress }} />
 
         <header className={`site-header${scrolled ? " site-header--scrolled" : ""}`}>
         <div className="site-header__inner">
           <a href="#top" aria-label="ДоговорОфф — на главную"><Brand /></a>
-          <p className="site-header__descriptor">Юридическая компания · Нижневартовск</p>
+          <p className="site-header__descriptor">Юридическая компания<br />Нижневартовск</p>
           <nav className="desktop-nav" aria-label="Основная навигация">
             <a href="#practices">Практики</a>
             <a href="#approach">Подход</a>
@@ -473,6 +457,7 @@ export default function HomePage() {
             <span className="site-header__ai-full">AI-разбор</span>
             <span className="site-header__ai-short" aria-hidden="true">AI</span>
           </a>
+          <a className="site-header__contact" href="#lead-form">Обсудить дело <span aria-hidden="true">↗</span></a>
           <button
             ref={menuTriggerRef}
             className="menu-trigger"
@@ -488,19 +473,14 @@ export default function HomePage() {
         </div>
         </header>
 
-        <AnimatePresence>
         {menuOpen && (
-          <motion.div
+          <div
             ref={mobileNavRef}
             id="mobile-navigation"
             className="mobile-nav"
             role="dialog"
             aria-modal="true"
             aria-label="Меню сайта"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.35, ease: EASE }}
           >
             <nav className="mobile-nav__links" aria-label="Мобильная навигация">
               <a className="mobile-nav__ai" href="#lead-form" onClick={startAiPrecheck}>AI-разбор</a>
@@ -515,9 +495,8 @@ export default function HomePage() {
               <a href={`mailto:${CONFIG.email}`}>{CONFIG.email}</a>
               <span>{CONFIG.geo}</span>
             </div>
-          </motion.div>
+          </div>
         )}
-        </AnimatePresence>
 
         <div className="site-content" ref={siteContentRef} aria-hidden={menuOpen ? true : undefined}>
           <main id="main" tabIndex={-1}>
@@ -531,195 +510,29 @@ export default function HomePage() {
             </aside>
 
             <div className="hero__copy">
-              <motion.h1 id="hero-title" initial={{ opacity: 0, y: 36 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08, duration: 1, ease: EASE }}>
-                Холодная<br />точность.<br /><span>Сильная позиция.</span>
+              <p className="hero__eyebrow">Юридическая компания / Нижневартовск</p>
+              <motion.h1 id="hero-title" initial={reduceMotion ? false : { y: 24 }} animate={reduceMotion ? undefined : { y: 0 }} transition={{ delay: 0.08, duration: 1, ease: EASE }}>
+                Право<br />на вашей<br /><span>стороне.</span>
               </motion.h1>
-              <motion.p className="hero__subline" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.8, ease: EASE }}>
-                Право для сложных решений.
+              <motion.p className="hero__subline" initial={reduceMotion ? false : { y: 12 }} animate={reduceMotion ? undefined : { y: 0 }} transition={{ delay: 0.3, duration: 0.8, ease: EASE }}>
+                Юридическая стратегия для сложных решений.
               </motion.p>
-              <motion.div ref={heroActionRef} className="hero__actions" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.42, duration: 0.8, ease: EASE }}>
-                <MagneticAction href="#lead-form" className="action--light">Получить консультацию</MagneticAction>
+              <motion.div ref={heroActionRef} className="hero__actions" initial={reduceMotion ? false : { y: 12 }} animate={reduceMotion ? undefined : { y: 0 }} transition={{ delay: 0.42, duration: 0.8, ease: EASE }}>
+                <MagneticAction href="#lead-form" className="action--light">Обсудить дело <span aria-hidden="true">↗</span></MagneticAction>
               </motion.div>
-              <motion.div className="hero__meta" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.62, duration: 0.9 }}>
-                <span>Нижневартовск</span><a href={`mailto:${CONFIG.email}`}>{CONFIG.email}</a><em>Конфиденциально. Точно. Лично.</em>
-              </motion.div>
+              <div className="hero__meta">
+                <span>{CONFIG.geo}</span><a href={`mailto:${CONFIG.email}`}>{CONFIG.email}</a><em>Стратегия / Защита / Результат</em>
+              </div>
             </div>
 
-            <motion.figure className="hero__art" role="img" aria-label="Абстрактный ледяной разлом — образ северной точности" initial={{ opacity: 0, clipPath: "inset(0 0 100% 0)" }} animate={{ opacity: 1, clipPath: "inset(0 0 0% 0)" }} transition={{ duration: 1.25, delay: 0.12, ease: EASE }}>
+            <motion.figure className="hero__art" role="img" aria-label="Абстрактная волна из северного чёрного хрома" initial={reduceMotion ? false : { scale: 1.02 }} animate={reduceMotion ? undefined : { scale: 1 }} transition={{ duration: 1.5, delay: 0.12, ease: EASE }}>
               <NorthernMotion />
             </motion.figure>
           </div>
 
-          <div className="approach-strip" id="approach">
-            <div className="approach-strip__intro"><p>Наш подход<br />к делу</p><span>Без лишнего шума</span></div>
-            {APPROACH.map(([title, text], index) => (
-              <Reveal className="approach-strip__item" key={title} delay={index * 0.06}><h2>{title}</h2><p>{text}</p></Reveal>
-            ))}
-          </div>
         </section>
 
-        <section className="section section--light practices" id="practices">
-          <div className="page-shell">
-            <SectionHeading index="01 / 08" eyebrow="Правовые практики" title="Точечная экспертиза вместо универсальных обещаний." text="Каждое направление ведётся как отдельная дисциплина — со своей логикой, рисками и стратегией." />
-            <div className="practice-list">
-              {PRACTICES.map((practice, index) => {
-                const open = openPractice === index;
-                return (
-                  <Reveal className={`practice-row${open ? " practice-row--open" : ""}`} key={practice.number} delay={Math.min(index * 0.04, 0.2)}>
-                    <button className="practice-row__button" type="button" aria-expanded={open} aria-controls={`practice-panel-${index}`} onClick={() => setOpenPractice(open ? -1 : index)}>
-                      <span className="practice-row__number">{practice.number}</span>
-                      <span className="practice-row__title">{practice.title}</span>
-                      <span className="practice-row__summary">{practice.description}</span>
-                      <span className="practice-row__price">{practice.price}</span>
-                      <span className="practice-row__state">{open ? "Свернуть" : "Подробнее"}</span>
-                    </button>
-                    <AnimatePresence initial={false}>
-                      {open && (
-                        <motion.div id={`practice-panel-${index}`} className="practice-row__panel" initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.48, ease: EASE }}>
-                          <div className="practice-row__panel-inner">
-                            <p>В составе работы</p>
-                            <ul>{practice.details.map((item) => <li key={item}>{item}</li>)}</ul>
-                            <MagneticAction onClick={() => chooseService(practice.service)} className="action--dark" type="button">Обсудить задачу</MagneticAction>
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </Reveal>
-                );
-              })}
-            </div>
-          </div>
-        </section>
-
-        <section className="section section--dark clients" aria-labelledby="clients-title">
-          <div className="page-shell">
-            <SectionHeading index="02 / 08" eyebrow="Кому мы полезны" title="Работаем там, где цена ошибки особенно высока." text="Подключаемся к разовой задаче или становимся внешней юридической функцией — без шаблонного подхода." dark />
-            <div className="client-grid">
-              {CLIENTS.map(([number, title, text], index) => (
-                <Reveal className="client-item" key={number} delay={index * 0.07}><span>{number}</span><h3>{title}</h3><p>{text}</p></Reveal>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section className="section section--light evidence" aria-labelledby="evidence-title">
-          <div className="page-shell">
-            <Reveal className="evidence__statement">
-              <p className="eyebrow">Северная дисциплина</p>
-              <h2 id="evidence-title">Не усложняем общение. Углубляемся в право.</h2>
-              <p>Вы получаете понятную позицию, заранее согласованный план и одного ответственного юриста. Без передачи дела по цепочке и неожиданных доплат.</p>
-            </Reveal>
-            <div className="stat-grid">
-              {STATS.map(([value, label], index) => (
-                <Reveal className="stat-item" key={label} delay={index * 0.06}><strong>{value}</strong><span>{label}</span></Reveal>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section className="section section--dark estimator" id="estimate">
-          <div className="page-shell">
-            <SectionHeading index="03 / 08" eyebrow="Ориентир стоимости" title="Понимание бюджета до начала работы." text="Выберите направление. Точная стоимость зависит от материалов и цели, но согласуется до заключения договора." dark />
-            <div className="estimator__grid">
-              <div className="estimator__choices" role="tablist" aria-label="Выбор направления">
-                {PRACTICES.map((practice, index) => (
-                  <button
-                    ref={(element) => {
-                      priceTabRefs.current[index] = element;
-                    }}
-                    id={`estimate-tab-${index}`}
-                    type="button"
-                    role="tab"
-                    aria-selected={activePrice === index}
-                    aria-controls="estimate-panel"
-                    tabIndex={activePrice === index ? 0 : -1}
-                    className={activePrice === index ? "is-active" : ""}
-                    onClick={() => setActivePrice(index)}
-                    onKeyDown={(event) => handlePriceKeyDown(event, index)}
-                    key={practice.number}
-                  >
-                    <span>{practice.number}</span><strong>{practice.short}</strong>
-                  </button>
-                ))}
-              </div>
-              <AnimatePresence mode="wait">
-                <motion.div
-                  id="estimate-panel"
-                  className="estimator__result"
-                  key={selectedPractice.number}
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -8 }}
-                  transition={{ duration: 0.35, ease: EASE }}
-                  role="tabpanel"
-                  aria-labelledby={`estimate-tab-${activePrice}`}
-                  tabIndex={0}
-                >
-                  <p className="eyebrow">{selectedPractice.short}</p>
-                  <h3>{selectedPractice.title}</h3>
-                  <p>{selectedPractice.description}</p>
-                  <div className="estimator__price"><span>Ориентир</span><strong>{selectedPractice.price}</strong></div>
-                  <MagneticAction onClick={() => startPrecheck(selectedPractice.service)} className="action--light" type="button">Получить точную оценку</MagneticAction>
-                </motion.div>
-              </AnimatePresence>
-            </div>
-          </div>
-        </section>
-
-        <section className="section section--light formats" id="formats">
-          <div className="page-shell">
-            <SectionHeading index="04 / 08" eyebrow="Форматы работы" title="Под задачу, а не под шаблонный пакет." text="Три отправные точки. Итоговый объём работы формируем только после первичного разбора ситуации." />
-            <div className="plan-grid">
-              {PLANS.map((plan, index) => (
-                <Reveal className="plan" key={plan.name} delay={index * 0.08}>
-                  <div className="plan__topline"><span>0{index + 1}</span><span>{plan.caption}</span></div>
-                  <h3>{plan.name}</h3><p className="plan__price">{plan.price}</p>
-                  <ul>{plan.items.map((item) => <li key={item}>{item}</li>)}</ul>
-                  <MagneticAction className="action--dark" type="button" onClick={() => chooseService(plan.service)}>Обсудить формат</MagneticAction>
-                </Reveal>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section className="section section--dark team" id="team">
-          <div className="page-shell">
-            <SectionHeading index="05 / 08" eyebrow="Команда" title="Руководители практик участвуют лично." text="Ключевые решения не уходят в безличный поток. Ответственность остаётся у человека, с которым вы договорились о результате." dark />
-            <div className="team-grid">
-              {TEAM.map((member, index) => (
-                <Reveal as="article" className="team-profile" key={member.number} delay={index * 0.1}>
-                  <div className="team-profile__topline">
-                    <span>{member.number}</span>
-                    <strong>{member.experience} опыта</strong>
-                  </div>
-                  <div className="team-profile__content">
-                    <p className="team-profile__role">{member.role}</p>
-                    <h3>{member.title}</h3>
-                    <dl className="team-profile__facts">
-                      <div><dt>Опыт</dt><dd>{member.experience}</dd></div>
-                      <div><dt>Город</dt><dd>{member.location}</dd></div>
-                      <div><dt>Образование</dt><dd>{member.education}</dd></div>
-                    </dl>
-                    <p className="team-profile__text">{member.text}</p>
-                    <p className="team-profile__focus"><span>Фокус</span>{member.focus}</p>
-                    <div className="team-profile__tags" aria-label={`Направления работы: ${member.title}`}>{member.tags.map((tag) => <span key={tag}>{tag}</span>)}</div>
-                  </div>
-                </Reveal>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section className="section section--light process" id="process">
-          <div className="page-shell">
-            <SectionHeading index="06 / 08" eyebrow="Процесс" title="Четыре понятных этапа." text="С самого начала вы знаете, что происходит сейчас, что будет дальше и за что отвечаем мы." />
-            <div className="step-grid">
-              {STEPS.map(([number, title, text, note], index) => (
-                <Reveal className="step" key={number} delay={index * 0.06}><span className="step__number">{number}</span><h3>{title}</h3><p>{text}</p><span className="step__note">{note}</span></Reveal>
-              ))}
-            </div>
-          </div>
-        </section>
+        <HomepageStory onChooseService={chooseService} onStartPrecheck={startPrecheck} />
 
         <section className="section section--light faq" id="faq">
           <div className="page-shell faq__grid">
@@ -743,8 +556,9 @@ export default function HomePage() {
         </section>
 
         <section className="request" id="request" ref={requestRef} aria-labelledby="request-title">
+          <h2 id="request-title" className="request__headline">Следующий ход — ваш.</h2>
           <div className="request__info">
-            <div><p className="section-heading__index">08 / 08</p><p className="eyebrow">Контакт</p><h2 id="request-title">Обсудим вашу задачу лично.</h2><p>Для начала достаточно имени и номера телефона. Детали и документы безопаснее обсудить после первого контакта.</p></div>
+            <div><p className="eyebrow">Контакт</p><h3>Обсудим дело.</h3><p>Для начала достаточно имени и номера телефона. Детали и документы безопаснее обсудить после первого контакта.</p></div>
             <div className="request__contacts"><a href={`mailto:${CONFIG.email}`}>{CONFIG.email}</a><span>{CONFIG.address}</span><span>{CONFIG.hours}</span></div>
             <div className="request__messengers"><MessengerLink href={CONFIG.telegram} icon="/media/telegram.png" label="Telegram" light /><MessengerLink href={CONFIG.max} icon="/media/max.png" label="MAX" light /></div>
           </div>
@@ -760,7 +574,7 @@ export default function HomePage() {
                 <motion.form key="form" className="lead-form" onSubmit={submitLead} noValidate initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -12 }}>
                   <div ref={quickFormHeadingRef} className="lead-form__heading" tabIndex={-1}><span>Первичная консультация</span><strong>Бесплатно</strong></div>
                   <div className="lead-form__honeypot" aria-hidden="true"><label htmlFor="lead-website">Ваш сайт</label><input id="lead-website" value={form.website} onChange={(event) => updateForm("website", event.target.value)} autoComplete="off" tabIndex={-1} maxLength={200} /></div>
-                  <div className="field"><label htmlFor="lead-name">Ваше имя</label><input ref={nameFieldRef} id="lead-name" value={form.name} onChange={(event) => updateForm("name", event.target.value)} aria-invalid={Boolean(errors.name)} aria-describedby={errors.name ? "lead-name-error" : undefined} aria-required="true" required autoComplete="name" placeholder="Как к вам обращаться" maxLength={80} />{errors.name && <span id="lead-name-error" className="field__error" role="alert">Укажите имя</span>}</div>
+                  <div className="field"><label htmlFor="lead-name">Ваше имя</label><input ref={setNameFieldElement} id="lead-name" value={form.name} onChange={(event) => updateForm("name", event.target.value)} aria-invalid={Boolean(errors.name)} aria-describedby={errors.name ? "lead-name-error" : undefined} aria-required="true" required autoComplete="name" placeholder="Как к вам обращаться" maxLength={80} />{errors.name && <span id="lead-name-error" className="field__error" role="alert">Укажите имя</span>}</div>
                   <div className="field"><label htmlFor="lead-phone">Телефон</label><input ref={phoneFieldRef} id="lead-phone" value={form.phone} onChange={(event) => updateForm("phone", event.target.value ? maskPhone(event.target.value) : "")} aria-invalid={Boolean(errors.phone)} aria-describedby={errors.phone ? "lead-phone-error" : undefined} aria-required="true" required autoComplete="tel" inputMode="tel" placeholder="+7 (___) ___-__-__" maxLength={32} />{errors.phone && <span id="lead-phone-error" className="field__error" role="alert">Введите номер полностью</span>}</div>
                   <div className="field"><label htmlFor="lead-service">Направление</label><select ref={serviceFieldRef} id="lead-service" value={form.service} onChange={(event) => updateForm("service", event.target.value)} aria-invalid={Boolean(errors.service)} aria-describedby={errors.service ? "lead-service-error" : undefined} aria-required="true" required><option value="">Выберите направление</option>{PRACTICES.map((practice) => <option key={practice.service}>{practice.service}</option>)}<option>Частный вопрос</option><option>Другое / не знаю</option></select>{errors.service && <span id="lead-service-error" className="field__error" role="alert">Выберите направление</span>}</div>
                   <div className="field"><label htmlFor="lead-message">Коротко о задаче</label><textarea id="lead-message" value={form.message} onChange={(event) => updateForm("message", event.target.value)} placeholder="Пары предложений достаточно" rows={4} maxLength={2000} /></div>
@@ -775,7 +589,7 @@ export default function HomePage() {
                   <p className="lead-form__note">После отправки заявка поступит компании напрямую. Порядок обработки описан в <a href="/privacy" target="_blank" rel="noreferrer">Политике</a>.</p>
                 </motion.form>
               ) : (
-                <motion.div ref={successRef} key="success" className="lead-success" role="status" aria-live="polite" tabIndex={-1} initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.55, ease: EASE }}>
+                <motion.div ref={setSuccessElement} key="success" className="lead-success" role="status" aria-live="polite" tabIndex={-1} initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.55, ease: EASE }}>
                   <p className="eyebrow">Обращение отправлено</p><h3>Спасибо. Мы на связи.</h3><p>Заявка поступила компании. Мы свяжемся с вами по указанному номеру в рабочее время.</p>
                   <button className="text-link lead-success__action" type="button" onClick={resetForm}>Отправить ещё одно обращение</button>
                 </motion.div>

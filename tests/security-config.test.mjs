@@ -41,11 +41,12 @@ test("contact integration keeps all provider secrets outside the client bundle",
   assert.doesNotMatch(envExampleSource, /NEXT_PUBLIC_(?:RESEND|CONTACT_EMAIL)/);
 });
 
-test("brand fonts are self-hosted through next/font without an external CDN", () => {
-  assert.match(layoutSource, /import \{ Cormorant_Garamond, Manrope \} from "next\/font\/google"/);
-  assert.match(layoutSource, /variable: "--font-manrope"/);
-  assert.match(layoutSource, /variable: "--font-cormorant"/);
-  assert.match(layoutSource, /subsets: \["cyrillic", "latin"\]/);
+test("brand fonts are self-hosted without a runtime font CDN", () => {
+  assert.match(layoutSource, /import "@fontsource-variable\/manrope\/wght\.css"/);
+  assert.match(layoutSource, /import "@fontsource\/cormorant-garamond\/cyrillic-400\.css"/);
+  assert.match(layoutSource, /import "@fontsource\/cormorant-garamond\/latin-400\.css"/);
+  assert.match(globalStylesSource, /--font-manrope: "Manrope Variable"/);
+  assert.match(globalStylesSource, /--font-cormorant: "Cormorant Garamond"/);
   assert.match(globalStylesSource, /font-family: var\(--font-manrope\), Arial, sans-serif/);
   assert.match(globalStylesSource, /font-family: var\(--font-cormorant\), Georgia, serif/);
   assert.doesNotMatch(globalStylesSource, /@import|cdn\.jsdelivr\.net|@fontsource/);

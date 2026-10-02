@@ -2,10 +2,12 @@ import assert from "node:assert/strict";
 import { access, readFile } from "node:fs/promises";
 import test from "node:test";
 
-const [contentSource, pageSource, stylesSource] = await Promise.all([
+const [contentSource, pageSource, stylesSource, storySource, storyStyles] = await Promise.all([
   readFile(new URL("../app/content.js", import.meta.url), "utf8"),
   readFile(new URL("../app/page.jsx", import.meta.url), "utf8"),
   readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  readFile(new URL("../app/homepage-story.jsx", import.meta.url), "utf8"),
+  readFile(new URL("../app/homepage-story.css", import.meta.url), "utf8"),
 ]);
 
 function extractCssBlock(source, marker) {
@@ -48,11 +50,11 @@ test("team profiles remain anonymous while preserving roles and verified experie
 });
 
 test("team profiles remain semantic and do not render portraits", () => {
-  assert.match(pageSource, /<Reveal as="article" className="team-profile"/);
-  assert.match(pageSource, /className="team-profile__topline"/);
-  assert.doesNotMatch(pageSource, /member\.image/);
-  assert.doesNotMatch(pageSource, /member\.imageAlt/);
-  assert.match(stylesSource, /\.team-profile__topline/);
+  assert.match(storySource, /<motion\.article[\s\S]{0,100}className="team-editorial__profile"/);
+  assert.match(storySource, /className="team-editorial__experience"/);
+  assert.doesNotMatch(storySource, /member\.image/);
+  assert.doesNotMatch(storySource, /member\.imageAlt/);
+  assert.match(storyStyles, /\.team-editorial__experience/);
   assert.doesNotMatch(stylesSource, /\.team-profile__media/);
 });
 
@@ -78,17 +80,9 @@ test("primary calls to action lead directly to the form without covering the her
   assert.match(stylesSource, /\.request__form-wrap \{[\s\S]*?scroll-margin-top: 84px/);
 });
 
-test("mobile team headings keep long practice names inside the card", () => {
-  const mobileStyles = extractCssBlock(stylesSource, "@media (max-width: 740px)");
-  const headingStyles = extractCssBlock(mobileStyles, ".team-profile h3");
-  const responsiveSize = headingStyles.match(
-    /font-size:\s*clamp\(([\d.]+)px,\s*([\d.]+)vw,\s*([\d.]+)px\)/,
-  );
-
-  assert.ok(responsiveSize, "Mobile team heading must use a responsive clamp");
-
-  const [, minimum, fluid, maximum] = responsiveSize.map(Number);
-  assert.ok(minimum <= 40, `Mobile minimum font size is too large: ${minimum}px`);
-  assert.ok(fluid <= 12, `Mobile fluid font size is too large: ${fluid}vw`);
-  assert.ok(maximum <= 52, `Mobile maximum font size is too large: ${maximum}px`);
+test("mobile editorial team headings stay readable without fixed card widths", () => {
+  const mobileStyles = extractCssBlock(storyStyles, "@media (max-width: 600px)");
+  const headingStyles = extractCssBlock(mobileStyles, ".team-editorial__profile h3");
+  assert.match(headingStyles, /font-size:\s*27px/);
+  assert.match(mobileStyles, /grid-template-columns:\s*1fr/);
 });

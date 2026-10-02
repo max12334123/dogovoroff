@@ -1,1 +1,17 @@
 .codex-audit/
+.env*
+.vercel/
+.worktrees/
+.asset-downloads/
+node_modules/
+.next/
+/design-assets/
+/motion/
+/tests/
+/docs/
+/scripts/
+/supabase/
+/cloudflare/
+/integrations/
+/DESIGN.md
+/design-qa*.md

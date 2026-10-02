@@ -1,4 +1,6 @@
 :root {
+  --font-manrope: "Manrope Variable";
+  --font-cormorant: "Cormorant Garamond";
   --black: #050505;
   --black-soft: #0b0c0d;
   --paper: #efefeb;

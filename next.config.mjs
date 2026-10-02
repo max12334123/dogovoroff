@@ -1,4 +1,5 @@
 import { getCaptchaConfig, getCaptchaCspOrigins } from "./features/auth/captcha-domain.mjs";
+import { fileURLToPath } from "node:url";
 
 /** @type {import('next').NextConfig} */
 const isDevelopment = process.env.NODE_ENV === "development";
@@ -49,6 +50,7 @@ const securityHeaders = [
 
 const nextConfig = {
   poweredByHeader: false,
+  outputFileTracingRoot: fileURLToPath(new URL(".", import.meta.url)),
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

@@ -5,44 +5,52 @@ import test from "node:test";
 const readOptional = (path) => readFile(new URL(path, import.meta.url), "utf8").catch(() => "");
 const statOptional = (path) => stat(new URL(path, import.meta.url)).catch(() => null);
 
-const [pageSource, motionSource, stylesSource] = await Promise.all([
+const [pageSource, motionSource, sculptureSource, stylesSource, storySource] = await Promise.all([
   readOptional("../app/page.jsx"),
   readOptional("../app/northern-motion.jsx"),
-  readOptional("../app/globals.css"),
+  readOptional("../app/northern-sculpture.jsx"),
+  readOptional("../app/homepage.css"),
+  readOptional("../app/homepage-story.jsx"),
 ]);
 
-test("hero uses an accessible northern video with resilient fallbacks", () => {
+test("hero uses optimized northern artwork with motion-safe parallax", () => {
   assert.match(pageSource, /import NorthernMotion from "\.\/northern-motion"/);
   assert.match(pageSource, /<NorthernMotion\s*\/>/);
   assert.doesNotMatch(pageSource, /IceMotion|hero__messenger/);
 
-  assert.match(motionSource, /<video/);
-  assert.match(motionSource, /autoPlay/);
-  assert.match(motionSource, /muted/);
-  assert.match(motionSource, /loop/);
-  assert.match(motionSource, /playsInline/);
-  assert.match(motionSource, /preload="metadata"/);
+  assert.match(motionSource, /<Image/);
+  assert.match(motionSource, /northern-chrome-hero\.webp/);
+  assert.match(motionSource, /priority/);
+  assert.match(motionSource, /sizes="100vw"/);
   assert.match(motionSource, /useReducedMotion/);
-  assert.match(motionSource, /navigator\.connection\?\.saveData/);
-  assert.match(motionSource, /setVideoAllowed/);
-  assert.match(motionSource, /northern-ice-poster\.webp/);
-  assert.match(motionSource, /northern-ice-loop\.webm/);
-  assert.match(motionSource, /northern-ice-loop\.mp4/);
+  assert.match(motionSource, /useScroll/);
+  assert.match(motionSource, /useTransform/);
+  assert.match(motionSource, /reduceMotion \? undefined/);
 
-  assert.match(stylesSource, /\.hero__north-video/);
   assert.match(stylesSource, /\.hero__north-poster/);
+  assert.match(stylesSource, /\.hero__art::after/);
 });
 
-test("northern media files exist and stay within the hero performance budget", async () => {
-  const [poster, webm, mp4] = await Promise.all([
-    statOptional("../public/media/northern-ice-poster.webp"),
-    statOptional("../public/media/northern-ice-loop.webm"),
-    statOptional("../public/media/northern-ice-loop.mp4"),
+test("northern media stays within the homepage performance budget", async () => {
+  const [hero, horizon, sculpture] = await Promise.all([
+    statOptional("../public/media/northern-chrome-hero.webp"),
+    statOptional("../public/media/northern-horizon.webp"),
+    statOptional("../public/media/legal-atlas.glb"),
   ]);
 
-  assert.ok(poster?.size > 20_000 && poster.size < 750_000, "poster must be optimized");
-  assert.ok(webm?.size > 150_000 && webm.size < 6_000_000, "WebM must be optimized");
-  assert.ok(mp4?.size > 150_000 && mp4.size < 7_000_000, "MP4 must be optimized");
+  assert.ok(hero?.size > 20_000 && hero.size < 250_000, "hero must be optimized");
+  assert.ok(horizon?.size > 20_000 && horizon.size < 250_000, "horizon must be optimized");
+  assert.ok(sculpture?.size > 20_000 && sculpture.size < 1_200_000, "3D model must be optimized");
+});
+
+test("3D sculpture is progressive enhancement with static, accessible fallbacks", () => {
+  assert.match(storySource, /<NorthernSculpture progress=\{chapters.progress\}/);
+  assert.match(sculptureSource, /IntersectionObserver/);
+  assert.match(sculptureSource, /import\("three"\)/);
+  assert.match(sculptureSource, /prefers-reduced-motion: reduce/);
+  assert.match(sculptureSource, /connection(?:\(\))?\?\.saveData/);
+  assert.match(sculptureSource, /renderer\?\.dispose\(\)/);
+  assert.match(sculptureSource, /legal-atlas-poster\.webp/);
 });
 
 test("Telegram is available only in the final contact section", () => {
